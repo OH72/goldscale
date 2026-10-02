@@ -36,7 +36,7 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 - Stored as **long integers in smallest currency unit** (kopiyky/cents)
 - 12.34 UAH = 1234, 100.00 USD = 10000
 - Always positive. Sign derived from TransactionType in business logic
-- BigDecimal in Java, mapped to Decimal128 in MongoDB
+- Java type: `long` for amounts and balances. No BigDecimal needed
 - Frontend receives integers, divides by 100 for display
 
 ### Transaction Types (enum)

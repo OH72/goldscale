@@ -26,7 +26,7 @@ Read `context.md` and `principles.md` before writing any code.
 - Repositories extend `MongoRepository<T, String>`.
 - For complex queries: use `MongoTemplate` with `Query` and `Criteria`.
 - For `$inc` operations: use `MongoTemplate.updateFirst()` with `Update.inc()`.
-- Configure BigDecimal <-> Decimal128 converter explicitly.
+- Amounts use `long` (subunits), not BigDecimal. No Decimal128 converter needed.
 - Connection string must include `?replicaSet=rs0` for transaction support.
 
 ### Spring Security
