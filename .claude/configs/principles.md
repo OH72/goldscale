@@ -87,3 +87,5 @@ Before considering any code complete, verify:
 - [ ] Amounts stored as long integers, not floating point
 - [ ] Error responses follow consistent format
 - [ ] No unused imports, dead code, or TODO comments left behind
+- [ ] Every service method has unit tests AND integration tests for balance-modifying operations
+- [ ] All tests pass before commit

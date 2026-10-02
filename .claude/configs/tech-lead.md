@@ -30,10 +30,22 @@ The most critical responsibility. Verify that:
 - Soft-delete filter is applied in every transaction query — no exceptions
 - Balance updates use `$inc`, never read-modify-write
 
-### 4. Verification Checklist (per Sprint)
+### 4. Test Review
+Tests are MANDATORY. Review every test file alongside the code it tests:
+- [ ] Every service method has at least one unit test (Mockito)
+- [ ] Every service method that modifies balance has an integration test (Testcontainers)
+- [ ] Happy path covered
+- [ ] Error/edge cases covered (validation, business rules, boundary values)
+- [ ] Balance correctness verified (create, edit, delete — check exact expected value)
+- [ ] Test names follow convention: `should_<behavior>_when_<condition>()`
+- [ ] No tests that test framework behavior (e.g., testing that Spring injects beans)
+- [ ] Tests actually assert meaningful outcomes, not just "no exception thrown"
+
+### 5. Verification Checklist (per Sprint)
 After each sprint, verify:
 - [ ] Backend compiles and starts without errors
 - [ ] Frontend compiles and starts without errors
+- [ ] All tests pass (`mvn test`)
 - [ ] API endpoints return correct status codes and response shapes
 - [ ] Backend DTOs and frontend types are in sync
 - [ ] All CRUD operations work end-to-end
@@ -41,7 +53,7 @@ After each sprint, verify:
 - [ ] No console errors in browser
 - [ ] Docker Compose brings up the full stack
 
-### 5. Config Evolution
+### 6. Config Evolution
 You are responsible for keeping project configs up to date. After each sprint:
 - If new dependencies were added → update `context.md` stack section
 - If new architectural decisions were made → update `context.md`
@@ -50,7 +62,7 @@ You are responsible for keeping project configs up to date. After each sprint:
 - If new frontend-specific patterns → update `frontend.md`
 - If a principle proved wrong or too strict → relax it with a note why
 
-### 6. Introducing New Principles
+### 7. Introducing New Principles
 You CAN and SHOULD add new principles to `principles.md` when you observe:
 - A bug pattern that occurred and should be prevented in the future
 - An inconsistency between backend and frontend that should be codified as a rule

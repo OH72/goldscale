@@ -242,6 +242,68 @@ com.goldscale
     └── BusinessRuleException.java
 ```
 
+## Testing — MANDATORY
+
+Every service method MUST have tests. No code is considered complete without tests.
+
+### Integration Tests (Testcontainers)
+- Use `@SpringBootTest` + Testcontainers with MongoDB.
+- Test real database operations: `$inc`, transactions, indexes, soft-delete filters.
+- These are the PRIMARY tests — they catch balance bugs that unit tests cannot.
+- One test class per service: `AccountServiceIT.java`, `CategoryServiceIT.java`, `TransactionServiceIT.java`.
+
+### Unit Tests (Mockito)
+- Use `@ExtendWith(MockitoExtension.class)` with `@Mock` and `@InjectMocks`.
+- Test business logic in isolation: validation rules, delta calculations, error cases.
+- One test class per service: `AccountServiceTest.java`, `CategoryServiceTest.java`, `TransactionServiceTest.java`, `BalanceServiceTest.java`.
+
+### What to Test
+For each service method, cover:
+- **Happy path** — normal operation produces correct result
+- **Balance correctness** — after create/edit/delete, balance equals expected value (integration only)
+- **Validation errors** — invalid input returns proper exception
+- **Business rule violations** — duplicate names, category-type mismatch, delete INITIAL_BALANCE, delete category with transactions
+- **Edge cases** — zero initial balance, same-currency transfer, edit amount to same value
+
+### Test Structure
+```
+src/test/java/com/goldscale/
+├── service/
+│   ├── AccountServiceTest.java         # unit (Mockito)
+│   ├── AccountServiceIT.java           # integration (Testcontainers)
+│   ├── CategoryServiceTest.java
+│   ├── CategoryServiceIT.java
+│   ├── TransactionServiceTest.java
+│   ├── TransactionServiceIT.java
+│   └── BalanceServiceTest.java         # unit only (pure logic)
+└── config/
+    └── TestcontainersConfig.java       # shared MongoDB container config
+```
+
+### Testcontainers Setup
+```java
+@TestConfiguration
+public class TestcontainersConfig {
+    @Bean
+    @ServiceConnection
+    public MongoDBContainer mongoDBContainer() {
+        return new MongoDBContainer("mongo:7")
+                .withCommand("--replSet", "rs0");
+    }
+}
+```
+Replica Set is required for `@Transactional` to work in tests.
+
+### Naming Convention
+- Test methods: `should_<expectedBehavior>_when_<condition>()`
+- Example: `should_increaseBalance_when_incomeCreated()`
+- Example: `should_throwBusinessRule_when_deletingInitialBalance()`
+
+### Running Tests
+- `mvn test` — runs all tests
+- Integration tests are slower (Testcontainers startup) — this is expected
+- Tests must pass before any commit
+
 ## Dependencies (pom.xml)
 ```xml
 spring-boot-starter-web
@@ -249,5 +311,11 @@ spring-boot-starter-data-mongodb
 spring-boot-starter-security
 spring-boot-starter-validation
 lombok
+
+# Test
+spring-boot-starter-test
+spring-security-test
+spring-boot-testcontainers
+org.testcontainers:mongodb
 ```
 Use Lombok only for `@Getter`, `@Setter`, `@RequiredArgsConstructor`, `@Builder` on entities. Records don't need Lombok.
