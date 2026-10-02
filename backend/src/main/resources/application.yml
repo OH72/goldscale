@@ -1,0 +1,9 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/goldscale?replicaSet=rs0
+
+app:
+  auth:
+    username: admin
+    password: admin
