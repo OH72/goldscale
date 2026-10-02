@@ -6,6 +6,15 @@ Read and follow all config files before writing any code:
 - `.claude/configs/principles.md` — engineering principles and rules
 - `.claude/configs/backend.md` — backend-specific conventions and pitfalls
 - `.claude/configs/frontend.md` — frontend-specific conventions and pitfalls
+- `.claude/configs/tech-lead.md` — review process, contract verification, config evolution
+
+## Config Evolution
+
+Configs MUST stay in sync with the codebase. After each sprint or significant change:
+- New dependencies or decisions → update `context.md`
+- New rules from bugs found → add to `principles.md`
+- New patterns for backend/frontend → update respective config
+- Tech Lead reviews and updates configs as part of the review process
 
 ## Git
 
