@@ -189,6 +189,10 @@ public class GlobalExceptionHandler {
 
 11. **DuplicateKeyException = 500 if not caught.** Application-level duplicate checks (`existsByName`) have a TOCTOU race window. The MongoDB unique index is the real guard. Always handle `DuplicateKeyException` in `GlobalExceptionHandler` and return 409.
 
+12. **Criteria duplicate field key.** Multiple `.and("date")` calls on the same Criteria silently discard the first constraint. Always combine range conditions into one chain: `Criteria.where("date").gte(start).lte(end)`.
+
+13. **Reusing Query for count + find.** Build separate Query instances for count and data fetch, or create data query fresh after count. Mutations (pageable, sort) on a shared Query corrupt the count.
+
 ## Package Structure
 ```
 com.goldscale

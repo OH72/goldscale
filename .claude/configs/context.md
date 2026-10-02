@@ -46,7 +46,7 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 - `TRANSFER` — between own accounts, no category. Single document with:
   - `accountId` (source), `targetAccountId` (target)
   - `amount` (source currency), `targetAmount` (target currency)
-  - `exchangeRate` (derived: targetAmount/amount, for display)
+  - `exchangeRate` (derived: targetAmount/amount, for display only, stored as Double — not used in calculations)
 
 ### Balance
 - Denormalized field on Account, updated atomically with `$inc`
