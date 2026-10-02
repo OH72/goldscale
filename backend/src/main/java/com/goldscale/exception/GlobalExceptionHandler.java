@@ -1,6 +1,7 @@
 package com.goldscale.exception;
 
 import com.goldscale.dto.response.ErrorResponse;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -30,6 +31,12 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         return ResponseEntity.status(400)
                 .body(ErrorResponse.of(400, message));
+    }
+
+    @ExceptionHandler(DuplicateKeyException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateKey(DuplicateKeyException ex) {
+        return ResponseEntity.status(409)
+                .body(ErrorResponse.of(409, "Duplicate entry: resource already exists"));
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

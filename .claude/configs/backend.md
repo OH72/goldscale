@@ -187,6 +187,8 @@ public class GlobalExceptionHandler {
 
 10. **Account deletion cascade.** When deleting an account, soft-delete ALL transactions where `accountId = X` OR `targetAccountId = X`. Don't forget the transfer target side.
 
+11. **DuplicateKeyException = 500 if not caught.** Application-level duplicate checks (`existsByName`) have a TOCTOU race window. The MongoDB unique index is the real guard. Always handle `DuplicateKeyException` in `GlobalExceptionHandler` and return 409.
+
 ## Package Structure
 ```
 com.goldscale
