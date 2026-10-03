@@ -35,6 +35,10 @@ Read `context.md` and `principles.md` before writing any code.
 - BCrypt password encoder.
 - Disable CSRF (API only, no browser forms submitting directly).
 - All `/api/**` endpoints require authentication.
+- Session policy: `STATELESS`. Never use `IF_REQUIRED` — it causes issues with error forwarding and is wrong for a REST API with Basic Auth.
+
+### Error Handling
+- `GlobalExceptionHandler` must handle `HttpMessageNotReadableException` (malformed JSON / bad enum values) — otherwise Spring Boot's default error response omits the `message` field and the frontend shows a generic "Request failed".
 
 ## Code Patterns
 

@@ -189,6 +189,12 @@ export function formatCurrency(amountInSubunits: number, currency: string): stri
 
 10. **Uncontrolled re-renders.** Don't create new objects/arrays in render that are passed as props. Extract to useMemo or define outside the component.
 
+11. **Shadcn Select shows raw value, not label.** The `SelectValue` component renders the `value` prop (often an ID) instead of the display label. Use the `children` render prop to map IDs to names: `<SelectValue>{(v: string) => accounts?.find(a => a.id === v)?.name ?? v}</SelectValue>`. This applies to ALL Select components where values are entity IDs.
+
+12. **Same-currency transfer `targetAmount`.** When source and target currencies match, `targetAmount` must equal `amount`. The target amount field is hidden for same-currency transfers, so compute it in `handleSubmit`: `const targetAmt = values.targetAmount ?? values.amount`.
+
+13. **Frontend currency enum must match backend.** The `Currency` type and any Zod enum must exactly match the backend `Currency.java` enum values. Adding a value that doesn't exist on the backend causes 400 errors.
+
 ## Project Structure
 ```
 src/
