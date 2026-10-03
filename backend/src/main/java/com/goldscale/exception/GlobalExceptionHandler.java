@@ -3,6 +3,7 @@ package com.goldscale.exception;
 import com.goldscale.dto.response.ErrorResponse;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -43,5 +44,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.status(400)
                 .body(ErrorResponse.of(400, ex.getMessage()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleNotReadable(HttpMessageNotReadableException ex) {
+        String message = ex.getMostSpecificCause().getMessage();
+        return ResponseEntity.status(400)
+                .body(ErrorResponse.of(400, "Invalid request body: " + message));
     }
 }
