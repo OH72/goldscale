@@ -91,7 +91,10 @@ public class TransactionService {
             case CreateExpense cmd -> createIncomeOrExpense(
                     cmd.accountId(), cmd.amount(), cmd.categoryId(),
                     cmd.date(), cmd.description(), TransactionType.EXPENSE);
-            case CreateTransfer cmd -> createTransfer(cmd);
+            case CreateTransfer cmd -> createTransfer(
+                    cmd.sourceAccountId(), cmd.targetAccountId(),
+                    cmd.amount(), cmd.targetAmount(),
+                    cmd.date(), cmd.description());
         };
 
         return enrichWithNames(List.of(txn)).getFirst();
@@ -158,30 +161,34 @@ public class TransactionService {
         return txn;
     }
 
-    private Transaction createTransfer(CreateTransfer cmd) {
-        validateAccountExists(cmd.sourceAccountId());
-        validateAccountExists(cmd.targetAccountId());
+    Transaction createTransfer(
+            String sourceAccountId, String targetAccountId,
+            long amount, long targetAmount,
+            LocalDate date, String description) {
 
-        if (cmd.sourceAccountId().equals(cmd.targetAccountId())) {
+        validateAccountExists(sourceAccountId);
+        validateAccountExists(targetAccountId);
+
+        if (sourceAccountId.equals(targetAccountId)) {
             throw new BusinessRuleException("Source and target accounts must be different");
         }
 
-        double exchangeRate = (double) cmd.targetAmount() / cmd.amount();
+        double exchangeRate = (double) targetAmount / amount;
 
         var txn = new Transaction();
         txn.setType(TransactionType.TRANSFER);
-        txn.setAccountId(cmd.sourceAccountId());
-        txn.setTargetAccountId(cmd.targetAccountId());
-        txn.setAmount(cmd.amount());
-        txn.setTargetAmount(cmd.targetAmount());
+        txn.setAccountId(sourceAccountId);
+        txn.setTargetAccountId(targetAccountId);
+        txn.setAmount(amount);
+        txn.setTargetAmount(targetAmount);
         txn.setExchangeRate(exchangeRate);
-        txn.setDate(cmd.date());
-        txn.setDescription(cmd.description());
+        txn.setDate(date);
+        txn.setDescription(description);
         txn.setDeleted(false);
         txn = transactionRepository.save(txn);
 
-        balanceService.adjustBalance(cmd.sourceAccountId(), -cmd.amount());
-        balanceService.adjustBalance(cmd.targetAccountId(), cmd.targetAmount());
+        balanceService.adjustBalance(sourceAccountId, -amount);
+        balanceService.adjustBalance(targetAccountId, targetAmount);
 
         return txn;
     }

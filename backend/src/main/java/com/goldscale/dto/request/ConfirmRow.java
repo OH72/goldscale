@@ -12,5 +12,7 @@ public record ConfirmRow(
         @NotNull LocalDate date,
         String description,
         String categoryId,
-        String sourceRef
+        String sourceRef,
+        String targetAccountId,
+        @Min(1) Long targetAmount
 ) {}

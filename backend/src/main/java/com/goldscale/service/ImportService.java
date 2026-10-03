@@ -51,9 +51,18 @@ public class ImportService {
                 continue;
             }
 
-            transactionService.createIncomeOrExpense(
-                    request.accountId(), row.amount(), row.categoryId(),
-                    row.date(), row.description(), row.type());
+            if (row.type() == TransactionType.TRANSFER) {
+                validateTransferRow(row, request.accountId());
+                long targetAmount = row.targetAmount() != null ? row.targetAmount() : row.amount();
+                transactionService.createTransfer(
+                        request.accountId(), row.targetAccountId(),
+                        row.amount(), targetAmount,
+                        row.date(), row.description());
+            } else {
+                transactionService.createIncomeOrExpense(
+                        request.accountId(), row.amount(), row.categoryId(),
+                        row.date(), row.description(), row.type());
+            }
             imported++;
         }
 
@@ -82,19 +91,32 @@ public class ImportService {
     }
 
     private void validateRowType(ConfirmRow row) {
-        if (row.type() != TransactionType.INCOME && row.type() != TransactionType.EXPENSE) {
-            throw new BusinessRuleException("Import only supports INCOME and EXPENSE transactions");
+        if (row.type() == TransactionType.INITIAL_BALANCE) {
+            throw new BusinessRuleException("Cannot import INITIAL_BALANCE transactions");
+        }
+    }
+
+    private void validateTransferRow(ConfirmRow row, String sourceAccountId) {
+        if (row.targetAccountId() == null || row.targetAccountId().isBlank()) {
+            throw new BusinessRuleException("TRANSFER requires targetAccountId");
+        }
+        if (row.targetAmount() != null && row.targetAmount() < 1) {
+            throw new BusinessRuleException("targetAmount must be >= 1");
         }
     }
 
     private boolean isDuplicate(String accountId, ConfirmRow row) {
-        var query = Query.query(
-                Criteria.where("accountId").is(accountId)
-                        .and("date").is(row.date())
-                        .and("amount").is(row.amount())
-                        .and("description").is(row.description())
-                        .and("deleted").ne(true)
-        );
-        return mongoTemplate.exists(query, Transaction.class);
+        var criteria = Criteria.where("accountId").is(accountId)
+                .and("date").is(row.date())
+                .and("amount").is(row.amount())
+                .and("description").is(row.description())
+                .and("deleted").ne(true)
+                .and("type").is(row.type());
+
+        if (row.type() == TransactionType.TRANSFER && row.targetAccountId() != null) {
+            criteria = criteria.and("targetAccountId").is(row.targetAccountId());
+        }
+
+        return mongoTemplate.exists(Query.query(criteria), Transaction.class);
     }
 }
