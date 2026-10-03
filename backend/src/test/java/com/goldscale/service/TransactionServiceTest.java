@@ -2,6 +2,7 @@ package com.goldscale.service;
 
 import com.goldscale.dto.request.TransactionCommand.CreateExpense;
 import com.goldscale.dto.request.TransactionCommand.CreateIncome;
+import com.goldscale.dto.request.TransactionCommand.CreateTransfer;
 import com.goldscale.dto.request.UpdateTransactionRequest;
 import com.goldscale.exception.BusinessRuleException;
 import com.goldscale.exception.ResourceNotFoundException;
@@ -200,5 +201,105 @@ class TransactionServiceTest {
 
         // delta = 8000 - 5000 = 3000
         verify(balanceService).adjustBalance("acc-1", 3000L);
+    }
+
+    @Test
+    void should_adjustBothBalances_when_transferCreated() {
+        var savedTxn = new Transaction();
+        savedTxn.setId("txn-t1");
+        savedTxn.setType(TransactionType.TRANSFER);
+        savedTxn.setAccountId("acc-1");
+        savedTxn.setTargetAccountId("acc-2");
+        savedTxn.setAmount(50000L);
+        savedTxn.setTargetAmount(1350L);
+
+        var acc1 = new Account();
+        acc1.setId("acc-1");
+        acc1.setName("UAH");
+        var acc2 = new Account();
+        acc2.setId("acc-2");
+        acc2.setName("USD");
+
+        when(accountRepository.existsById("acc-1")).thenReturn(true);
+        when(accountRepository.existsById("acc-2")).thenReturn(true);
+        when(transactionRepository.save(any())).thenReturn(savedTxn);
+        when(accountRepository.findAllById(any())).thenReturn(java.util.List.of(acc1, acc2));
+
+        transactionService.create(new CreateTransfer(
+                "acc-1", "acc-2", 50000L, 1350L, LocalDate.now(), "transfer"));
+
+        verify(balanceService).adjustBalance("acc-1", -50000L);
+        verify(balanceService).adjustBalance("acc-2", 1350L);
+    }
+
+    @Test
+    void should_throwBusinessRule_when_transferToSameAccount() {
+        when(accountRepository.existsById("acc-1")).thenReturn(true);
+
+        assertThatThrownBy(() -> transactionService.create(
+                new CreateTransfer("acc-1", "acc-1", 1000L, 1000L, LocalDate.now(), null)))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("different");
+    }
+
+    @Test
+    void should_throwNotFound_when_transferTargetAccountMissing() {
+        when(accountRepository.existsById("acc-1")).thenReturn(true);
+        when(accountRepository.existsById("missing")).thenReturn(false);
+
+        assertThatThrownBy(() -> transactionService.create(
+                new CreateTransfer("acc-1", "missing", 1000L, 1000L, LocalDate.now(), null)))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    void should_reverseBothBalances_when_transferDeleted() {
+        var txn = new Transaction();
+        txn.setId("txn-t1");
+        txn.setType(TransactionType.TRANSFER);
+        txn.setAccountId("acc-1");
+        txn.setTargetAccountId("acc-2");
+        txn.setAmount(50000L);
+        txn.setTargetAmount(1350L);
+        txn.setDeleted(false);
+
+        when(transactionRepository.findByIdAndDeletedFalse("txn-t1")).thenReturn(Optional.of(txn));
+
+        transactionService.delete("txn-t1");
+
+        verify(balanceService).adjustBalance("acc-1", 50000L);
+        verify(balanceService).adjustBalance("acc-2", -1350L);
+        verify(transactionRepository).save(argThat(Transaction::isDeleted));
+    }
+
+    @Test
+    void should_adjustBothByDelta_when_transferEdited() {
+        var txn = new Transaction();
+        txn.setId("txn-t1");
+        txn.setType(TransactionType.TRANSFER);
+        txn.setAccountId("acc-1");
+        txn.setTargetAccountId("acc-2");
+        txn.setAmount(50000L);
+        txn.setTargetAmount(1350L);
+        txn.setDeleted(false);
+
+        var acc1 = new Account();
+        acc1.setId("acc-1");
+        acc1.setName("UAH");
+        var acc2 = new Account();
+        acc2.setId("acc-2");
+        acc2.setName("USD");
+
+        when(transactionRepository.findByIdAndDeletedFalse("txn-t1")).thenReturn(Optional.of(txn));
+        when(transactionRepository.save(any())).thenReturn(txn);
+        when(accountRepository.findAllById(any())).thenReturn(java.util.List.of(acc1, acc2));
+
+        transactionService.update("txn-t1", new UpdateTransactionRequest(
+                60000L, null, LocalDate.now(), "updated", 1600L));
+
+        // source: -(60000 - 50000) = -10000
+        verify(balanceService).adjustBalance("acc-1", -10000L);
+        // target: 1600 - 1350 = 250
+        verify(balanceService).adjustBalance("acc-2", 250L);
     }
 }
