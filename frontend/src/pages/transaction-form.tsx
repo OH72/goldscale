@@ -217,7 +217,12 @@ export function TransactionFormDialog({
               disabled={isEdit}
             >
               <SelectTrigger aria-invalid={!!form.formState.errors.accountId}>
-                <SelectValue placeholder="Select account" />
+                <SelectValue placeholder="Select account">
+                  {(v: string) => {
+                    const a = accounts?.find((acc) => acc.id === v)
+                    return a ? `${a.name} (${a.currency})` : 'Select account'
+                  }}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {accounts?.map((a) => (
@@ -238,7 +243,12 @@ export function TransactionFormDialog({
                 onValueChange={(v) => form.setValue('targetAccountId', v)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select target" />
+                  <SelectValue placeholder="Select target">
+                    {(v: string) => {
+                      const a = accounts?.find((acc) => acc.id === v)
+                      return a ? `${a.name} (${a.currency})` : 'Select target'
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {accounts
@@ -296,7 +306,12 @@ export function TransactionFormDialog({
                 onValueChange={(v) => form.setValue('categoryId', v)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
+                  <SelectValue placeholder="Select category">
+                    {(v: string) => {
+                      const c = filteredCategories?.find((cat) => cat.id === v)
+                      return c ? c.name : 'Select category'
+                    }}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {filteredCategories?.map((c) => (

@@ -94,6 +94,23 @@ export function DashboardPage() {
                   {txn.type === 'INCOME' && '+'}
                   {txn.type === 'EXPENSE' && '-'}
                   {formatCurrency(txn.amount, currency)}
+                  {txn.type === 'TRANSFER' && txn.targetAmount && (() => {
+                    const targetAccount = data.accounts.find(
+                      (a) => a.id === txn.targetAccountId,
+                    )
+                    const targetCurrency = targetAccount?.currency ?? currency
+                    return (
+                      <span className="text-muted-foreground">
+                        {' → '}
+                        {formatCurrency(txn.targetAmount, targetCurrency)}
+                        {txn.exchangeRate && txn.exchangeRate !== 1 && (
+                          <span className="ml-1 text-xs">
+                            ({txn.exchangeRate.toFixed(4)})
+                          </span>
+                        )}
+                      </span>
+                    )
+                  })()}
                 </TableCell>
                 <TableCell className="max-w-48 truncate text-muted-foreground">
                   {txn.description ?? ''}

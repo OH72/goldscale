@@ -84,16 +84,25 @@ export function TransactionsPage() {
     setSearchParams(next)
   }
 
-  function getAmountDisplay(txn: TransactionResponse): string {
+  function renderAmount(txn: TransactionResponse) {
     const account = accounts?.find((a) => a.id === txn.accountId)
     const currency = account?.currency ?? 'UAH'
 
-    if (txn.type === 'TRANSFER') {
+    if (txn.type === 'TRANSFER' && txn.targetAmount) {
       const targetAccount = accounts?.find((a) => a.id === txn.targetAccountId)
       const targetCurrency = targetAccount?.currency ?? currency
-      if (currency !== targetCurrency && txn.targetAmount) {
-        return `${formatCurrency(txn.amount, currency)} → ${formatCurrency(txn.targetAmount, targetCurrency)}`
-      }
+      return (
+        <>
+          {formatCurrency(txn.amount, currency)}
+          <span className="text-muted-foreground">
+            {' → '}
+            {formatCurrency(txn.targetAmount, targetCurrency)}
+            {txn.exchangeRate && txn.exchangeRate !== 1 && (
+              <span className="ml-1 text-xs">({txn.exchangeRate.toFixed(4)})</span>
+            )}
+          </span>
+        </>
+      )
     }
 
     const prefix = txn.type === 'INCOME' ? '+' : txn.type === 'EXPENSE' ? '-' : ''
@@ -226,7 +235,7 @@ export function TransactionsPage() {
                       txn.type === 'EXPENSE' && 'text-red-600',
                     )}
                   >
-                    {getAmountDisplay(txn)}
+                    {renderAmount(txn)}
                   </TableCell>
                   <TableCell className="max-w-48 truncate text-muted-foreground">
                     {txn.description ?? ''}
