@@ -130,15 +130,17 @@ public class TransactionService {
         }
     }
 
-    // --- Private helpers ---
+    // --- Internal helpers ---
 
-    private Transaction createIncomeOrExpense(
+    Transaction createIncomeOrExpense(
             String accountId, long amount, String categoryId,
             LocalDate date, String description, TransactionType type) {
 
         validateAccountExists(accountId);
-        validateCategoryType(categoryId, type == TransactionType.INCOME
-                ? CategoryType.INCOME : CategoryType.EXPENSE);
+        if (categoryId != null) {
+            validateCategoryType(categoryId, type == TransactionType.INCOME
+                    ? CategoryType.INCOME : CategoryType.EXPENSE);
+        }
 
         var txn = new Transaction();
         txn.setType(type);

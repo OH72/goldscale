@@ -7,6 +7,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.util.stream.Collectors;
 
@@ -51,5 +52,11 @@ public class GlobalExceptionHandler {
         String message = ex.getMostSpecificCause().getMessage();
         return ResponseEntity.status(400)
                 .body(ErrorResponse.of(400, "Invalid request body: " + message));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+        return ResponseEntity.status(400)
+                .body(ErrorResponse.of(400, "File too large. Maximum allowed size is 10 MB."));
     }
 }
