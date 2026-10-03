@@ -41,6 +41,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import { MoreHorizontal, Plus } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { formatCurrency, toSubunits } from '@/lib/currency'
 import type { AccountResponse } from '@/types/account'
 import type { Currency } from '@/types/common'
@@ -183,7 +184,11 @@ export function AccountsPage() {
           >
             <div className="space-y-2">
               <Label>Name</Label>
-              <Input {...createForm.register('name')} />
+              <Input
+                {...createForm.register('name')}
+                aria-invalid={!!createForm.formState.errors.name}
+                className={cn(createForm.formState.errors.name && 'border-destructive')}
+              />
               {createForm.formState.errors.name && (
                 <p className="text-sm text-destructive">
                   {createForm.formState.errors.name.message}
@@ -216,6 +221,8 @@ export function AccountsPage() {
                 type="number"
                 step="0.01"
                 {...createForm.register('initialBalance')}
+                aria-invalid={!!createForm.formState.errors.initialBalance}
+                className={cn(createForm.formState.errors.initialBalance && 'border-destructive')}
               />
               {createForm.formState.errors.initialBalance && (
                 <p className="text-sm text-destructive">
@@ -249,7 +256,11 @@ export function AccountsPage() {
           >
             <div className="space-y-2">
               <Label>Name</Label>
-              <Input {...editForm.register('name')} />
+              <Input
+                {...editForm.register('name')}
+                aria-invalid={!!editForm.formState.errors.name}
+                className={cn(editForm.formState.errors.name && 'border-destructive')}
+              />
               {editForm.formState.errors.name && (
                 <p className="text-sm text-destructive">
                   {editForm.formState.errors.name.message}

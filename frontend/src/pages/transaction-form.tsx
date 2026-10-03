@@ -216,7 +216,7 @@ export function TransactionFormDialog({
               onValueChange={(v) => form.setValue('accountId', v)}
               disabled={isEdit}
             >
-              <SelectTrigger>
+              <SelectTrigger aria-invalid={!!form.formState.errors.accountId}>
                 <SelectValue placeholder="Select account" />
               </SelectTrigger>
               <SelectContent>
@@ -258,7 +258,13 @@ export function TransactionFormDialog({
             <Label>
               Amount{selectedAccountCurrency ? ` (${selectedAccountCurrency})` : ''}
             </Label>
-            <Input type="number" step="0.01" {...form.register('amount')} />
+            <Input
+              type="number"
+              step="0.01"
+              {...form.register('amount')}
+              aria-invalid={!!form.formState.errors.amount}
+              className={cn(form.formState.errors.amount && 'border-destructive')}
+            />
             {form.formState.errors.amount && (
               <p className="text-sm text-destructive">
                 {form.formState.errors.amount.message}

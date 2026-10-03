@@ -38,6 +38,13 @@ import type { TransactionType } from '@/types/common'
 
 const ALL_VALUE = '__all__'
 
+const TYPE_LABELS: Record<string, string> = {
+  [ALL_VALUE]: 'All types',
+  INCOME: 'Income',
+  EXPENSE: 'Expense',
+  TRANSFER: 'Transfer',
+}
+
 export function TransactionsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: accounts } = useAccounts()
@@ -110,7 +117,13 @@ export function TransactionsPage() {
           }
         >
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="All accounts" />
+            <SelectValue>
+              {(v: string) =>
+                v === ALL_VALUE
+                  ? 'All accounts'
+                  : (accounts?.find((a) => a.id === v)?.name ?? v)
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_VALUE}>All accounts</SelectItem>
@@ -129,7 +142,9 @@ export function TransactionsPage() {
           }
         >
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="All types" />
+            <SelectValue>
+              {(v: string) => TYPE_LABELS[v] ?? v}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_VALUE}>All types</SelectItem>
@@ -146,7 +161,13 @@ export function TransactionsPage() {
           }
         >
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="All categories" />
+            <SelectValue>
+              {(v: string) =>
+                v === ALL_VALUE
+                  ? 'All categories'
+                  : (categories?.find((c) => c.id === v)?.name ?? v)
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_VALUE}>All categories</SelectItem>
