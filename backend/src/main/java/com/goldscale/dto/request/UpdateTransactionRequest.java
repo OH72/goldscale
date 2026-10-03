@@ -11,5 +11,5 @@ public record UpdateTransactionRequest(
         @NotNull LocalDate date,
         String description,
         // Transfer-only fields
-        Long targetAmount
+        @Min(1) Long targetAmount
 ) {}

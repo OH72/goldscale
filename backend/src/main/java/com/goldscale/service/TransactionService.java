@@ -157,7 +157,31 @@ public class TransactionService {
     }
 
     private Transaction createTransfer(CreateTransfer cmd) {
-        throw new BusinessRuleException("Transfer creation is not yet implemented");
+        validateAccountExists(cmd.sourceAccountId());
+        validateAccountExists(cmd.targetAccountId());
+
+        if (cmd.sourceAccountId().equals(cmd.targetAccountId())) {
+            throw new BusinessRuleException("Source and target accounts must be different");
+        }
+
+        double exchangeRate = (double) cmd.targetAmount() / cmd.amount();
+
+        var txn = new Transaction();
+        txn.setType(TransactionType.TRANSFER);
+        txn.setAccountId(cmd.sourceAccountId());
+        txn.setTargetAccountId(cmd.targetAccountId());
+        txn.setAmount(cmd.amount());
+        txn.setTargetAmount(cmd.targetAmount());
+        txn.setExchangeRate(exchangeRate);
+        txn.setDate(cmd.date());
+        txn.setDescription(cmd.description());
+        txn.setDeleted(false);
+        txn = transactionRepository.save(txn);
+
+        balanceService.adjustBalance(cmd.sourceAccountId(), -cmd.amount());
+        balanceService.adjustBalance(cmd.targetAccountId(), cmd.targetAmount());
+
+        return txn;
     }
 
     private TransactionResponse updateInitialBalance(Transaction txn, UpdateTransactionRequest request) {
@@ -204,7 +228,29 @@ public class TransactionService {
     }
 
     private TransactionResponse updateTransfer(Transaction txn, UpdateTransactionRequest request) {
-        throw new BusinessRuleException("Transfer update is not yet implemented");
+        long oldAmount = txn.getAmount();
+        long newAmount = request.amount();
+        long oldTargetAmount = txn.getTargetAmount();
+        long newTargetAmount = request.targetAmount() != null ? request.targetAmount() : oldTargetAmount;
+
+        long sourceDelta = -(newAmount - oldAmount);
+        long targetDelta = newTargetAmount - oldTargetAmount;
+
+        txn.setAmount(newAmount);
+        txn.setTargetAmount(newTargetAmount);
+        txn.setExchangeRate((double) newTargetAmount / newAmount);
+        txn.setDate(request.date());
+        txn.setDescription(request.description());
+        transactionRepository.save(txn);
+
+        if (sourceDelta != 0) {
+            balanceService.adjustBalance(txn.getAccountId(), sourceDelta);
+        }
+        if (targetDelta != 0) {
+            balanceService.adjustBalance(txn.getTargetAccountId(), targetDelta);
+        }
+
+        return enrichWithNames(List.of(txn)).getFirst();
     }
 
     private Transaction getActiveTransaction(String id) {
