@@ -65,6 +65,7 @@ export interface TransactionFilters {
   categoryId?: string
   startDate?: string
   endDate?: string
+  sort?: string
   page: number
   size: number
 }

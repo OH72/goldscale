@@ -9,6 +9,7 @@ import { DateDisplay } from '@/components/date-display'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { TransactionFormDialog } from './transaction-form'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -30,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Plus, ChevronLeft, ChevronRight } from 'lucide-react'
+import { MoreHorizontal, Plus, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/currency'
 import type { TransactionResponse, TransactionFilters } from '@/types/transaction'
@@ -61,6 +62,7 @@ export function TransactionsPage() {
     categoryId: searchParams.get('categoryId') ?? undefined,
     startDate: searchParams.get('startDate') ?? undefined,
     endDate: searchParams.get('endDate') ?? undefined,
+    sort: searchParams.get('sort') ?? undefined,
     page: Number(searchParams.get('page') ?? 0),
     size: 20,
   }
@@ -82,6 +84,24 @@ export function TransactionsPage() {
     const next = new URLSearchParams(searchParams)
     next.set('page', String(page))
     setSearchParams(next)
+  }
+
+  function getSortState(field: string): 'asc' | 'desc' | null {
+    if (!filters.sort) return null
+    const [f, dir] = filters.sort.split(',')
+    if (f === field) return (dir as 'asc' | 'desc') ?? 'asc'
+    return null
+  }
+
+  function cycleSort(field: string) {
+    const current = getSortState(field)
+    if (current === null) {
+      setFilter('sort', `${field},desc`)
+    } else if (current === 'desc') {
+      setFilter('sort', `${field},asc`)
+    } else {
+      setFilter('sort', undefined)
+    }
   }
 
   function renderAmount(txn: TransactionResponse) {
@@ -187,6 +207,37 @@ export function TransactionsPage() {
             ))}
           </SelectContent>
         </Select>
+
+        <Input
+          type="date"
+          className="w-38"
+          placeholder="From"
+          value={filters.startDate ?? ''}
+          onChange={(e) => setFilter('startDate', e.target.value || undefined)}
+        />
+        <Input
+          type="date"
+          className="w-38"
+          placeholder="To"
+          value={filters.endDate ?? ''}
+          onChange={(e) => setFilter('endDate', e.target.value || undefined)}
+        />
+        {(filters.startDate || filters.endDate) && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            onClick={() => {
+              const next = new URLSearchParams(searchParams)
+              next.delete('startDate')
+              next.delete('endDate')
+              next.delete('page')
+              setSearchParams(next)
+            }}
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {error ? (
@@ -198,11 +249,39 @@ export function TransactionsPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Date</TableHead>
+                <TableHead>
+                  <button
+                    className="inline-flex items-center gap-1 hover:text-foreground"
+                    onClick={() => cycleSort('date')}
+                  >
+                    Date
+                    {getSortState('date') === 'asc' ? (
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    ) : getSortState('date') === 'desc' ? (
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </button>
+                </TableHead>
                 <TableHead>Type</TableHead>
                 <TableHead>Account</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead className="w-44 text-right">Amount</TableHead>
+                <TableHead className="w-44 text-right">
+                  <button
+                    className="inline-flex items-center gap-1 hover:text-foreground ml-auto"
+                    onClick={() => cycleSort('amount')}
+                  >
+                    Amount
+                    {getSortState('amount') === 'asc' ? (
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    ) : getSortState('amount') === 'desc' ? (
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    ) : (
+                      <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+                    )}
+                  </button>
+                </TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="w-12" />
               </TableRow>

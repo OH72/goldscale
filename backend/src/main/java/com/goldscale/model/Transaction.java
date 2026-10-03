@@ -19,7 +19,8 @@ import java.time.LocalDate;
 @CompoundIndexes({
         @CompoundIndex(name = "account_date_idx", def = "{'accountId': 1, 'date': -1}"),
         @CompoundIndex(name = "target_account_date_idx", def = "{'targetAccountId': 1, 'date': -1}"),
-        @CompoundIndex(name = "account_type_idx", def = "{'accountId': 1, 'type': 1}")
+        @CompoundIndex(name = "account_type_idx", def = "{'accountId': 1, 'type': 1}"),
+        @CompoundIndex(name = "date_idx", def = "{'date': -1}")
 })
 public class Transaction {
 
