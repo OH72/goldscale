@@ -108,7 +108,8 @@ export function TransactionFormDialog({
         date: new Date(),
       })
     }
-  }, [editTransaction, open, accounts, form])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editTransaction, open, accounts])
 
   function handleSubmit(values: FormValues) {
     if (isEdit) {
@@ -132,13 +133,14 @@ export function TransactionFormDialog({
     }
 
     if (txnType === 'TRANSFER') {
+      const targetAmt = values.targetAmount ?? values.amount
       createMutation.mutate(
         {
           type: 'TRANSFER',
           sourceAccountId: values.accountId,
           targetAccountId: values.targetAccountId!,
           amount: toSubunits(values.amount),
-          targetAmount: toSubunits(values.targetAmount!),
+          targetAmount: toSubunits(targetAmt),
           date: toISODate(values.date),
           description: values.description ?? null,
         },

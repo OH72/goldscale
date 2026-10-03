@@ -45,11 +45,11 @@ import { formatCurrency, toSubunits } from '@/lib/currency'
 import type { AccountResponse } from '@/types/account'
 import type { Currency } from '@/types/common'
 
-const CURRENCIES: Currency[] = ['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'JPY']
+const CURRENCIES: Currency[] = ['UAH', 'USD', 'EUR', 'PLN', 'GBP']
 
 const createSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  currency: z.enum(['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'JPY']),
+  currency: z.enum(['UAH', 'USD', 'EUR', 'PLN', 'GBP']),
   initialBalance: z.coerce.number().min(0, 'Balance must be >= 0'),
 })
 

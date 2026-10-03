@@ -6,7 +6,6 @@ export interface AccountResponse {
   currency: Currency
   balance: number
   createdAt: string
-  updatedAt: string
 }
 
 export interface CreateAccountRequest {

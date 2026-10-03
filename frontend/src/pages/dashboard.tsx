@@ -14,9 +14,10 @@ import {
 import { formatCurrency } from '@/lib/currency'
 
 export function DashboardPage() {
-  const { data, isLoading } = useDashboard()
+  const { data, isLoading, error } = useDashboard()
 
   if (isLoading) return <div className="p-6">Loading...</div>
+  if (error) return <div className="p-6 text-destructive">Failed to load dashboard: {error.message}</div>
   if (!data) return null
 
   return (

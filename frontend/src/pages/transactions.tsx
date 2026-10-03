@@ -58,7 +58,7 @@ export function TransactionsPage() {
     size: 20,
   }
 
-  const { data, isLoading } = useTransactions(filters)
+  const { data, isLoading, error } = useTransactions(filters)
 
   function setFilter(key: string, value: string | undefined) {
     const next = new URLSearchParams(searchParams)
@@ -159,7 +159,9 @@ export function TransactionsPage() {
         </Select>
       </div>
 
-      {isLoading ? (
+      {error ? (
+        <div className="py-8 text-center text-destructive">Failed to load transactions: {error.message}</div>
+      ) : isLoading ? (
         <div className="py-8 text-center text-muted-foreground">Loading...</div>
       ) : (
         <>
