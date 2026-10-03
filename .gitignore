@@ -29,3 +29,6 @@ Thumbs.db
 
 # Docker
 mongodb_data/
+
+# Bank statements (personal data)
+external resources/
