@@ -291,7 +291,7 @@ public record TransactionResponse(
 
 public record DashboardResponse(
     List<AccountResponse> accounts,
-    long totalBalanceDefaultCurrency,
+    // totalBalanceDefaultCurrency — deferred until exchange rate API is available
     List<TransactionResponse> recentTransactions
 ) {}
 

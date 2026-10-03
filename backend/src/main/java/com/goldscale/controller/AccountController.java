@@ -3,7 +3,9 @@ package com.goldscale.controller;
 import com.goldscale.dto.request.CreateAccountRequest;
 import com.goldscale.dto.request.UpdateAccountRequest;
 import com.goldscale.dto.response.AccountResponse;
+import com.goldscale.dto.response.AuditResponse;
 import com.goldscale.service.AccountService;
+import com.goldscale.service.BalanceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,6 +20,7 @@ import java.util.List;
 public class AccountController {
 
     private final AccountService accountService;
+    private final BalanceService balanceService;
 
     @GetMapping
     public ResponseEntity<List<AccountResponse>> findAll() {
@@ -51,5 +54,10 @@ public class AccountController {
     public ResponseEntity<Void> delete(@PathVariable String id) {
         accountService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/audit")
+    public ResponseEntity<AuditResponse> audit(@PathVariable String id) {
+        return ResponseEntity.ok(balanceService.audit(id));
     }
 }
