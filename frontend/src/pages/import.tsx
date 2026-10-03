@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils'
 import { fromSubunits, toSubunits } from '@/lib/currency'
 import type { ImportRowState, ConfirmRow } from '@/types/import'
 import type { CategoryResponse } from '@/types/category'
+import type { AccountResponse } from '@/types/account'
 
 const NONE_VALUE = '__none__'
 
@@ -58,9 +59,10 @@ export function ImportPage() {
 
   function autoSelectCategory(
     categoryHint: string | null,
-    type: 'INCOME' | 'EXPENSE',
+    type: 'INCOME' | 'EXPENSE' | 'TRANSFER',
     allCategories: CategoryResponse[],
   ): { categoryId?: string; categoryAutoSelected: boolean } {
+    if (type === 'TRANSFER') return { categoryAutoSelected: false }
     if (!categoryHint) return { categoryAutoSelected: false }
     const match = allCategories.find(
       (c) =>
@@ -153,8 +155,10 @@ export function ImportPage() {
       amount: r.amount,
       date: r.date,
       description: r.description || null,
-      categoryId: r.categoryId ?? null,
+      categoryId: r.type === 'TRANSFER' ? null : (r.categoryId ?? null),
       sourceRef: r.sourceRef,
+      targetAccountId: r.type === 'TRANSFER' ? (r.targetAccountId ?? null) : null,
+      targetAmount: r.type === 'TRANSFER' ? (r.targetAmount ?? r.amount) : null,
     }))
 
     confirmMutation.mutate(
@@ -293,7 +297,7 @@ export function ImportPage() {
                     <TableHead>Type</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead>Category</TableHead>
+                    <TableHead>Category / Target</TableHead>
                     <TableHead className="w-12" />
                   </TableRow>
                 </TableHeader>
@@ -307,6 +311,8 @@ export function ImportPage() {
                       onUpdate={(patch) => updateRow(row.index, patch)}
                       onRemove={() => removeRow(row.index)}
                       categories={categories ?? []}
+                      sourceAccountId={accountId}
+                      accounts={accounts ?? []}
                     />
                   ))}
                 </TableBody>
@@ -344,6 +350,8 @@ interface ImportTableRowProps {
   onUpdate: (patch: Partial<ImportRowState>) => void
   onRemove: () => void
   categories: CategoryResponse[]
+  sourceAccountId: string
+  accounts: AccountResponse[]
 }
 
 function ImportTableRow({
@@ -353,15 +361,26 @@ function ImportTableRow({
   onUpdate,
   onRemove,
   categories,
+  sourceAccountId,
+  accounts,
 }: ImportTableRowProps) {
   const filteredCategories = useMemo(
     () => categories.filter((c) => c.type === row.type),
     [categories, row.type],
   )
 
-  function handleTypeToggle() {
-    const newType = row.type === 'INCOME' ? 'EXPENSE' : 'INCOME'
-    onUpdate({ type: newType, categoryId: undefined, categoryAutoSelected: false })
+  const targetAccounts = useMemo(
+    () => accounts.filter((a) => a.id !== sourceAccountId),
+    [accounts, sourceAccountId],
+  )
+
+  function handleTypeChange(newType: string) {
+    const t = newType as ImportRowState['type']
+    if (t === 'TRANSFER') {
+      onUpdate({ type: t, categoryId: undefined, categoryAutoSelected: false, targetAccountId: undefined, targetAmount: undefined })
+    } else {
+      onUpdate({ type: t, categoryId: undefined, categoryAutoSelected: false, targetAccountId: undefined, targetAmount: undefined })
+    }
   }
 
   function handleAmountChange(value: string) {
@@ -378,6 +397,20 @@ function ImportTableRow({
     })
   }
 
+  function handleTargetAccountChange(value: string) {
+    onUpdate({ targetAccountId: value === NONE_VALUE ? undefined : value })
+  }
+
+  const sourceAccount = accounts.find((a) => a.id === sourceAccountId)
+  const targetAccount = row.targetAccountId
+    ? accounts.find((a) => a.id === row.targetAccountId)
+    : null
+  const isCrossCurrency =
+    row.type === 'TRANSFER' &&
+    sourceAccount &&
+    targetAccount &&
+    sourceAccount.currency !== targetAccount.currency
+
   return (
     <TableRow>
       <TableCell>
@@ -385,18 +418,23 @@ function ImportTableRow({
       </TableCell>
       <TableCell className="whitespace-nowrap">{row.date}</TableCell>
       <TableCell>
-        <Button
-          variant="outline"
-          size="sm"
-          className={cn(
-            'h-7 text-xs font-medium',
-            row.type === 'INCOME' && 'border-green-500 text-green-600',
-            row.type === 'EXPENSE' && 'border-red-500 text-red-600',
-          )}
-          onClick={handleTypeToggle}
-        >
-          {row.type}
-        </Button>
+        <Select value={row.type} onValueChange={handleTypeChange}>
+          <SelectTrigger
+            className={cn(
+              'h-7 w-28 text-xs font-medium',
+              row.type === 'INCOME' && 'border-green-500 text-green-600',
+              row.type === 'EXPENSE' && 'border-red-500 text-red-600',
+              row.type === 'TRANSFER' && 'border-blue-500 text-blue-600',
+            )}
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="INCOME">Income</SelectItem>
+            <SelectItem value="EXPENSE">Expense</SelectItem>
+            <SelectItem value="TRANSFER">Transfer</SelectItem>
+          </SelectContent>
+        </Select>
       </TableCell>
       <TableCell>
         <Input
@@ -416,33 +454,82 @@ function ImportTableRow({
         />
       </TableCell>
       <TableCell>
-        <Select
-          value={row.categoryId ?? NONE_VALUE}
-          onValueChange={handleCategoryChange}
-        >
-          <SelectTrigger
-            className={cn(
-              'h-8 w-44',
-              row.categoryAutoSelected && 'border-blue-400',
+        {row.type === 'TRANSFER' ? (
+          <div className="flex flex-col gap-1">
+            <Select
+              value={row.targetAccountId ?? NONE_VALUE}
+              onValueChange={handleTargetAccountChange}
+            >
+              <SelectTrigger className="h-8 w-44">
+                <SelectValue>
+                  {(v: string) => {
+                    if (v === NONE_VALUE) return 'Target account'
+                    const a = targetAccounts.find((acc) => acc.id === v)
+                    return a ? a.name : 'Target account'
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_VALUE}>Target account</SelectItem>
+                {targetAccounts.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name} ({a.currency})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {isCrossCurrency && (
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder={`Target amount (${targetAccount.currency})`}
+                className="h-7 w-44 text-xs"
+                defaultValue={
+                  row.targetAmount
+                    ? fromSubunits(row.targetAmount).toFixed(2)
+                    : ''
+                }
+                onBlur={(e) => {
+                  const parsed = parseFloat(e.target.value)
+                  if (!isNaN(parsed) && parsed > 0) {
+                    onUpdate({ targetAmount: toSubunits(parsed) })
+                  } else {
+                    onUpdate({ targetAmount: undefined })
+                  }
+                }}
+              />
             )}
+          </div>
+        ) : (
+          <Select
+            value={row.categoryId ?? NONE_VALUE}
+            onValueChange={handleCategoryChange}
           >
-            <SelectValue>
-              {(v: string) => {
-                if (v === NONE_VALUE) return 'No category'
-                const c = filteredCategories.find((cat) => cat.id === v)
-                return c ? c.name : 'No category'
-              }}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={NONE_VALUE}>No category</SelectItem>
-            {filteredCategories.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <SelectTrigger
+              className={cn(
+                'h-8 w-44',
+                row.categoryAutoSelected && 'border-blue-400',
+              )}
+            >
+              <SelectValue>
+                {(v: string) => {
+                  if (v === NONE_VALUE) return 'No category'
+                  const c = filteredCategories.find((cat) => cat.id === v)
+                  return c ? c.name : 'No category'
+                }}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NONE_VALUE}>No category</SelectItem>
+              {filteredCategories.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  {c.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </TableCell>
       <TableCell>
         <Button

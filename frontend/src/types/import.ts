@@ -20,23 +20,27 @@ export interface ImportPreviewResponse {
 // Local UI state — extends ImportRow with user edits
 export interface ImportRowState {
   index: number
-  type: 'INCOME' | 'EXPENSE'
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER'
   amount: number // subunits — always subunits in state!
   date: string
   description: string
   categoryId?: string
   categoryAutoSelected: boolean
   sourceRef: string | null
+  targetAccountId?: string
+  targetAmount?: number // subunits
 }
 
 // Sent to backend on confirm
 export interface ConfirmRow {
-  type: 'INCOME' | 'EXPENSE'
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER'
   amount: number
   date: string
   description: string | null
   categoryId: string | null
   sourceRef: string | null
+  targetAccountId?: string | null
+  targetAmount?: number | null
 }
 
 export interface ImportConfirmRequest {
