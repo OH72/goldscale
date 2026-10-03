@@ -34,4 +34,18 @@ export const api = {
   put: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  postForm: <T>(path: string, body: FormData): Promise<T> =>
+    fetch(`${API_BASE}${path}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Basic ${btoa('admin:admin')}`,
+      },
+      body,
+    }).then(async (response) => {
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({}))
+        throw new ApiError(response.status, error.message ?? 'Request failed')
+      }
+      return response.json()
+    }),
 }
