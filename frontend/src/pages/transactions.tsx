@@ -202,7 +202,7 @@ export function TransactionsPage() {
                 <TableHead>Type</TableHead>
                 <TableHead>Account</TableHead>
                 <TableHead>Category</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
+                <TableHead className="w-44 text-right">Amount</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="w-12" />
               </TableRow>
@@ -237,7 +237,7 @@ export function TransactionsPage() {
                   >
                     {renderAmount(txn)}
                   </TableCell>
-                  <TableCell className="max-w-48 truncate text-muted-foreground">
+                  <TableCell className="truncate text-muted-foreground" title={txn.description ?? ''}>
                     {txn.description ?? ''}
                   </TableCell>
                   <TableCell>

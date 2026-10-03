@@ -410,7 +410,7 @@ function ImportTableRow({
       </TableCell>
       <TableCell>
         <Input
-          className="h-8 w-48"
+          className="h-8 w-72"
           value={row.description}
           onChange={(e) => onUpdate({ description: e.target.value })}
         />
