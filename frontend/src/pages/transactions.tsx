@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useTransactions, useDeleteTransaction } from '@/api/use-transactions'
 import { useAccounts } from '@/api/use-accounts'
 import { useCategories } from '@/api/use-categories'
+import { useTags } from '@/api/use-tags'
 import { PageHeader } from '@/components/layout/page-header'
 import { TransactionBadge } from '@/components/transaction-badge'
 import { DateDisplay } from '@/components/date-display'
@@ -31,6 +32,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Badge } from '@/components/ui/badge'
 import { MoreHorizontal, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ArrowUp, ArrowDown, ArrowUpDown, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/currency'
@@ -50,6 +52,7 @@ export function TransactionsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: accounts } = useAccounts()
   const { data: categories } = useCategories()
+  const { data: tags } = useTags()
   const deleteMutation = useDeleteTransaction()
 
   const [createOpen, setCreateOpen] = useState(false)
@@ -60,6 +63,7 @@ export function TransactionsPage() {
     accountId: searchParams.get('accountId') ?? undefined,
     type: (searchParams.get('type') as TransactionType) ?? undefined,
     categoryId: searchParams.get('categoryId') ?? undefined,
+    tagId: searchParams.get('tagId') ?? undefined,
     startDate: searchParams.get('startDate') ?? undefined,
     endDate: searchParams.get('endDate') ?? undefined,
     sort: searchParams.get('sort') ?? undefined,
@@ -265,6 +269,34 @@ export function TransactionsPage() {
           </SelectContent>
         </Select>
 
+        <Select
+          value={filters.tagId ?? ALL_VALUE}
+          onValueChange={(v) =>
+            setFilter('tagId', v === ALL_VALUE ? undefined : v)
+          }
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue>
+              {(v: string) =>
+                v === ALL_VALUE
+                  ? 'All tags'
+                  : (tags?.find((t) => t.id === v)?.name ?? v)
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>All tags</SelectItem>
+            {tags
+              ?.slice()
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Input
           type="date"
           className="w-38"
@@ -339,6 +371,7 @@ export function TransactionsPage() {
                     )}
                   </button>
                 </TableHead>
+                <TableHead className="w-[10%]">Tags</TableHead>
                 <TableHead>Description</TableHead>
                 <TableHead className="w-10" />
               </TableRow>
@@ -372,6 +405,15 @@ export function TransactionsPage() {
                   >
                     {renderAmount(txn)}
                   </TableCell>
+                  <TableCell className="overflow-hidden align-top">
+                    <div className="flex flex-wrap gap-1">
+                      {txn.tagNames?.map((name) => (
+                        <Badge key={name} variant="outline" className="text-xs">
+                          {name}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
                   <TableCell className="align-top whitespace-normal text-muted-foreground" title={txn.description ?? ''}>
                     <p className="line-clamp-2 break-words text-xs">{txn.description ?? ''}</p>
                   </TableCell>
@@ -402,7 +444,7 @@ export function TransactionsPage() {
               {data?.content.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="text-center text-muted-foreground"
                   >
                     No transactions

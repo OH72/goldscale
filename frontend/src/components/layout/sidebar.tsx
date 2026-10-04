@@ -4,6 +4,7 @@ import {
   Wallet,
   ArrowLeftRight,
   Tag,
+  Tags,
   Upload,
   Settings,
 } from 'lucide-react'
@@ -15,6 +16,7 @@ const navItems = [
   { to: '/accounts', label: 'Accounts', icon: Wallet },
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { to: '/categories', label: 'Categories', icon: Tag },
+  { to: '/tags', label: 'Tags', icon: Tags },
   { to: '/import', label: 'Import', icon: Upload },
   { to: '/settings', label: 'Settings', icon: Settings },
 ]

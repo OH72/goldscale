@@ -37,7 +37,7 @@ public class TransactionService {
     private final MongoTemplate mongoTemplate;
 
     public Page<TransactionResponse> findAll(
-            String accountId, TransactionType type, String categoryId,
+            String accountId, TransactionType type, String categoryId, String tagId,
             LocalDate startDate, LocalDate endDate, Pageable pageable) {
 
         var criteria = Criteria.where("deleted").ne(true);
@@ -55,6 +55,9 @@ public class TransactionService {
         }
         if (categoryId != null) {
             criteria = criteria.and("categoryId").is(categoryId);
+        }
+        if (tagId != null) {
+            criteria = criteria.and("tags").is(tagId);
         }
         if (startDate != null && endDate != null) {
             criteria = criteria.and("date").gte(startDate).lte(endDate);
@@ -88,14 +91,14 @@ public class TransactionService {
         var txn = switch (command) {
             case CreateIncome cmd -> createIncomeOrExpense(
                     cmd.accountId(), cmd.amount(), cmd.categoryId(),
-                    cmd.date(), cmd.description(), TransactionType.INCOME);
+                    cmd.date(), cmd.description(), TransactionType.INCOME, cmd.tagIds());
             case CreateExpense cmd -> createIncomeOrExpense(
                     cmd.accountId(), cmd.amount(), cmd.categoryId(),
-                    cmd.date(), cmd.description(), TransactionType.EXPENSE);
+                    cmd.date(), cmd.description(), TransactionType.EXPENSE, cmd.tagIds());
             case CreateTransfer cmd -> createTransfer(
                     cmd.sourceAccountId(), cmd.targetAccountId(),
                     cmd.amount(), cmd.targetAmount(),
-                    cmd.date(), cmd.description());
+                    cmd.date(), cmd.description(), cmd.tagIds());
         };
 
         return enrichWithNames(List.of(txn)).getFirst();
@@ -243,6 +246,7 @@ public class TransactionService {
         }
         txn.setDate(request.date());
         txn.setDescription(request.description());
+        txn.setTags(request.tagIds());
         transactionRepository.save(txn);
 
         if (balanceAdjustment != 0) {
@@ -266,6 +270,7 @@ public class TransactionService {
         txn.setExchangeRate((double) newTargetAmount / newAmount);
         txn.setDate(request.date());
         txn.setDescription(request.description());
+        txn.setTags(request.tagIds());
         transactionRepository.save(txn);
 
         if (sourceDelta != 0) {

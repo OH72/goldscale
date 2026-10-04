@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes({
@@ -20,16 +21,26 @@ public sealed interface TransactionCommand {
             @NotNull @Min(1) Long amount,
             @NotNull String categoryId,
             @NotNull LocalDate date,
-            String description
-    ) implements TransactionCommand {}
+            String description,
+            List<String> tagIds
+    ) implements TransactionCommand {
+        public CreateIncome(String accountId, Long amount, String categoryId, LocalDate date, String description) {
+            this(accountId, amount, categoryId, date, description, null);
+        }
+    }
 
     record CreateExpense(
             @NotNull String accountId,
             @NotNull @Min(1) Long amount,
             @NotNull String categoryId,
             @NotNull LocalDate date,
-            String description
-    ) implements TransactionCommand {}
+            String description,
+            List<String> tagIds
+    ) implements TransactionCommand {
+        public CreateExpense(String accountId, Long amount, String categoryId, LocalDate date, String description) {
+            this(accountId, amount, categoryId, date, description, null);
+        }
+    }
 
     record CreateTransfer(
             @NotNull String sourceAccountId,
@@ -37,6 +48,11 @@ public sealed interface TransactionCommand {
             @NotNull @Min(1) Long amount,
             @NotNull @Min(1) Long targetAmount,
             @NotNull LocalDate date,
-            String description
-    ) implements TransactionCommand {}
+            String description,
+            List<String> tagIds
+    ) implements TransactionCommand {
+        public CreateTransfer(String sourceAccountId, String targetAccountId, Long amount, Long targetAmount, LocalDate date, String description) {
+            this(sourceAccountId, targetAccountId, amount, targetAmount, date, description, null);
+        }
+    }
 }

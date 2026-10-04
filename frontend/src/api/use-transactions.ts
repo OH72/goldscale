@@ -15,6 +15,7 @@ function buildParams(filters: TransactionFilters): string {
   if (filters.accountId) params.set('accountId', filters.accountId)
   if (filters.type) params.set('type', filters.type)
   if (filters.categoryId) params.set('categoryId', filters.categoryId)
+  if (filters.tagId) params.set('tagId', filters.tagId)
   if (filters.startDate) params.set('startDate', filters.startDate)
   if (filters.endDate) params.set('endDate', filters.endDate)
   if (filters.sort) params.set('sort', filters.sort)

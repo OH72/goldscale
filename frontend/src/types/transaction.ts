@@ -27,6 +27,7 @@ export interface CreateIncomeRequest {
   categoryId: string
   date: string
   description: string | null
+  tagIds: string[] | null
 }
 
 export interface CreateExpenseRequest {
@@ -36,6 +37,7 @@ export interface CreateExpenseRequest {
   categoryId: string
   date: string
   description: string | null
+  tagIds: string[] | null
 }
 
 export interface CreateTransferRequest {
@@ -46,6 +48,7 @@ export interface CreateTransferRequest {
   targetAmount: number
   date: string
   description: string | null
+  tagIds: string[] | null
 }
 
 export type CreateTransactionRequest =
@@ -59,12 +62,14 @@ export interface UpdateTransactionRequest {
   date: string
   description: string | null
   targetAmount: number | null
+  tagIds: string[] | null
 }
 
 export interface TransactionFilters {
   accountId?: string
   type?: TransactionType
   categoryId?: string
+  tagId?: string
   startDate?: string
   endDate?: string
   sort?: string

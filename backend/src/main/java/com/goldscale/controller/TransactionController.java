@@ -28,10 +28,11 @@ public class TransactionController {
             @RequestParam(required = false) String accountId,
             @RequestParam(required = false) TransactionType type,
             @RequestParam(required = false) String categoryId,
+            @RequestParam(required = false) String tagId,
             @RequestParam(required = false) LocalDate startDate,
             @RequestParam(required = false) LocalDate endDate,
             @PageableDefault(size = 20) Pageable pageable) {
-        var page = transactionService.findAll(accountId, type, categoryId, startDate, endDate, pageable);
+        var page = transactionService.findAll(accountId, type, categoryId, tagId, startDate, endDate, pageable);
         return ResponseEntity.ok(page);
     }
 

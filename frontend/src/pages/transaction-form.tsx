@@ -3,9 +3,10 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { format } from 'date-fns'
-import { CalendarIcon } from 'lucide-react'
+import { CalendarIcon, ChevronsUpDown, X } from 'lucide-react'
 import { useAccounts } from '@/api/use-accounts'
 import { useCategories } from '@/api/use-categories'
+import { useTags } from '@/api/use-tags'
 import {
   useCreateTransaction,
   useUpdateTransaction,
@@ -32,6 +33,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toSubunits, fromSubunits } from '@/lib/currency'
 import { toISODate } from '@/lib/date'
@@ -70,8 +73,11 @@ export function TransactionFormDialog({
 
   const { data: accounts } = useAccounts()
   const { data: categories } = useCategories()
+  const { data: tags } = useTags()
   const createMutation = useCreateTransaction()
   const updateMutation = useUpdateTransaction()
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const [tagSearch, setTagSearch] = useState('')
 
   const filteredCategories = categories?.filter((c) =>
     txnType === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE',
@@ -90,6 +96,8 @@ export function TransactionFormDialog({
   useEffect(() => {
     if (editTransaction && open) {
       setTxnType(editTransaction.type)
+      setSelectedTagIds(editTransaction.tagIds ?? [])
+      setTagSearch('')
       form.reset({
         amount: fromSubunits(editTransaction.amount),
         targetAmount: editTransaction.targetAmount
@@ -102,6 +110,8 @@ export function TransactionFormDialog({
         date: new Date(editTransaction.date),
       })
     } else if (open && !editTransaction) {
+      setSelectedTagIds([])
+      setTagSearch('')
       form.reset({
         amount: 0,
         accountId: accounts?.[0]?.id ?? '',
@@ -113,6 +123,8 @@ export function TransactionFormDialog({
   }, [editTransaction, open, accounts])
 
   function handleSubmit(values: FormValues) {
+    const tagIds = selectedTagIds.length > 0 ? selectedTagIds : null
+
     if (isEdit) {
       updateMutation.mutate(
         {
@@ -126,6 +138,7 @@ export function TransactionFormDialog({
               txnType === 'TRANSFER' && values.targetAmount
                 ? toSubunits(values.targetAmount)
                 : null,
+            tagIds,
           },
         },
         { onSuccess: () => onOpenChange(false) },
@@ -144,6 +157,7 @@ export function TransactionFormDialog({
           targetAmount: toSubunits(targetAmt),
           date: toISODate(values.date),
           description: values.description ?? null,
+          tagIds,
         },
         { onSuccess: () => onOpenChange(false) },
       )
@@ -156,6 +170,7 @@ export function TransactionFormDialog({
           categoryId: values.categoryId!,
           date: toISODate(values.date),
           description: values.description ?? null,
+          tagIds,
         },
         { onSuccess: () => onOpenChange(false) },
       )
@@ -357,6 +372,8 @@ export function TransactionFormDialog({
                 <Calendar
                   mode="single"
                   captionLayout="dropdown"
+                  fixedWeeks
+                  defaultMonth={form.watch('date')}
                   startMonth={new Date(2020, 0)}
                   endMonth={new Date(2030, 11)}
                   selected={form.watch('date')}
@@ -365,6 +382,87 @@ export function TransactionFormDialog({
               </PopoverContent>
             </Popover>
           </div>
+
+          {/* Tags */}
+          {!isInitialBalance && tags && tags.length > 0 && (
+            <div className="space-y-2">
+              <Label>Tags</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className="w-full justify-between font-normal"
+                  >
+                    {selectedTagIds.length === 0 ? (
+                      <span className="text-muted-foreground">Select tags</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {selectedTagIds.map((id) => {
+                          const tag = tags.find((t) => t.id === id)
+                          return tag ? (
+                            <Badge key={id} variant="secondary" className="text-xs">
+                              {tag.name}
+                              <button
+                                type="button"
+                                className="ml-1"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setSelectedTagIds((prev) => prev.filter((t) => t !== id))
+                                }}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ) : null
+                        })}
+                      </div>
+                    )}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                  <div className="p-2 border-b">
+                    <Input
+                      placeholder="Search tags..."
+                      value={tagSearch}
+                      onChange={(e) => setTagSearch(e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div className="space-y-1 max-h-48 overflow-y-auto p-2">
+                    {(() => {
+                      const filtered = tags
+                        .slice()
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .filter((t) => t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+                      if (filtered.length === 0) {
+                        return <p className="py-2 text-center text-sm text-muted-foreground">No tags found</p>
+                      }
+                      return filtered.map((tag) => (
+                        <label
+                          key={tag.id}
+                          className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={selectedTagIds.includes(tag.id)}
+                            onCheckedChange={(checked) => {
+                              setSelectedTagIds((prev) =>
+                                checked
+                                  ? [...prev, tag.id]
+                                  : prev.filter((t) => t !== tag.id),
+                              )
+                            }}
+                          />
+                          {tag.name}
+                        </label>
+                      ))
+                    })()}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
 
           {/* Description */}
           {!isInitialBalance && (
