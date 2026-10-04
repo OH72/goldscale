@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -40,22 +40,28 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-import { MoreHorizontal, Plus } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
+import { ArrowDown, ArrowUp, ArrowUpDown, MoreHorizontal, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency, toSubunits } from '@/lib/currency'
 import type { AccountResponse } from '@/types/account'
 import type { Currency } from '@/types/common'
 
-const CURRENCIES: Currency[] = ['UAH', 'USD', 'EUR', 'PLN', 'GBP']
+const CURRENCIES: Currency[] = ['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'USDT']
+
+type SortField = 'name' | 'balance'
+type SortDir = 'asc' | 'desc'
 
 const createSchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  currency: z.enum(['UAH', 'USD', 'EUR', 'PLN', 'GBP']),
+  currency: z.enum(['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'USDT']),
   initialBalance: z.coerce.number().min(0, 'Balance must be >= 0'),
 })
 
 const editSchema = z.object({
   name: z.string().min(1, 'Name is required'),
+  currency: z.enum(['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'USDT']),
+  active: z.boolean(),
 })
 
 type CreateForm = z.infer<typeof createSchema>
@@ -72,6 +78,33 @@ export function AccountsPage() {
   const [deleteAccount, setDeleteAccount] = useState<AccountResponse | null>(
     null,
   )
+  const [currencyFilter, setCurrencyFilter] = useState<Currency | ''>('')
+  const [sortField, setSortField] = useState<SortField | null>('name')
+  const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  function toggleSort(field: SortField) {
+    if (sortField === field) {
+      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortField(field)
+      setSortDir('asc')
+    }
+  }
+
+  const filteredAccounts = useMemo(() => {
+    let list = accounts ?? []
+    if (currencyFilter) {
+      list = list.filter((a) => a.currency === currencyFilter)
+    }
+    if (sortField) {
+      const dir = sortDir === 'asc' ? 1 : -1
+      list = [...list].sort((a, b) => {
+        if (sortField === 'name') return a.name.localeCompare(b.name) * dir
+        return (a.balance - b.balance) * dir
+      })
+    }
+    return list
+  }, [accounts, currencyFilter, sortField, sortDir])
 
   const createForm = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
@@ -101,7 +134,7 @@ export function AccountsPage() {
   function handleEdit(data: EditForm) {
     if (!editAccount) return
     updateMutation.mutate(
-      { id: editAccount.id, data: { name: data.name } },
+      { id: editAccount.id, data: { name: data.name, currency: data.currency, active: data.active } },
       {
         onSuccess: () => setEditAccount(null),
       },
@@ -109,7 +142,7 @@ export function AccountsPage() {
   }
 
   function openEdit(account: AccountResponse) {
-    editForm.reset({ name: account.name })
+    editForm.reset({ name: account.name, currency: account.currency, active: account.active })
     setEditAccount(account)
   }
 
@@ -123,19 +156,77 @@ export function AccountsPage() {
         </Button>
       </PageHeader>
 
+      <div className="mb-4 flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Label className="text-sm text-muted-foreground">Currency</Label>
+          <Select
+            value={currencyFilter || 'ALL'}
+            onValueChange={(v) => setCurrencyFilter(v === 'ALL' ? '' : (v as Currency))}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">All</SelectItem>
+              {CURRENCIES.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Name</TableHead>
+            <TableHead>
+              <button
+                className="inline-flex items-center gap-1 hover:text-foreground"
+                onClick={() => toggleSort('name')}
+              >
+                Name
+                {sortField === 'name' ? (
+                  sortDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+                ) : (
+                  <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                )}
+              </button>
+            </TableHead>
+            <TableHead className="w-16">Active</TableHead>
             <TableHead>Currency</TableHead>
-            <TableHead className="text-right">Balance</TableHead>
+            <TableHead className="text-right">
+              <button
+                className="inline-flex items-center gap-1 hover:text-foreground"
+                onClick={() => toggleSort('balance')}
+              >
+                Balance
+                {sortField === 'balance' ? (
+                  sortDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+                ) : (
+                  <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                )}
+              </button>
+            </TableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
         <TableBody>
-          {accounts?.map((account) => (
+          {filteredAccounts.map((account) => (
             <TableRow key={account.id}>
-              <TableCell className="font-medium">{account.name}</TableCell>
+              <TableCell className={cn('font-medium', !account.active && 'text-muted-foreground')}>{account.name}</TableCell>
+              <TableCell>
+                <Checkbox
+                  checked={account.active}
+                  onCheckedChange={(checked) => {
+                    updateMutation.mutate({
+                      id: account.id,
+                      data: { name: account.name, currency: account.currency, active: !!checked },
+                    })
+                  }}
+                />
+              </TableCell>
               <TableCell>{account.currency}</TableCell>
               <TableCell className="text-right">
                 {formatCurrency(account.balance, account.currency)}
@@ -162,9 +253,9 @@ export function AccountsPage() {
               </TableCell>
             </TableRow>
           ))}
-          {accounts?.length === 0 && (
+          {filteredAccounts.length === 0 && (
             <TableRow>
-              <TableCell colSpan={4} className="text-center text-muted-foreground">
+              <TableCell colSpan={5} className="text-center text-muted-foreground">
                 No accounts yet
               </TableCell>
             </TableRow>
@@ -266,6 +357,36 @@ export function AccountsPage() {
                   {editForm.formState.errors.name.message}
                 </p>
               )}
+            </div>
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Select
+                value={editForm.watch('currency')}
+                onValueChange={(v) =>
+                  editForm.setValue('currency', v as Currency)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="edit-active"
+                checked={editForm.watch('active')}
+                onCheckedChange={(checked) =>
+                  editForm.setValue('active', !!checked)
+                }
+              />
+              <Label htmlFor="edit-active">Active</Label>
             </div>
             <Button
               type="submit"

@@ -71,6 +71,8 @@ public class AccountService {
         }
 
         account.setName(request.name());
+        account.setCurrency(request.currency());
+        account.setActive(request.active());
         return accountRepository.save(account);
     }
 

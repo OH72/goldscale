@@ -78,7 +78,7 @@ class AccountServiceTest {
         when(accountRepository.findByName("New Name")).thenReturn(Optional.empty());
         when(accountRepository.save(any())).thenReturn(account);
 
-        var result = accountService.update("acc-1", new UpdateAccountRequest("New Name"));
+        var result = accountService.update("acc-1", new UpdateAccountRequest("New Name", Currency.UAH, true));
 
         assertThat(result.getName()).isEqualTo("New Name");
     }
@@ -96,7 +96,7 @@ class AccountServiceTest {
         when(accountRepository.findById("acc-1")).thenReturn(Optional.of(account));
         when(accountRepository.findByName("Taken")).thenReturn(Optional.of(other));
 
-        assertThatThrownBy(() -> accountService.update("acc-1", new UpdateAccountRequest("Taken")))
+        assertThatThrownBy(() -> accountService.update("acc-1", new UpdateAccountRequest("Taken", Currency.UAH, true)))
                 .isInstanceOf(BusinessRuleException.class);
     }
 
@@ -110,7 +110,7 @@ class AccountServiceTest {
         when(accountRepository.findByName("Same")).thenReturn(Optional.of(account));
         when(accountRepository.save(any())).thenReturn(account);
 
-        var result = accountService.update("acc-1", new UpdateAccountRequest("Same"));
+        var result = accountService.update("acc-1", new UpdateAccountRequest("Same", Currency.UAH, true));
 
         assertThat(result.getName()).isEqualTo("Same");
     }

@@ -10,6 +10,7 @@ public record AccountResponse(
         String name,
         Currency currency,
         long balance,
+        boolean active,
         Instant createdAt
 ) {
     public static AccountResponse from(Account account) {
@@ -18,6 +19,7 @@ public record AccountResponse(
                 account.getName(),
                 account.getCurrency(),
                 account.getBalance(),
+                account.isActive(),
                 account.getCreatedAt()
         );
     }

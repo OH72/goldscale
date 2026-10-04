@@ -29,7 +29,7 @@ public class MoneyManagerParser implements StatementParser {
 
     // Initial balance line: "AccountName UAH amount" (no "From...to...")
     private static final Pattern INITIAL_BALANCE_LINE = Pattern.compile(
-            "^([\\w\\p{L} $€]+?)\\s+(UAH|USD|EUR|PLN|GBP)\\s+([\\d,.]+)$"
+            "^([\\w\\p{L} $€]+?)\\s+(UAH|USD|EUR|PLN|GBP|USDT)\\s+([\\d,.]+)$"
     );
 
     // Comment line

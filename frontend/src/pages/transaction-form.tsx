@@ -40,7 +40,7 @@ import type { TransactionResponse } from '@/types/transaction'
 import type { TransactionType } from '@/types/common'
 
 const formSchema = z.object({
-  amount: z.coerce.number().positive('Amount must be positive'),
+  amount: z.coerce.number().min(0, 'Amount must be >= 0'),
   targetAmount: z.coerce.number().positive().optional(),
   accountId: z.string().min(1, 'Account is required'),
   targetAccountId: z.string().optional(),
@@ -63,6 +63,7 @@ export function TransactionFormDialog({
   editTransaction,
 }: TransactionFormDialogProps) {
   const isEdit = !!editTransaction
+  const isInitialBalance = editTransaction?.type === 'INITIAL_BALANCE'
   const [txnType, setTxnType] = useState<TransactionType>(
     editTransaction?.type ?? 'EXPENSE',
   )
@@ -179,11 +180,15 @@ export function TransactionFormDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {isEdit ? 'Edit Transaction' : 'New Transaction'}
+            {isInitialBalance
+              ? 'Edit Initial Balance'
+              : isEdit
+                ? 'Edit Transaction'
+                : 'New Transaction'}
           </DialogTitle>
         </DialogHeader>
 
-        {!isEdit && (
+        {!isEdit && !isInitialBalance && (
           <Tabs
             value={txnType}
             onValueChange={(v) => setTxnType(v as TransactionType)}
@@ -207,32 +212,37 @@ export function TransactionFormDialog({
           className="space-y-4"
         >
           {/* Account */}
-          <div className="space-y-2">
-            <Label>
-              {txnType === 'TRANSFER' ? 'Source Account' : 'Account'}
-            </Label>
-            <Select
-              value={form.watch('accountId')}
-              onValueChange={(v) => form.setValue('accountId', v)}
-              disabled={isEdit}
-            >
-              <SelectTrigger aria-invalid={!!form.formState.errors.accountId}>
-                <SelectValue placeholder="Select account">
-                  {(v: string) => {
-                    const a = accounts?.find((acc) => acc.id === v)
-                    return a ? `${a.name} (${a.currency})` : 'Select account'
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {accounts?.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    {a.name} ({a.currency})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!isInitialBalance && (
+            <div className="space-y-2">
+              <Label>
+                {txnType === 'TRANSFER' ? 'Source Account' : 'Account'}
+              </Label>
+              <Select
+                value={form.watch('accountId')}
+                onValueChange={(v) => form.setValue('accountId', v)}
+                disabled={isEdit}
+              >
+                <SelectTrigger aria-invalid={!!form.formState.errors.accountId}>
+                  <SelectValue placeholder="Select account">
+                    {(v: string) => {
+                      const a = accounts?.find((acc) => acc.id === v)
+                      return a ? `${a.name} (${a.currency})` : 'Select account'
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {accounts
+                    ?.slice()
+                    .sort((a, b) => (a.active === b.active ? 0 : a.active ? -1 : 1))
+                    .map((a) => (
+                    <SelectItem key={a.id} value={a.id} className={!a.active ? 'text-muted-foreground' : ''}>
+                      {a.name} ({a.currency}){!a.active ? ' (inactive)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Target Account (transfer only) */}
           {txnType === 'TRANSFER' && !isEdit && (
@@ -253,9 +263,10 @@ export function TransactionFormDialog({
                 <SelectContent>
                   {accounts
                     ?.filter((a) => a.id !== form.watch('accountId'))
+                    .sort((a, b) => (a.active === b.active ? 0 : a.active ? -1 : 1))
                     .map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.name} ({a.currency})
+                      <SelectItem key={a.id} value={a.id} className={!a.active ? 'text-muted-foreground' : ''}>
+                        {a.name} ({a.currency}){!a.active ? ' (inactive)' : ''}
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -283,7 +294,7 @@ export function TransactionFormDialog({
           </div>
 
           {/* Target Amount (cross-currency transfer) */}
-          {txnType === 'TRANSFER' && (isCrossCurrency || isEdit) && (
+          {!isInitialBalance && txnType === 'TRANSFER' && (isCrossCurrency || isEdit) && (
             <div className="space-y-2">
               <Label>
                 Target Amount
@@ -298,7 +309,7 @@ export function TransactionFormDialog({
           )}
 
           {/* Category (income/expense only) */}
-          {txnType !== 'TRANSFER' && txnType !== 'INITIAL_BALANCE' && (
+          {!isInitialBalance && txnType !== 'TRANSFER' && (
             <div className="space-y-2">
               <Label>Category</Label>
               <Select
@@ -345,6 +356,9 @@ export function TransactionFormDialog({
               <PopoverContent className="w-auto p-0">
                 <Calendar
                   mode="single"
+                  captionLayout="dropdown"
+                  startMonth={new Date(2020, 0)}
+                  endMonth={new Date(2030, 11)}
                   selected={form.watch('date')}
                   onSelect={(d) => d && form.setValue('date', d)}
                 />
@@ -353,10 +367,12 @@ export function TransactionFormDialog({
           </div>
 
           {/* Description */}
-          <div className="space-y-2">
-            <Label>Description</Label>
-            <Input {...form.register('description')} />
-          </div>
+          {!isInitialBalance && (
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Input {...form.register('description')} />
+            </div>
+          )}
 
           <Button type="submit" className="w-full" disabled={isPending}>
             {isPending

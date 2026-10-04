@@ -210,9 +210,12 @@ export function TransactionsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_VALUE}>All accounts</SelectItem>
-            {accounts?.map((a) => (
-              <SelectItem key={a.id} value={a.id}>
-                {a.name}
+            {accounts
+              ?.slice()
+              .sort((a, b) => (a.active === b.active ? 0 : a.active ? -1 : 1))
+              .map((a) => (
+              <SelectItem key={a.id} value={a.id} className={!a.active ? 'text-muted-foreground' : ''}>
+                {a.name}{!a.active ? ' (inactive)' : ''}
               </SelectItem>
             ))}
           </SelectContent>
@@ -373,26 +376,26 @@ export function TransactionsPage() {
                     <p className="line-clamp-2 break-words text-xs">{txn.description ?? ''}</p>
                   </TableCell>
                   <TableCell>
-                    {txn.type !== 'INITIAL_BALANCE' && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => setEditTxn(txn)}>
-                            Edit
-                          </DropdownMenuItem>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => setEditTxn(txn)}>
+                          Edit
+                        </DropdownMenuItem>
+                        {txn.type !== 'INITIAL_BALANCE' && (
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => setDeleteTxn(txn)}
                           >
                             Delete
                           </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}

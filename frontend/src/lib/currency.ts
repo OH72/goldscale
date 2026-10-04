@@ -1,21 +1,13 @@
-const formatters = new Map<string, Intl.NumberFormat>()
+const numberFormatter = new Intl.NumberFormat('uk-UA', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
 
 export function formatCurrency(
   amountInSubunits: number,
   currency: string,
 ): string {
-  if (!formatters.has(currency)) {
-    formatters.set(
-      currency,
-      new Intl.NumberFormat('uk-UA', {
-        style: 'currency',
-        currency,
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
-    )
-  }
-  return formatters.get(currency)!.format(amountInSubunits / 100)
+  return `${numberFormatter.format(amountInSubunits / 100)} ${currency}`
 }
 
 export function toSubunits(displayAmount: number): number {

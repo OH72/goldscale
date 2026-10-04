@@ -25,6 +25,8 @@ public class Account {
 
     private long balance;
 
+    private boolean active = true;
+
     @CreatedDate
     private Instant createdAt;
 

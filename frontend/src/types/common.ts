@@ -1,4 +1,4 @@
-export type Currency = 'UAH' | 'USD' | 'EUR' | 'PLN' | 'GBP'
+export type Currency = 'UAH' | 'USD' | 'EUR' | 'PLN' | 'GBP' | 'USDT'
 
 export type TransactionType = 'INITIAL_BALANCE' | 'INCOME' | 'EXPENSE' | 'TRANSFER'
 

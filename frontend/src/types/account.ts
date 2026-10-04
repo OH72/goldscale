@@ -5,6 +5,7 @@ export interface AccountResponse {
   name: string
   currency: Currency
   balance: number
+  active: boolean
   createdAt: string
 }
 
@@ -16,4 +17,6 @@ export interface CreateAccountRequest {
 
 export interface UpdateAccountRequest {
   name: string
+  currency: Currency
+  active: boolean
 }

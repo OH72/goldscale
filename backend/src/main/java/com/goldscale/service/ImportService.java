@@ -98,6 +98,10 @@ public class ImportService {
 
             if (row.type() == TransactionType.TRANSFER) {
                 var targetAccountId = resolveTargetAccountId(row, accountCache);
+                if (accountId.equals(targetAccountId)) {
+                    skipped++;
+                    continue;
+                }
                 long targetAmount = row.targetAmount() != null ? row.targetAmount() : row.amount();
                 transactionService.createTransfer(
                         accountId, targetAccountId,

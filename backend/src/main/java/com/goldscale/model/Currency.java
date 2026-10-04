@@ -5,7 +5,8 @@ public enum Currency {
     USD(100),
     EUR(100),
     PLN(100),
-    GBP(100);
+    GBP(100),
+    USDT(100);
 
     private final int subunits;
 

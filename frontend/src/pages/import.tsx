@@ -266,9 +266,12 @@ export function ImportPage() {
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
-                    {accounts?.map((a) => (
-                      <SelectItem key={a.id} value={a.id}>
-                        {a.name} ({a.currency})
+                    {accounts
+                      ?.slice()
+                      .sort((a, b) => (a.active === b.active ? 0 : a.active ? -1 : 1))
+                      .map((a) => (
+                      <SelectItem key={a.id} value={a.id} className={!a.active ? 'text-muted-foreground' : ''}>
+                        {a.name} ({a.currency}){!a.active ? ' (inactive)' : ''}
                       </SelectItem>
                     ))}
                   </SelectContent>

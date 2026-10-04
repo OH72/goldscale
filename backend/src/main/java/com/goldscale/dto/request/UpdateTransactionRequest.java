@@ -6,7 +6,7 @@ import jakarta.validation.constraints.NotNull;
 import java.time.LocalDate;
 
 public record UpdateTransactionRequest(
-        @NotNull @Min(1) Long amount,
+        @NotNull @Min(0) Long amount,
         String categoryId,
         @NotNull LocalDate date,
         String description,
