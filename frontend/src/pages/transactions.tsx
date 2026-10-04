@@ -31,7 +31,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MoreHorizontal, Plus, ChevronLeft, ChevronRight, ArrowUp, ArrowDown, ArrowUpDown, X } from 'lucide-react'
+import { MoreHorizontal, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ArrowUp, ArrowDown, ArrowUpDown, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/currency'
 import type { TransactionResponse, TransactionFilters } from '@/types/transaction'
@@ -83,7 +83,7 @@ export function TransactionsPage() {
   function setPage(page: number) {
     const next = new URLSearchParams(searchParams)
     next.set('page', String(page))
-    setSearchParams(next)
+    setSearchParams(next, { preventScrollReset: true })
   }
 
   function getSortState(field: string): 'asc' | 'desc' | null {
@@ -126,6 +126,61 @@ export function TransactionsPage() {
 
     const prefix = txn.type === 'INCOME' ? '+' : txn.type === 'EXPENSE' ? '-' : ''
     return `${prefix}${formatCurrency(txn.amount, currency)}`
+  }
+
+  function renderPagination() {
+    if (!data || data.totalPages <= 1) return null
+    const current = data.number
+    const total = data.totalPages
+
+    // Build page numbers: first, last, and a window around current
+    const pages: (number | 'ellipsis')[] = []
+    const windowSize = 1
+    const start = Math.max(1, current - windowSize)
+    const end = Math.min(total - 2, current + windowSize)
+
+    pages.push(0)
+    if (start > 1) pages.push('ellipsis')
+    for (let i = start; i <= end; i++) pages.push(i)
+    if (end < total - 2) pages.push('ellipsis')
+    if (total > 1) pages.push(total - 1)
+
+    return (
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-muted-foreground">
+          Page {current + 1} of {total} ({data.totalElements} total)
+        </span>
+        <div className="flex items-center gap-1">
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={current === 0} onClick={() => setPage(0)}>
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={current === 0} onClick={() => setPage(current - 1)}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          {pages.map((p, i) =>
+            p === 'ellipsis' ? (
+              <span key={`e${i}`} className="px-1 text-sm text-muted-foreground">…</span>
+            ) : (
+              <Button
+                key={p}
+                variant={p === current ? 'default' : 'outline'}
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setPage(p)}
+              >
+                {p + 1}
+              </Button>
+            ),
+          )}
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={current >= total - 1} onClick={() => setPage(current + 1)}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" size="icon" className="h-8 w-8" disabled={current >= total - 1} onClick={() => setPage(total - 1)}>
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -354,33 +409,7 @@ export function TransactionsPage() {
             </TableBody>
           </Table>
 
-          {/* Pagination */}
-          {data && data.totalPages > 1 && (
-            <div className="mt-4 flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">
-                Page {data.number + 1} of {data.totalPages} ({data.totalElements}{' '}
-                total)
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={data.number === 0}
-                  onClick={() => setPage(data.number - 1)}
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={data.number >= data.totalPages - 1}
-                  onClick={() => setPage(data.number + 1)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          )}
+          <div className="mt-4">{renderPagination()}</div>
         </>
       )}
 

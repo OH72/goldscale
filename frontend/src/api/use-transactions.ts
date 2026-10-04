@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api, ApiError } from './client'
 import { queryKeys } from './query-keys'
@@ -30,6 +30,7 @@ export function useTransactions(filters: TransactionFilters) {
       api.get<PageResponse<TransactionResponse>>(
         `/transactions?${buildParams(filters)}`,
       ),
+    placeholderData: keepPreviousData,
   })
 }
 
