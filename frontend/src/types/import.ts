@@ -52,6 +52,7 @@ export interface ImportRowState {
   sourceRef: string | null
   targetAccountId?: string
   targetAmount?: number // subunits
+  transferDirection?: 'out' | 'in' // out = from current account, in = to current account
   // MoneyManager-specific
   accountId?: string
   accountName?: string

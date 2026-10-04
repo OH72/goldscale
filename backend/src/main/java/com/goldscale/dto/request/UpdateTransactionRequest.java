@@ -13,9 +13,11 @@ public record UpdateTransactionRequest(
         String description,
         // Transfer-only fields
         @Min(1) Long targetAmount,
+        String accountId,
+        String targetAccountId,
         List<String> tagIds
 ) {
     public UpdateTransactionRequest(Long amount, String categoryId, LocalDate date, String description, Long targetAmount) {
-        this(amount, categoryId, date, description, targetAmount, null);
+        this(amount, categoryId, date, description, targetAmount, null, null, null);
     }
 }

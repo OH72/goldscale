@@ -171,24 +171,29 @@ export function ImportPage() {
   function handleConfirm() {
     if (!bankType) return
 
-    const confirmRows: ConfirmRow[] = rows.map((r) => ({
-      type: r.type,
-      amount: r.amount,
-      date: r.date,
-      description: r.description || null,
-      categoryId: r.type === 'TRANSFER' || r.type === 'INITIAL_BALANCE' ? null : (r.categoryId ?? null),
-      sourceRef: r.sourceRef,
-      targetAccountId: r.type === 'TRANSFER' ? (r.targetAccountId ?? null) : null,
-      targetAmount: r.type === 'TRANSFER' ? (r.targetAmount ?? r.amount) : null,
-      // MoneyManager-specific
-      accountId: r.accountId ?? null,
-      accountName: r.accountName ?? null,
-      categoryName: r.categoryName ?? null,
-      targetAccountName: r.targetAccountName ?? null,
-      currency: r.currency ?? null,
-      targetCurrency: r.targetCurrency ?? null,
-      tags: r.tags ?? null,
-    }))
+    const confirmRows: ConfirmRow[] = rows.map((r) => {
+      const isIncoming = r.type === 'TRANSFER' && r.transferDirection === 'in'
+      return {
+        type: r.type,
+        amount: r.amount,
+        date: r.date,
+        description: r.description || null,
+        categoryId: r.type === 'TRANSFER' || r.type === 'INITIAL_BALANCE' ? null : (r.categoryId ?? null),
+        sourceRef: r.sourceRef,
+        targetAccountId: r.type === 'TRANSFER'
+          ? (isIncoming ? accountId : (r.targetAccountId ?? null))
+          : null,
+        targetAmount: r.type === 'TRANSFER' ? (r.targetAmount ?? r.amount) : null,
+        // For incoming transfers, the other account becomes the source
+        accountId: isIncoming ? (r.targetAccountId ?? null) : (r.accountId ?? null),
+        accountName: r.accountName ?? null,
+        categoryName: r.categoryName ?? null,
+        targetAccountName: r.targetAccountName ?? null,
+        currency: r.currency ?? null,
+        targetCurrency: r.targetCurrency ?? null,
+        tags: r.tags ?? null,
+      }
+    })
 
     confirmMutation.mutate(
       {
@@ -454,6 +459,7 @@ function ImportTableRow({
       categoryAutoSelected: false,
       targetAccountId: undefined,
       targetAmount: undefined,
+      transferDirection: t === 'TRANSFER' ? 'out' : undefined,
     })
   }
 
@@ -568,6 +574,25 @@ function ImportTableRow({
             </span>
           ) : (
             <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  className={cn(
+                    'rounded px-1.5 py-0.5 text-xs font-medium',
+                    (row.transferDirection ?? 'out') === 'out'
+                      ? 'bg-orange-100 text-orange-700'
+                      : 'bg-green-100 text-green-700',
+                  )}
+                  onClick={() =>
+                    onUpdate({
+                      transferDirection:
+                        (row.transferDirection ?? 'out') === 'out' ? 'in' : 'out',
+                    })
+                  }
+                >
+                  {(row.transferDirection ?? 'out') === 'out' ? 'OUT →' : '← IN'}
+                </button>
+              </div>
               <Select
                 value={row.targetAccountId ?? NONE_VALUE}
                 onValueChange={handleTargetAccountChange}
@@ -575,14 +600,21 @@ function ImportTableRow({
                 <SelectTrigger className="h-8 w-44">
                   <SelectValue>
                     {(v: string) => {
-                      if (v === NONE_VALUE) return 'Target account'
+                      if (v === NONE_VALUE)
+                        return (row.transferDirection ?? 'out') === 'out'
+                          ? 'Target account'
+                          : 'Source account'
                       const a = targetAccounts.find((acc) => acc.id === v)
-                      return a ? a.name : 'Target account'
+                      return a ? a.name : 'Select account'
                     }}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={NONE_VALUE}>Target account</SelectItem>
+                  <SelectItem value={NONE_VALUE}>
+                    {(row.transferDirection ?? 'out') === 'out'
+                      ? 'Target account'
+                      : 'Source account'}
+                  </SelectItem>
                   {targetAccounts.map((a) => (
                     <SelectItem key={a.id} value={a.id}>
                       {a.name} ({a.currency})

@@ -62,6 +62,8 @@ export interface UpdateTransactionRequest {
   date: string
   description: string | null
   targetAmount: number | null
+  accountId: string | null
+  targetAccountId: string | null
   tagIds: string[] | null
 }
 

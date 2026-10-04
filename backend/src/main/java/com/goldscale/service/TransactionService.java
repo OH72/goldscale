@@ -236,10 +236,28 @@ public class TransactionService {
             validateCategoryType(request.categoryId(), expectedCategoryType);
         }
 
-        long oldDelta = balanceService.calculateDelta(txn.getType(), txn.getAmount());
-        long newDelta = balanceService.calculateDelta(txn.getType(), request.amount());
-        long balanceAdjustment = newDelta - oldDelta;
+        String oldAccountId = txn.getAccountId();
+        String newAccountId = request.accountId() != null ? request.accountId() : oldAccountId;
+        boolean accountChanged = !newAccountId.equals(oldAccountId);
 
+        if (accountChanged) {
+            validateAccountExists(newAccountId);
+            // Reverse old balance on old account
+            long oldDelta = balanceService.calculateDelta(txn.getType(), txn.getAmount());
+            balanceService.adjustBalance(oldAccountId, -oldDelta);
+            // Apply new balance on new account
+            long newDelta = balanceService.calculateDelta(txn.getType(), request.amount());
+            balanceService.adjustBalance(newAccountId, newDelta);
+        } else {
+            long oldDelta = balanceService.calculateDelta(txn.getType(), txn.getAmount());
+            long newDelta = balanceService.calculateDelta(txn.getType(), request.amount());
+            long balanceAdjustment = newDelta - oldDelta;
+            if (balanceAdjustment != 0) {
+                balanceService.adjustBalance(oldAccountId, balanceAdjustment);
+            }
+        }
+
+        txn.setAccountId(newAccountId);
         txn.setAmount(request.amount());
         if (request.categoryId() != null) {
             txn.setCategoryId(request.categoryId());
@@ -248,10 +266,6 @@ public class TransactionService {
         txn.setDescription(request.description());
         txn.setTags(request.tagIds());
         transactionRepository.save(txn);
-
-        if (balanceAdjustment != 0) {
-            balanceService.adjustBalance(txn.getAccountId(), balanceAdjustment);
-        }
 
         return enrichWithNames(List.of(txn)).getFirst();
     }
@@ -262,9 +276,32 @@ public class TransactionService {
         long oldTargetAmount = txn.getTargetAmount();
         long newTargetAmount = request.targetAmount() != null ? request.targetAmount() : oldTargetAmount;
 
-        long sourceDelta = -(newAmount - oldAmount);
-        long targetDelta = newTargetAmount - oldTargetAmount;
+        String oldSourceId = txn.getAccountId();
+        String oldTargetId = txn.getTargetAccountId();
+        String newSourceId = request.accountId() != null ? request.accountId() : oldSourceId;
+        String newTargetId = request.targetAccountId() != null ? request.targetAccountId() : oldTargetId;
 
+        if (newSourceId.equals(newTargetId)) {
+            throw new BusinessRuleException("Source and target accounts must be different");
+        }
+
+        if (!newSourceId.equals(oldSourceId)) {
+            validateAccountExists(newSourceId);
+        }
+        if (!newTargetId.equals(oldTargetId)) {
+            validateAccountExists(newTargetId);
+        }
+
+        // Reverse old balances
+        balanceService.adjustBalance(oldSourceId, oldAmount);
+        balanceService.adjustBalance(oldTargetId, -oldTargetAmount);
+
+        // Apply new balances
+        balanceService.adjustBalance(newSourceId, -newAmount);
+        balanceService.adjustBalance(newTargetId, newTargetAmount);
+
+        txn.setAccountId(newSourceId);
+        txn.setTargetAccountId(newTargetId);
         txn.setAmount(newAmount);
         txn.setTargetAmount(newTargetAmount);
         txn.setExchangeRate((double) newTargetAmount / newAmount);
@@ -272,13 +309,6 @@ public class TransactionService {
         txn.setDescription(request.description());
         txn.setTags(request.tagIds());
         transactionRepository.save(txn);
-
-        if (sourceDelta != 0) {
-            balanceService.adjustBalance(txn.getAccountId(), sourceDelta);
-        }
-        if (targetDelta != 0) {
-            balanceService.adjustBalance(txn.getTargetAccountId(), targetDelta);
-        }
 
         return enrichWithNames(List.of(txn)).getFirst();
     }

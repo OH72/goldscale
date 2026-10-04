@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -8,6 +8,7 @@ import { useAccounts } from '@/api/use-accounts'
 import { useCategories } from '@/api/use-categories'
 import { useTags } from '@/api/use-tags'
 import {
+  useTransactions,
   useCreateTransaction,
   useUpdateTransaction,
 } from '@/api/use-transactions'
@@ -78,10 +79,31 @@ export function TransactionFormDialog({
   const updateMutation = useUpdateTransaction()
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [tagSearch, setTagSearch] = useState('')
+  const [categorySearch, setCategorySearch] = useState('')
+
+  const { data: recentTxns } = useTransactions({ page: 0, size: 100 })
 
   const filteredCategories = categories?.filter((c) =>
     txnType === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE',
   )
+
+  const sortedCategories = useMemo(() => {
+    if (!filteredCategories) return []
+    const tenDaysAgo = new Date()
+    tenDaysAgo.setDate(tenDaysAgo.getDate() - 10)
+    const recentCategoryIds = new Set(
+      recentTxns?.content
+        ?.filter((t) => new Date(t.date) >= tenDaysAgo && t.categoryId)
+        .map((t) => t.categoryId!) ?? [],
+    )
+    const recent = filteredCategories
+      .filter((c) => recentCategoryIds.has(c.id))
+      .sort((a, b) => a.name.localeCompare(b.name))
+    const rest = filteredCategories
+      .filter((c) => !recentCategoryIds.has(c.id))
+      .sort((a, b) => a.name.localeCompare(b.name))
+    return { recent, rest, hasRecent: recent.length > 0 && rest.length > 0 }
+  }, [filteredCategories, recentTxns])
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -98,6 +120,7 @@ export function TransactionFormDialog({
       setTxnType(editTransaction.type)
       setSelectedTagIds(editTransaction.tagIds ?? [])
       setTagSearch('')
+      setCategorySearch('')
       form.reset({
         amount: fromSubunits(editTransaction.amount),
         targetAmount: editTransaction.targetAmount
@@ -112,6 +135,7 @@ export function TransactionFormDialog({
     } else if (open && !editTransaction) {
       setSelectedTagIds([])
       setTagSearch('')
+      setCategorySearch('')
       form.reset({
         amount: 0,
         accountId: accounts?.[0]?.id ?? '',
@@ -138,6 +162,8 @@ export function TransactionFormDialog({
               txnType === 'TRANSFER' && values.targetAmount
                 ? toSubunits(values.targetAmount)
                 : null,
+            accountId: values.accountId,
+            targetAccountId: values.targetAccountId ?? null,
             tagIds,
           },
         },
@@ -235,7 +261,6 @@ export function TransactionFormDialog({
               <Select
                 value={form.watch('accountId')}
                 onValueChange={(v) => form.setValue('accountId', v)}
-                disabled={isEdit}
               >
                 <SelectTrigger aria-invalid={!!form.formState.errors.accountId}>
                   <SelectValue placeholder="Select account">
@@ -260,7 +285,7 @@ export function TransactionFormDialog({
           )}
 
           {/* Target Account (transfer only) */}
-          {txnType === 'TRANSFER' && !isEdit && (
+          {txnType === 'TRANSFER' && !isInitialBalance && (
             <div className="space-y-2">
               <Label>Target Account</Label>
               <Select
@@ -327,26 +352,82 @@ export function TransactionFormDialog({
           {!isInitialBalance && txnType !== 'TRANSFER' && (
             <div className="space-y-2">
               <Label>Category</Label>
-              <Select
-                value={form.watch('categoryId') ?? ''}
-                onValueChange={(v) => form.setValue('categoryId', v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category">
-                    {(v: string) => {
-                      const c = filteredCategories?.find((cat) => cat.id === v)
-                      return c ? c.name : 'Select category'
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredCategories?.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    type="button"
+                    className="w-full justify-between font-normal"
+                  >
+                    {form.watch('categoryId')
+                      ? (filteredCategories?.find((c) => c.id === form.watch('categoryId'))?.name ?? 'Select category')
+                      : <span className="text-muted-foreground">Select category</span>}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                  <div className="p-2 border-b">
+                    <Input
+                      placeholder="Search categories..."
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      className="h-8"
+                    />
+                  </div>
+                  <div className="max-h-48 overflow-y-auto p-1">
+                    {(() => {
+                      const q = categorySearch.toLowerCase()
+                      const recentFiltered = sortedCategories.recent.filter((c) => c.name.toLowerCase().includes(q))
+                      const restFiltered = sortedCategories.rest.filter((c) => c.name.toLowerCase().includes(q))
+                      if (recentFiltered.length === 0 && restFiltered.length === 0) {
+                        return <p className="py-2 text-center text-sm text-muted-foreground">No categories found</p>
+                      }
+                      return (
+                        <>
+                          {recentFiltered.length > 0 && sortedCategories.hasRecent && (
+                            <div className="px-2 py-1 text-xs font-medium text-muted-foreground">Recent</div>
+                          )}
+                          {recentFiltered.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className={cn(
+                                'flex w-full items-center rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer',
+                                form.watch('categoryId') === c.id && 'bg-accent',
+                              )}
+                              onClick={() => {
+                                form.setValue('categoryId', c.id)
+                                setCategorySearch('')
+                              }}
+                            >
+                              {c.name}
+                            </button>
+                          ))}
+                          {restFiltered.length > 0 && sortedCategories.hasRecent && recentFiltered.length > 0 && (
+                            <div className="px-2 py-1 text-xs font-medium text-muted-foreground">Other</div>
+                          )}
+                          {restFiltered.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              className={cn(
+                                'flex w-full items-center rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer',
+                                form.watch('categoryId') === c.id && 'bg-accent',
+                              )}
+                              onClick={() => {
+                                form.setValue('categoryId', c.id)
+                                setCategorySearch('')
+                              }}
+                            >
+                              {c.name}
+                            </button>
+                          ))}
+                        </>
+                      )
+                    })()}
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 
