@@ -52,14 +52,14 @@ export function DashboardPage() {
 
       {/* Recent transactions */}
       <h2 className="mb-3 text-lg font-semibold">Recent Transactions</h2>
-      <Table>
+      <Table className="table-fixed w-full">
         <TableHeader>
           <TableRow>
-            <TableHead>Date</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Account</TableHead>
-            <TableHead>Category</TableHead>
-            <TableHead className="w-44 text-right">Amount</TableHead>
+            <TableHead className="w-28">Date</TableHead>
+            <TableHead className="w-24">Type</TableHead>
+            <TableHead className="w-44">Account</TableHead>
+            <TableHead className="w-32">Category</TableHead>
+            <TableHead className="w-48 text-right">Amount</TableHead>
             <TableHead>Description</TableHead>
           </TableRow>
         </TableHeader>
@@ -90,7 +90,7 @@ export function DashboardPage() {
                 <TableCell className="text-muted-foreground">
                   {txn.categoryName ?? '—'}
                 </TableCell>
-                <TableCell className="text-right font-medium">
+                <TableCell className="overflow-hidden text-right font-medium">
                   {txn.type === 'INCOME' && '+'}
                   {txn.type === 'EXPENSE' && '-'}
                   {formatCurrency(txn.amount, currency)}
@@ -112,8 +112,8 @@ export function DashboardPage() {
                     )
                   })()}
                 </TableCell>
-                <TableCell className="truncate text-muted-foreground" title={txn.description ?? ''}>
-                  {txn.description ?? ''}
+                <TableCell className="text-muted-foreground" title={txn.description ?? ''}>
+                  <span className="line-clamp-2 text-xs">{txn.description ?? ''}</span>
                 </TableCell>
               </TableRow>
             )

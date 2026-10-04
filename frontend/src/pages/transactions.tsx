@@ -246,10 +246,10 @@ export function TransactionsPage() {
         <div className="py-8 text-center text-muted-foreground">Loading...</div>
       ) : (
         <>
-          <Table>
+          <Table className="table-fixed w-full">
             <TableHeader>
               <TableRow>
-                <TableHead>
+                <TableHead className="w-28">
                   <button
                     className="inline-flex items-center gap-1 hover:text-foreground"
                     onClick={() => cycleSort('date')}
@@ -264,10 +264,10 @@ export function TransactionsPage() {
                     )}
                   </button>
                 </TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Account</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="w-44 text-right">
+                <TableHead className="w-24">Type</TableHead>
+                <TableHead className="w-44">Account</TableHead>
+                <TableHead className="w-32">Category</TableHead>
+                <TableHead className="w-48 text-right">
                   <button
                     className="inline-flex items-center gap-1 hover:text-foreground ml-auto"
                     onClick={() => cycleSort('amount')}
@@ -309,15 +309,15 @@ export function TransactionsPage() {
                   </TableCell>
                   <TableCell
                     className={cn(
-                      'text-right font-medium',
+                      'overflow-hidden text-right font-medium',
                       txn.type === 'INCOME' && 'text-green-600',
                       txn.type === 'EXPENSE' && 'text-red-600',
                     )}
                   >
                     {renderAmount(txn)}
                   </TableCell>
-                  <TableCell className="truncate text-muted-foreground" title={txn.description ?? ''}>
-                    {txn.description ?? ''}
+                  <TableCell className="text-muted-foreground" title={txn.description ?? ''}>
+                    <span className="line-clamp-2 text-xs">{txn.description ?? ''}</span>
                   </TableCell>
                   <TableCell>
                     {txn.type !== 'INITIAL_BALANCE' && (
