@@ -15,6 +15,8 @@ services:
 
   backend:
     build: ./backend
+    ports:
+      - "8080:8080"
     environment:
       SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/goldscale_prod?replicaSet=rs0
       APP_AUTH_USERNAME: admin
