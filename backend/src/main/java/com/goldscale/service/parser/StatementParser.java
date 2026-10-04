@@ -1,12 +1,13 @@
 package com.goldscale.service.parser;
 
 import com.goldscale.dto.response.ImportRow;
+import com.goldscale.model.BankType;
 
 import java.util.List;
 
 public interface StatementParser {
 
-    boolean canParse(String pdfText);
+    BankType getBankType();
 
     List<ImportRow> parse(String pdfText);
 

@@ -1,6 +1,7 @@
 package com.goldscale.service.parser;
 
 import com.goldscale.dto.response.ImportRow;
+import com.goldscale.model.BankType;
 import com.goldscale.model.TransactionType;
 import org.springframework.stereotype.Component;
 
@@ -23,10 +24,8 @@ public class MillenniumParser implements StatementParser {
     );
 
     @Override
-    public boolean canParse(String pdfText) {
-        return pdfText.contains("Millennium")
-                || pdfText.contains("COMBINED STATEMENT")
-                || pdfText.contains("bankmillennium");
+    public BankType getBankType() {
+        return BankType.MILLENNIUM;
     }
 
     @Override

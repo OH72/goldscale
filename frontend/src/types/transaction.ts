@@ -15,6 +15,8 @@ export interface TransactionResponse {
   exchangeRate: number | null
   description: string | null
   date: string
+  tagIds: string[] | null
+  tagNames: string[] | null
   createdAt: string
 }
 

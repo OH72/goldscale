@@ -7,6 +7,7 @@ import com.goldscale.model.Transaction;
 import com.goldscale.model.TransactionType;
 import com.goldscale.repository.AccountRepository;
 import com.goldscale.repository.CategoryRepository;
+import com.goldscale.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -14,6 +15,9 @@ import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
+import com.goldscale.model.Tag;
+
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +29,7 @@ public class DashboardService {
 
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
+    private final TagRepository tagRepository;
     private final MongoTemplate mongoTemplate;
 
     public DashboardResponse getDashboard() {
@@ -46,11 +51,13 @@ public class DashboardService {
     private List<TransactionResponse> enrichWithNames(List<Transaction> transactions) {
         var accountIds = new HashSet<String>();
         var categoryIds = new HashSet<String>();
+        var tagIds = new ArrayList<String>();
 
         for (var txn : transactions) {
             accountIds.add(txn.getAccountId());
             if (txn.getTargetAccountId() != null) accountIds.add(txn.getTargetAccountId());
             if (txn.getCategoryId() != null) categoryIds.add(txn.getCategoryId());
+            if (txn.getTags() != null) tagIds.addAll(txn.getTags());
         }
 
         var accountNames = accountRepository.findAllById(accountIds).stream()
@@ -61,8 +68,13 @@ public class DashboardService {
                 : categoryRepository.findAllById(categoryIds).stream()
                         .collect(Collectors.toMap(c -> c.getId(), c -> c.getName()));
 
+        Map<String, String> tagNamesMap = tagIds.isEmpty()
+                ? Map.of()
+                : tagRepository.findAllById(tagIds).stream()
+                        .collect(Collectors.toMap(Tag::getId, Tag::getName));
+
         return transactions.stream()
-                .map(txn -> TransactionResponse.from(txn, accountNames, categoryNames))
+                .map(txn -> TransactionResponse.from(txn, accountNames, categoryNames, tagNamesMap))
                 .toList();
     }
 }

@@ -1,6 +1,7 @@
 package com.goldscale.service.parser;
 
 import com.goldscale.dto.response.ImportRow;
+import com.goldscale.model.BankType;
 import com.goldscale.model.TransactionType;
 import org.springframework.stereotype.Component;
 
@@ -26,10 +27,8 @@ public class KredobankCardParser implements StatementParser {
     );
 
     @Override
-    public boolean canParse(String pdfText) {
-        boolean isKredo = pdfText.contains("Кредобанк") || pdfText.contains("Рух коштів за рахунком");
-        boolean isCard = pdfText.contains("POS-терміналі") || pdfText.contains("Комісія за конвертацію");
-        return isKredo && isCard;
+    public BankType getBankType() {
+        return BankType.KREDOBANK_CARD;
     }
 
     @Override

@@ -6,14 +6,15 @@ import type {
   ImportPreviewResponse,
   ImportConfirmRequest,
   ImportConfirmResponse,
+  BankType,
 } from '@/types/import'
 
 export function useImportPreview() {
   return useMutation({
-    mutationFn: ({ file, accountId }: { file: File; accountId: string }) => {
+    mutationFn: ({ file, bankType }: { file: File; bankType: BankType }) => {
       const form = new FormData()
       form.append('file', file)
-      form.append('accountId', accountId)
+      form.append('bankType', bankType)
       return api.postForm<ImportPreviewResponse>('/import/preview', form)
     },
   })
@@ -28,6 +29,7 @@ export function useImportConfirm() {
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.tags.all })
       const msg =
         data.skipped > 0
           ? `Imported ${data.imported} transactions (${data.skipped} duplicates skipped)`

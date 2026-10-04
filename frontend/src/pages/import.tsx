@@ -34,11 +34,18 @@ import { Badge } from '@/components/ui/badge'
 import { Upload, X, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { fromSubunits, toSubunits } from '@/lib/currency'
-import type { ImportRowState, ConfirmRow } from '@/types/import'
+import type { ImportRowState, ConfirmRow, BankType } from '@/types/import'
+import { BANK_TYPE_LABELS } from '@/types/import'
 import type { CategoryResponse } from '@/types/category'
 import type { AccountResponse } from '@/types/account'
 
 const NONE_VALUE = '__none__'
+
+const BANK_TYPES = Object.entries(BANK_TYPE_LABELS) as [BankType, string][]
+
+function isMoneyManager(bankType: BankType) {
+  return bankType === 'MONEYMANAGER'
+}
 
 export function ImportPage() {
   const navigate = useNavigate()
@@ -49,6 +56,7 @@ export function ImportPage() {
   const previewMutation = useImportPreview()
   const confirmMutation = useImportConfirm()
 
+  const [bankType, setBankType] = useState<BankType | ''>('')
   const [accountId, setAccountId] = useState('')
   const [rows, setRows] = useState<ImportRowState[]>([])
   const [selected, setSelected] = useState<Set<number>>(new Set())
@@ -57,12 +65,15 @@ export function ImportPage() {
     detectedCurrency: string
   } | null>(null)
 
+  const isMM = bankType === 'MONEYMANAGER'
+
   function autoSelectCategory(
     categoryHint: string | null,
-    type: 'INCOME' | 'EXPENSE' | 'TRANSFER',
+    type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'INITIAL_BALANCE',
     allCategories: CategoryResponse[],
   ): { categoryId?: string; categoryAutoSelected: boolean } {
-    if (type === 'TRANSFER') return { categoryAutoSelected: false }
+    if (type === 'TRANSFER' || type === 'INITIAL_BALANCE')
+      return { categoryAutoSelected: false }
     if (!categoryHint) return { categoryAutoSelected: false }
     const match = allCategories.find(
       (c) =>
@@ -75,10 +86,11 @@ export function ImportPage() {
 
   function handleUpload() {
     const file = fileInputRef.current?.files?.[0]
-    if (!file || !accountId) return
+    if (!file || !bankType) return
+    if (!isMM && !accountId) return
 
     previewMutation.mutate(
-      { file, accountId },
+      { file, bankType },
       {
         onSuccess: (data) => {
           setPreviewMeta({
@@ -86,7 +98,7 @@ export function ImportPage() {
             detectedCurrency: data.detectedCurrency,
           })
           const mapped: ImportRowState[] = data.rows.map((row) => {
-            const rowType = row.type as 'INCOME' | 'EXPENSE'
+            const rowType = row.type as ImportRowState['type']
             const cat = autoSelectCategory(
               row.categoryHint,
               rowType,
@@ -99,6 +111,13 @@ export function ImportPage() {
               date: row.date,
               description: row.description ?? '',
               sourceRef: row.sourceRef,
+              accountName: row.accountName ?? undefined,
+              targetAccountName: row.targetAccountName ?? undefined,
+              targetAmount: row.targetAmount ?? undefined,
+              currency: row.currency ?? undefined,
+              targetCurrency: row.targetCurrency ?? undefined,
+              tags: row.tags ?? undefined,
+              categoryName: row.categoryHint ?? undefined,
               ...cat,
             }
           })
@@ -150,19 +169,33 @@ export function ImportPage() {
   }
 
   function handleConfirm() {
+    if (!bankType) return
+
     const confirmRows: ConfirmRow[] = rows.map((r) => ({
       type: r.type,
       amount: r.amount,
       date: r.date,
       description: r.description || null,
-      categoryId: r.type === 'TRANSFER' ? null : (r.categoryId ?? null),
+      categoryId: r.type === 'TRANSFER' || r.type === 'INITIAL_BALANCE' ? null : (r.categoryId ?? null),
       sourceRef: r.sourceRef,
       targetAccountId: r.type === 'TRANSFER' ? (r.targetAccountId ?? null) : null,
       targetAmount: r.type === 'TRANSFER' ? (r.targetAmount ?? r.amount) : null,
+      // MoneyManager-specific
+      accountId: r.accountId ?? null,
+      accountName: r.accountName ?? null,
+      categoryName: r.categoryName ?? null,
+      targetAccountName: r.targetAccountName ?? null,
+      currency: r.currency ?? null,
+      targetCurrency: r.targetCurrency ?? null,
+      tags: r.tags ?? null,
     }))
 
     confirmMutation.mutate(
-      { accountId, rows: confirmRows },
+      {
+        accountId: isMM ? null : accountId,
+        bankType,
+        rows: confirmRows,
+      },
       { onSuccess: () => navigate('/transactions') },
     )
   }
@@ -177,6 +210,9 @@ export function ImportPage() {
 
   const hasPreview = rows.length > 0 || previewMeta
 
+  const canUpload =
+    bankType && (isMM || accountId) && !previewMutation.isPending
+
   return (
     <div>
       <PageHeader title="Import Statement" />
@@ -186,34 +222,59 @@ export function ImportPage() {
         <CardHeader>
           <CardTitle>Upload Bank Statement</CardTitle>
           <CardDescription>
-            Select a PDF bank statement and target account to import
-            transactions
+            Select bank type, upload a PDF statement to import transactions
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap items-end gap-4">
             <div className="space-y-2">
-              <Label>Account</Label>
-              <Select value={accountId} onValueChange={setAccountId}>
+              <Label>Bank Type</Label>
+              <Select
+                value={bankType}
+                onValueChange={(v) => setBankType(v as BankType)}
+              >
                 <SelectTrigger className="w-56">
-                  <SelectValue placeholder="Select account">
-                    {(v: string) => {
-                      const a = accounts?.find((acc) => acc.id === v)
-                      return a
-                        ? `${a.name} (${a.currency})`
-                        : 'Select account'
-                    }}
+                  <SelectValue placeholder="Select bank type">
+                    {(v: string) =>
+                      BANK_TYPE_LABELS[v as BankType] ?? 'Select bank type'
+                    }
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  {accounts?.map((a) => (
-                    <SelectItem key={a.id} value={a.id}>
-                      {a.name} ({a.currency})
+                  {BANK_TYPES.map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Account selector — only for bank statements, not MoneyManager */}
+            {bankType && !isMM && (
+              <div className="space-y-2">
+                <Label>Account</Label>
+                <Select value={accountId} onValueChange={setAccountId}>
+                  <SelectTrigger className="w-56">
+                    <SelectValue placeholder="Select account">
+                      {(v: string) => {
+                        const a = accounts?.find((acc) => acc.id === v)
+                        return a
+                          ? `${a.name} (${a.currency})`
+                          : 'Select account'
+                      }}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {accounts?.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name} ({a.currency})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>PDF File</Label>
@@ -225,10 +286,7 @@ export function ImportPage() {
               />
             </div>
 
-            <Button
-              onClick={handleUpload}
-              disabled={!accountId || previewMutation.isPending}
-            >
+            <Button onClick={handleUpload} disabled={!canUpload}>
               <Upload className="mr-2 h-4 w-4" />
               {previewMutation.isPending ? 'Parsing...' : 'Upload & Parse'}
             </Button>
@@ -283,40 +341,45 @@ export function ImportPage() {
           {/* Table */}
           {rows.length > 0 ? (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">
-                      <Checkbox
-                        checked={allChecked}
-                        indeterminate={someChecked}
-                        onCheckedChange={toggleSelectAll}
+              <div className="max-h-[70vh] overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-10">
+                        <Checkbox
+                          checked={allChecked}
+                          indeterminate={someChecked}
+                          onCheckedChange={toggleSelectAll}
+                        />
+                      </TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Type</TableHead>
+                      {isMM && <TableHead>Account</TableHead>}
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Category / Target</TableHead>
+                      {isMM && <TableHead>Tags</TableHead>}
+                      <TableHead className="w-12" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rows.map((row) => (
+                      <ImportTableRow
+                        key={row.index}
+                        row={row}
+                        isSelected={selected.has(row.index)}
+                        onToggleSelect={() => toggleSelect(row.index)}
+                        onUpdate={(patch) => updateRow(row.index, patch)}
+                        onRemove={() => removeRow(row.index)}
+                        categories={categories ?? []}
+                        sourceAccountId={accountId}
+                        accounts={accounts ?? []}
+                        isMoneyManager={isMM}
                       />
-                    </TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Category / Target</TableHead>
-                    <TableHead className="w-12" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row) => (
-                    <ImportTableRow
-                      key={row.index}
-                      row={row}
-                      isSelected={selected.has(row.index)}
-                      onToggleSelect={() => toggleSelect(row.index)}
-                      onUpdate={(patch) => updateRow(row.index, patch)}
-                      onRemove={() => removeRow(row.index)}
-                      categories={categories ?? []}
-                      sourceAccountId={accountId}
-                      accounts={accounts ?? []}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               {/* Confirm button */}
               <div className="mt-4 flex justify-end">
@@ -352,6 +415,7 @@ interface ImportTableRowProps {
   categories: CategoryResponse[]
   sourceAccountId: string
   accounts: AccountResponse[]
+  isMoneyManager: boolean
 }
 
 function ImportTableRow({
@@ -363,9 +427,14 @@ function ImportTableRow({
   categories,
   sourceAccountId,
   accounts,
+  isMoneyManager,
 }: ImportTableRowProps) {
   const filteredCategories = useMemo(
-    () => categories.filter((c) => c.type === row.type),
+    () =>
+      categories.filter(
+        (c) =>
+          c.type === (row.type === 'INCOME' ? 'INCOME' : 'EXPENSE'),
+      ),
     [categories, row.type],
   )
 
@@ -376,11 +445,13 @@ function ImportTableRow({
 
   function handleTypeChange(newType: string) {
     const t = newType as ImportRowState['type']
-    if (t === 'TRANSFER') {
-      onUpdate({ type: t, categoryId: undefined, categoryAutoSelected: false, targetAccountId: undefined, targetAmount: undefined })
-    } else {
-      onUpdate({ type: t, categoryId: undefined, categoryAutoSelected: false, targetAccountId: undefined, targetAmount: undefined })
-    }
+    onUpdate({
+      type: t,
+      categoryId: undefined,
+      categoryAutoSelected: false,
+      targetAccountId: undefined,
+      targetAmount: undefined,
+    })
   }
 
   function handleAmountChange(value: string) {
@@ -411,6 +482,15 @@ function ImportTableRow({
     targetAccount &&
     sourceAccount.currency !== targetAccount.currency
 
+  const typeBadgeColor =
+    row.type === 'INCOME'
+      ? 'border-green-500 text-green-600'
+      : row.type === 'EXPENSE'
+        ? 'border-red-500 text-red-600'
+        : row.type === 'TRANSFER'
+          ? 'border-blue-500 text-blue-600'
+          : 'border-gray-500 text-gray-600'
+
   return (
     <TableRow>
       <TableCell>
@@ -418,89 +498,130 @@ function ImportTableRow({
       </TableCell>
       <TableCell className="whitespace-nowrap">{row.date}</TableCell>
       <TableCell>
-        <Select value={row.type} onValueChange={handleTypeChange}>
-          <SelectTrigger
-            className={cn(
-              'h-7 w-28 text-xs font-medium',
-              row.type === 'INCOME' && 'border-green-500 text-green-600',
-              row.type === 'EXPENSE' && 'border-red-500 text-red-600',
-              row.type === 'TRANSFER' && 'border-blue-500 text-blue-600',
+        {row.type === 'INITIAL_BALANCE' ? (
+          <Badge variant="outline" className="border-gray-500 text-gray-600">
+            INIT BAL
+          </Badge>
+        ) : (
+          <Select value={row.type} onValueChange={handleTypeChange}>
+            <SelectTrigger
+              className={cn('h-7 w-28 text-xs font-medium', typeBadgeColor)}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="INCOME">Income</SelectItem>
+              <SelectItem value="EXPENSE">Expense</SelectItem>
+              <SelectItem value="TRANSFER">Transfer</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+      </TableCell>
+      {isMoneyManager && (
+        <TableCell className="whitespace-nowrap text-sm">
+          {row.type === 'TRANSFER' ? (
+            <span>
+              {row.accountName} → {row.targetAccountName}
+            </span>
+          ) : (
+            <span>{row.accountName}</span>
+          )}
+        </TableCell>
+      )}
+      <TableCell>
+        <div className="flex flex-col gap-0.5">
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            className="h-8 w-28"
+            defaultValue={fromSubunits(row.amount).toFixed(2)}
+            onBlur={(e) => handleAmountChange(e.target.value)}
+          />
+          {row.type === 'TRANSFER' &&
+            row.targetAmount &&
+            row.targetCurrency && (
+              <span className="text-xs text-muted-foreground">
+                → {fromSubunits(row.targetAmount).toFixed(2)}{' '}
+                {row.targetCurrency}
+              </span>
             )}
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="INCOME">Income</SelectItem>
-            <SelectItem value="EXPENSE">Expense</SelectItem>
-            <SelectItem value="TRANSFER">Transfer</SelectItem>
-          </SelectContent>
-        </Select>
+        </div>
       </TableCell>
       <TableCell>
         <Input
-          type="number"
-          step="0.01"
-          min="0"
-          className="h-8 w-28"
-          defaultValue={fromSubunits(row.amount).toFixed(2)}
-          onBlur={(e) => handleAmountChange(e.target.value)}
-        />
-      </TableCell>
-      <TableCell>
-        <Input
-          className="h-8 w-72"
+          className="h-8 w-48"
           value={row.description}
           onChange={(e) => onUpdate({ description: e.target.value })}
         />
       </TableCell>
       <TableCell>
-        {row.type === 'TRANSFER' ? (
-          <div className="flex flex-col gap-1">
-            <Select
-              value={row.targetAccountId ?? NONE_VALUE}
-              onValueChange={handleTargetAccountChange}
-            >
-              <SelectTrigger className="h-8 w-44">
-                <SelectValue>
-                  {(v: string) => {
-                    if (v === NONE_VALUE) return 'Target account'
-                    const a = targetAccounts.find((acc) => acc.id === v)
-                    return a ? a.name : 'Target account'
-                  }}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={NONE_VALUE}>Target account</SelectItem>
-                {targetAccounts.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
-                    {a.name} ({a.currency})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {isCrossCurrency && (
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder={`Target amount (${targetAccount.currency})`}
-                className="h-7 w-44 text-xs"
-                defaultValue={
-                  row.targetAmount
-                    ? fromSubunits(row.targetAmount).toFixed(2)
-                    : ''
-                }
-                onBlur={(e) => {
-                  const parsed = parseFloat(e.target.value)
-                  if (!isNaN(parsed) && parsed > 0) {
-                    onUpdate({ targetAmount: toSubunits(parsed) })
-                  } else {
-                    onUpdate({ targetAmount: undefined })
+        {row.type === 'INITIAL_BALANCE' ? (
+          <span className="text-sm text-muted-foreground">—</span>
+        ) : row.type === 'TRANSFER' ? (
+          isMoneyManager ? (
+            <span className="text-sm text-muted-foreground">
+              {row.targetAccountName}
+            </span>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <Select
+                value={row.targetAccountId ?? NONE_VALUE}
+                onValueChange={handleTargetAccountChange}
+              >
+                <SelectTrigger className="h-8 w-44">
+                  <SelectValue>
+                    {(v: string) => {
+                      if (v === NONE_VALUE) return 'Target account'
+                      const a = targetAccounts.find((acc) => acc.id === v)
+                      return a ? a.name : 'Target account'
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE_VALUE}>Target account</SelectItem>
+                  {targetAccounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>
+                      {a.name} ({a.currency})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isCrossCurrency && (
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder={`Target amount (${targetAccount.currency})`}
+                  className="h-7 w-44 text-xs"
+                  defaultValue={
+                    row.targetAmount
+                      ? fromSubunits(row.targetAmount).toFixed(2)
+                      : ''
                   }
-                }}
-              />
+                  onBlur={(e) => {
+                    const parsed = parseFloat(e.target.value)
+                    if (!isNaN(parsed) && parsed > 0) {
+                      onUpdate({ targetAmount: toSubunits(parsed) })
+                    } else {
+                      onUpdate({ targetAmount: undefined })
+                    }
+                  }}
+                />
+              )}
+            </div>
+          )
+        ) : isMoneyManager ? (
+          <span
+            className={cn(
+              'text-sm',
+              row.categoryAutoSelected
+                ? 'text-blue-600'
+                : 'text-muted-foreground',
             )}
-          </div>
+          >
+            {row.categoryName ?? '—'}
+          </span>
         ) : (
           <Select
             value={row.categoryId ?? NONE_VALUE}
@@ -531,6 +652,23 @@ function ImportTableRow({
           </Select>
         )}
       </TableCell>
+      {isMoneyManager && (
+        <TableCell>
+          {row.tags && row.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {row.tags.map((tag) => (
+                <Badge
+                  key={tag}
+                  variant="secondary"
+                  className="text-xs"
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </TableCell>
+      )}
       <TableCell>
         <Button
           variant="ghost"

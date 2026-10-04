@@ -1,6 +1,7 @@
 package com.goldscale.service.parser;
 
 import com.goldscale.dto.response.ImportRow;
+import com.goldscale.model.BankType;
 import com.goldscale.model.TransactionType;
 import org.springframework.stereotype.Component;
 
@@ -35,10 +36,8 @@ public class MonobankParser implements StatementParser {
     private static final Pattern MCC_SUFFIX = Pattern.compile("^(.+?)\\s+(\\d{4})$");
 
     @Override
-    public boolean canParse(String pdfText) {
-        return pdfText.contains("UNIVERSAL BANK")
-                || pdfText.contains("monobank")
-                || pdfText.contains("Cash flow on the card");
+    public BankType getBankType() {
+        return BankType.MONOBANK;
     }
 
     @Override

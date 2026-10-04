@@ -15,5 +15,8 @@ export const queryKeys = {
     all: ['categories'] as const,
     byType: (type: string) => ['categories', type] as const,
   },
+  tags: {
+    all: ['tags'] as const,
+  },
   dashboard: ['dashboard'] as const,
 } as const

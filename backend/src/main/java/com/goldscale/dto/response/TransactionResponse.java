@@ -5,6 +5,7 @@ import com.goldscale.model.TransactionType;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 
 public record TransactionResponse(
@@ -21,12 +22,23 @@ public record TransactionResponse(
         Double exchangeRate,
         String description,
         LocalDate date,
+        List<String> tagIds,
+        List<String> tagNames,
         Instant createdAt
 ) {
     public static TransactionResponse from(
             Transaction txn,
             Map<String, String> accountNames,
-            Map<String, String> categoryNames) {
+            Map<String, String> categoryNames,
+            Map<String, String> tagNamesMap) {
+        var txnTags = txn.getTags();
+        List<String> resolvedTagNames = null;
+        if (txnTags != null && !txnTags.isEmpty()) {
+            resolvedTagNames = txnTags.stream()
+                    .map(id -> tagNamesMap.getOrDefault(id, id))
+                    .toList();
+        }
+
         return new TransactionResponse(
                 txn.getId(),
                 txn.getType(),
@@ -43,6 +55,8 @@ public record TransactionResponse(
                 txn.getExchangeRate(),
                 txn.getDescription(),
                 txn.getDate(),
+                txnTags,
+                resolvedTagNames,
                 txn.getCreatedAt()
         );
     }

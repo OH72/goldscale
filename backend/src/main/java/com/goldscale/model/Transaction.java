@@ -12,6 +12,7 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
@@ -45,6 +46,8 @@ public class Transaction {
     private String description;
 
     private LocalDate date;
+
+    private List<String> tags;
 
     private boolean deleted;
 

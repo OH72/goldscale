@@ -33,6 +33,7 @@ public class TransactionService {
     private final AccountRepository accountRepository;
     private final CategoryRepository categoryRepository;
     private final BalanceService balanceService;
+    private final TagService tagService;
     private final MongoTemplate mongoTemplate;
 
     public Page<TransactionResponse> findAll(
@@ -138,6 +139,12 @@ public class TransactionService {
     Transaction createIncomeOrExpense(
             String accountId, long amount, String categoryId,
             LocalDate date, String description, TransactionType type) {
+        return createIncomeOrExpense(accountId, amount, categoryId, date, description, type, null);
+    }
+
+    Transaction createIncomeOrExpense(
+            String accountId, long amount, String categoryId,
+            LocalDate date, String description, TransactionType type, List<String> tagIds) {
 
         validateAccountExists(accountId);
         if (categoryId != null) {
@@ -152,6 +159,7 @@ public class TransactionService {
         txn.setCategoryId(categoryId);
         txn.setDate(date);
         txn.setDescription(description);
+        txn.setTags(tagIds);
         txn.setDeleted(false);
         txn = transactionRepository.save(txn);
 
@@ -165,6 +173,13 @@ public class TransactionService {
             String sourceAccountId, String targetAccountId,
             long amount, long targetAmount,
             LocalDate date, String description) {
+        return createTransfer(sourceAccountId, targetAccountId, amount, targetAmount, date, description, null);
+    }
+
+    Transaction createTransfer(
+            String sourceAccountId, String targetAccountId,
+            long amount, long targetAmount,
+            LocalDate date, String description, List<String> tagIds) {
 
         validateAccountExists(sourceAccountId);
         validateAccountExists(targetAccountId);
@@ -184,6 +199,7 @@ public class TransactionService {
         txn.setExchangeRate(exchangeRate);
         txn.setDate(date);
         txn.setDescription(description);
+        txn.setTags(tagIds);
         txn.setDeleted(false);
         txn = transactionRepository.save(txn);
 
@@ -286,11 +302,13 @@ public class TransactionService {
     private List<TransactionResponse> enrichWithNames(List<Transaction> transactions) {
         var accountIds = new HashSet<String>();
         var categoryIds = new HashSet<String>();
+        var tagIds = new ArrayList<String>();
 
         for (var txn : transactions) {
             accountIds.add(txn.getAccountId());
             if (txn.getTargetAccountId() != null) accountIds.add(txn.getTargetAccountId());
             if (txn.getCategoryId() != null) categoryIds.add(txn.getCategoryId());
+            if (txn.getTags() != null) tagIds.addAll(txn.getTags());
         }
 
         var accountNames = accountRepository.findAllById(accountIds).stream()
@@ -301,8 +319,10 @@ public class TransactionService {
                 : categoryRepository.findAllById(categoryIds).stream()
                         .collect(Collectors.toMap(Category::getId, Category::getName));
 
+        var tagNamesMap = tagService.getTagNamesByIds(tagIds);
+
         return transactions.stream()
-                .map(txn -> TransactionResponse.from(txn, accountNames, categoryNames))
+                .map(txn -> TransactionResponse.from(txn, accountNames, categoryNames, tagNamesMap))
                 .toList();
     }
 }
