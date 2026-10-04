@@ -5,6 +5,7 @@ import { AccountsPage } from '@/pages/accounts'
 import { TransactionsPage } from '@/pages/transactions'
 import { CategoriesPage } from '@/pages/categories'
 import { ImportPage } from '@/pages/import'
+import { SettingsPage } from '@/pages/settings'
 
 export const router = createBrowserRouter([
   {
@@ -15,6 +16,7 @@ export const router = createBrowserRouter([
       { path: 'transactions', element: <TransactionsPage /> },
       { path: 'categories', element: <CategoriesPage /> },
       { path: 'import', element: <ImportPage /> },
+      { path: 'settings', element: <SettingsPage /> },
     ],
   },
 ])

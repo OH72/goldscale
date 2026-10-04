@@ -5,6 +5,7 @@ import {
   ArrowLeftRight,
   Tag,
   Upload,
+  Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUiStore } from '@/stores/ui-store'
@@ -15,6 +16,7 @@ const navItems = [
   { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
   { to: '/categories', label: 'Categories', icon: Tag },
   { to: '/import', label: 'Import', icon: Upload },
+  { to: '/settings', label: 'Settings', icon: Settings },
 ]
 
 export function Sidebar() {
