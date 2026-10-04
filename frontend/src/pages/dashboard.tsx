@@ -1,16 +1,6 @@
 import { useDashboard } from '@/api/use-dashboard'
 import { PageHeader } from '@/components/layout/page-header'
-import { TransactionBadge } from '@/components/transaction-badge'
-import { DateDisplay } from '@/components/date-display'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import { formatCurrency } from '@/lib/currency'
 
 export function DashboardPage() {
@@ -50,86 +40,6 @@ export function DashboardPage() {
         )}
       </div>
 
-      {/* Recent transactions */}
-      <h2 className="mb-3 text-lg font-semibold">Recent Transactions</h2>
-      <Table className="table-fixed w-full">
-        <TableHeader>
-          <TableRow>
-            <TableHead className="w-28">Date</TableHead>
-            <TableHead className="w-24">Type</TableHead>
-            <TableHead className="w-44">Account</TableHead>
-            <TableHead className="w-32">Category</TableHead>
-            <TableHead className="w-48 text-right">Amount</TableHead>
-            <TableHead>Description</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {data.recentTransactions.map((txn) => {
-            const account = data.accounts.find(
-              (a) => a.id === txn.accountId,
-            )
-            const currency = account?.currency ?? 'UAH'
-
-            return (
-              <TableRow key={txn.id}>
-                <TableCell>
-                  <DateDisplay date={txn.date} />
-                </TableCell>
-                <TableCell>
-                  <TransactionBadge type={txn.type} />
-                </TableCell>
-                <TableCell>
-                  {txn.accountName}
-                  {txn.type === 'TRANSFER' && txn.targetAccountName && (
-                    <span className="text-muted-foreground">
-                      {' → '}
-                      {txn.targetAccountName}
-                    </span>
-                  )}
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {txn.categoryName ?? '—'}
-                </TableCell>
-                <TableCell className="overflow-hidden text-right font-medium">
-                  {txn.type === 'INCOME' && '+'}
-                  {txn.type === 'EXPENSE' && '-'}
-                  {formatCurrency(txn.amount, currency)}
-                  {txn.type === 'TRANSFER' && txn.targetAmount && (() => {
-                    const targetAccount = data.accounts.find(
-                      (a) => a.id === txn.targetAccountId,
-                    )
-                    const targetCurrency = targetAccount?.currency ?? currency
-                    return (
-                      <span className="text-muted-foreground">
-                        {' → '}
-                        {formatCurrency(txn.targetAmount, targetCurrency)}
-                        {txn.exchangeRate && txn.exchangeRate !== 1 && (
-                          <span className="ml-1 text-xs">
-                            ({txn.exchangeRate.toFixed(4)})
-                          </span>
-                        )}
-                      </span>
-                    )
-                  })()}
-                </TableCell>
-                <TableCell className="text-muted-foreground" title={txn.description ?? ''}>
-                  <span className="line-clamp-2 text-xs">{txn.description ?? ''}</span>
-                </TableCell>
-              </TableRow>
-            )
-          })}
-          {data.recentTransactions.length === 0 && (
-            <TableRow>
-              <TableCell
-                colSpan={6}
-                className="text-center text-muted-foreground"
-              >
-                No recent transactions
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
     </div>
   )
 }

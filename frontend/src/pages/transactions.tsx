@@ -112,16 +112,15 @@ export function TransactionsPage() {
       const targetAccount = accounts?.find((a) => a.id === txn.targetAccountId)
       const targetCurrency = targetAccount?.currency ?? currency
       return (
-        <>
-          {formatCurrency(txn.amount, currency)}
-          <span className="text-muted-foreground">
-            {' → '}
-            {formatCurrency(txn.targetAmount, targetCurrency)}
+        <div>
+          <div className="whitespace-nowrap">{formatCurrency(txn.amount, currency)}</div>
+          <div className="whitespace-nowrap text-xs text-muted-foreground">
+            → {formatCurrency(txn.targetAmount, targetCurrency)}
             {txn.exchangeRate && txn.exchangeRate !== 1 && (
-              <span className="ml-1 text-xs">({txn.exchangeRate.toFixed(4)})</span>
+              <span className="ml-1">({txn.exchangeRate.toFixed(4)})</span>
             )}
-          </span>
-        </>
+          </div>
+        </div>
       )
     }
 
@@ -246,10 +245,10 @@ export function TransactionsPage() {
         <div className="py-8 text-center text-muted-foreground">Loading...</div>
       ) : (
         <>
-          <Table className="table-fixed w-full">
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead className="w-28">
+                <TableHead className="w-[10%]">
                   <button
                     className="inline-flex items-center gap-1 hover:text-foreground"
                     onClick={() => cycleSort('date')}
@@ -264,10 +263,10 @@ export function TransactionsPage() {
                     )}
                   </button>
                 </TableHead>
-                <TableHead className="w-24">Type</TableHead>
-                <TableHead className="w-44">Account</TableHead>
-                <TableHead className="w-32">Category</TableHead>
-                <TableHead className="w-48 text-right">
+                <TableHead className="w-[10%]">Type</TableHead>
+                <TableHead className="w-[15%]">Account</TableHead>
+                <TableHead className="w-[15%]">Category</TableHead>
+                <TableHead className="w-[20%] text-right">
                   <button
                     className="inline-flex items-center gap-1 hover:text-foreground ml-auto"
                     onClick={() => cycleSort('amount')}
@@ -283,41 +282,40 @@ export function TransactionsPage() {
                   </button>
                 </TableHead>
                 <TableHead>Description</TableHead>
-                <TableHead className="w-12" />
+                <TableHead className="w-10" />
               </TableRow>
             </TableHeader>
             <TableBody>
               {data?.content.map((txn) => (
-                <TableRow key={txn.id}>
-                  <TableCell>
+                <TableRow key={txn.id} className="h-14">
+                  <TableCell className="overflow-hidden align-top">
                     <DateDisplay date={txn.date} />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="overflow-hidden align-top">
                     <TransactionBadge type={txn.type} />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="overflow-hidden align-top">
                     {txn.accountName}
                     {txn.type === 'TRANSFER' && txn.targetAccountName && (
-                      <span className="text-muted-foreground">
-                        {' → '}
-                        {txn.targetAccountName}
-                      </span>
+                      <div className="text-xs text-muted-foreground">
+                        → {txn.targetAccountName}
+                      </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="overflow-hidden align-top text-muted-foreground">
                     {txn.categoryName ?? '—'}
                   </TableCell>
                   <TableCell
                     className={cn(
-                      'overflow-hidden text-right font-medium',
+                      'overflow-hidden align-top text-right font-medium',
                       txn.type === 'INCOME' && 'text-green-600',
                       txn.type === 'EXPENSE' && 'text-red-600',
                     )}
                   >
                     {renderAmount(txn)}
                   </TableCell>
-                  <TableCell className="text-muted-foreground" title={txn.description ?? ''}>
-                    <span className="line-clamp-2 text-xs">{txn.description ?? ''}</span>
+                  <TableCell className="align-top whitespace-normal text-muted-foreground" title={txn.description ?? ''}>
+                    <p className="line-clamp-2 break-words text-xs">{txn.description ?? ''}</p>
                   </TableCell>
                   <TableCell>
                     {txn.type !== 'INITIAL_BALANCE' && (
