@@ -88,7 +88,7 @@ export function TransactionFormDialog({
   )
 
   const sortedCategories = useMemo(() => {
-    if (!filteredCategories) return []
+    if (!filteredCategories) return { recent: [], rest: [], hasRecent: false }
     const tenDaysAgo = new Date()
     tenDaysAgo.setDate(tenDaysAgo.getDate() - 10)
     const recentCategoryIds = new Set(
