@@ -1,4 +1,4 @@
-import type { TransactionType } from './common'
+import type { TransactionType, Currency } from './common'
 import type { AccountResponse } from './account'
 
 export interface TransactionResponse {
@@ -82,6 +82,31 @@ export interface TransactionFilters {
 export interface DashboardResponse {
   accounts: AccountResponse[]
   recentTransactions: TransactionResponse[]
+  totalNetWorth: number
+  displayCurrency: Currency
+}
+
+export interface CategoryExpenseResponse {
+  categoryId: string
+  categoryName: string
+  amount: number
+}
+
+export interface IncomeVsExpenseResponse {
+  period: string
+  income: number
+  expense: number
+  net: number
+}
+
+export interface IncomeVsExpenseResult {
+  priorNet: number
+  months: IncomeVsExpenseResponse[]
+}
+
+export interface ExpenseTrendResponse {
+  period: string
+  categories: CategoryExpenseResponse[]
 }
 
 export interface AuditResponse {

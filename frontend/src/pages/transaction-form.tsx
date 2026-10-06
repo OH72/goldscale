@@ -59,12 +59,14 @@ interface TransactionFormDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   editTransaction?: TransactionResponse | null
+  defaultAccountId?: string
 }
 
 export function TransactionFormDialog({
   open,
   onOpenChange,
   editTransaction,
+  defaultAccountId,
 }: TransactionFormDialogProps) {
   const isEdit = !!editTransaction
   const isInitialBalance = editTransaction?.type === 'INITIAL_BALANCE'
@@ -136,15 +138,16 @@ export function TransactionFormDialog({
       setSelectedTagIds([])
       setTagSearch('')
       setCategorySearch('')
+      const firstActiveId = defaultAccountId ?? accounts?.find((a) => a.active)?.id ?? accounts?.[0]?.id ?? ''
       form.reset({
         amount: 0,
-        accountId: accounts?.[0]?.id ?? '',
+        accountId: firstActiveId,
         description: '',
         date: new Date(),
       })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editTransaction, open, accounts])
+  }, [editTransaction, open, accounts, defaultAccountId])
 
   function handleSubmit(values: FormValues) {
     const tagIds = selectedTagIds.length > 0 ? selectedTagIds : null
@@ -266,7 +269,12 @@ export function TransactionFormDialog({
                   <SelectValue placeholder="Select account">
                     {(v: string) => {
                       const a = accounts?.find((acc) => acc.id === v)
-                      return a ? `${a.name} (${a.currency})` : 'Select account'
+                      return a ? (
+                        <span className="inline-flex items-center gap-2">
+                          {a.color && <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />}
+                          {a.name} ({a.currency})
+                        </span>
+                      ) : 'Select account'
                     }}
                   </SelectValue>
                 </SelectTrigger>
@@ -276,7 +284,10 @@ export function TransactionFormDialog({
                     .sort((a, b) => (a.active === b.active ? 0 : a.active ? -1 : 1))
                     .map((a) => (
                     <SelectItem key={a.id} value={a.id} className={!a.active ? 'text-muted-foreground' : ''}>
-                      {a.name} ({a.currency}){!a.active ? ' (inactive)' : ''}
+                      <span className="inline-flex items-center gap-2">
+                        {a.color && <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />}
+                        {a.name} ({a.currency}){!a.active ? ' (inactive)' : ''}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -296,7 +307,12 @@ export function TransactionFormDialog({
                   <SelectValue placeholder="Select target">
                     {(v: string) => {
                       const a = accounts?.find((acc) => acc.id === v)
-                      return a ? `${a.name} (${a.currency})` : 'Select target'
+                      return a ? (
+                        <span className="inline-flex items-center gap-2">
+                          {a.color && <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />}
+                          {a.name} ({a.currency})
+                        </span>
+                      ) : 'Select target'
                     }}
                   </SelectValue>
                 </SelectTrigger>
@@ -306,7 +322,10 @@ export function TransactionFormDialog({
                     .sort((a, b) => (a.active === b.active ? 0 : a.active ? -1 : 1))
                     .map((a) => (
                       <SelectItem key={a.id} value={a.id} className={!a.active ? 'text-muted-foreground' : ''}>
-                        {a.name} ({a.currency}){!a.active ? ' (inactive)' : ''}
+                        <span className="inline-flex items-center gap-2">
+                          {a.color && <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />}
+                          {a.name} ({a.currency}){!a.active ? ' (inactive)' : ''}
+                        </span>
                       </SelectItem>
                     ))}
                 </SelectContent>

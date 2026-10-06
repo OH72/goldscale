@@ -49,6 +49,19 @@ import type { Currency } from '@/types/common'
 
 const CURRENCIES: Currency[] = ['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'USDT']
 
+const ACCOUNT_COLORS = [
+  { value: '#ef4444', label: 'Red' },
+  { value: '#f97316', label: 'Orange' },
+  { value: '#eab308', label: 'Yellow' },
+  { value: '#22c55e', label: 'Green' },
+  { value: '#06b6d4', label: 'Cyan' },
+  { value: '#3b82f6', label: 'Blue' },
+  { value: '#8b5cf6', label: 'Purple' },
+  { value: '#ec4899', label: 'Pink' },
+  { value: '#78716c', label: 'Stone' },
+  { value: '#1e293b', label: 'Slate' },
+]
+
 type SortField = 'name' | 'balance'
 type SortDir = 'asc' | 'desc'
 
@@ -56,12 +69,14 @@ const createSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   currency: z.enum(['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'USDT']),
   initialBalance: z.coerce.number().min(0, 'Balance must be >= 0'),
+  color: z.string().nullable(),
 })
 
 const editSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   currency: z.enum(['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'USDT']),
   active: z.boolean(),
+  color: z.string().nullable(),
 })
 
 type CreateForm = z.infer<typeof createSchema>
@@ -108,7 +123,7 @@ export function AccountsPage() {
 
   const createForm = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
-    defaultValues: { name: '', currency: 'UAH', initialBalance: 0 },
+    defaultValues: { name: '', currency: 'UAH', initialBalance: 0, color: null },
   })
 
   const editForm = useForm<EditForm>({
@@ -121,6 +136,7 @@ export function AccountsPage() {
         name: data.name,
         currency: data.currency,
         initialBalance: toSubunits(data.initialBalance),
+        color: data.color,
       },
       {
         onSuccess: () => {
@@ -134,7 +150,7 @@ export function AccountsPage() {
   function handleEdit(data: EditForm) {
     if (!editAccount) return
     updateMutation.mutate(
-      { id: editAccount.id, data: { name: data.name, currency: data.currency, active: data.active } },
+      { id: editAccount.id, data: { name: data.name, currency: data.currency, active: data.active, color: data.color } },
       {
         onSuccess: () => setEditAccount(null),
       },
@@ -142,7 +158,7 @@ export function AccountsPage() {
   }
 
   function openEdit(account: AccountResponse) {
-    editForm.reset({ name: account.name, currency: account.currency, active: account.active })
+    editForm.reset({ name: account.name, currency: account.currency, active: account.active, color: account.color })
     setEditAccount(account)
   }
 
@@ -215,14 +231,24 @@ export function AccountsPage() {
         <TableBody>
           {filteredAccounts.map((account) => (
             <TableRow key={account.id}>
-              <TableCell className={cn('font-medium', !account.active && 'text-muted-foreground')}>{account.name}</TableCell>
+              <TableCell className={cn('font-medium', !account.active && 'text-muted-foreground')}>
+                <span className="inline-flex items-center gap-2">
+                  {account.color && (
+                    <span
+                      className="inline-block h-3 w-3 rounded-full shrink-0"
+                      style={{ backgroundColor: account.color }}
+                    />
+                  )}
+                  {account.name}
+                </span>
+              </TableCell>
               <TableCell>
                 <Checkbox
                   checked={account.active}
                   onCheckedChange={(checked) => {
                     updateMutation.mutate({
                       id: account.id,
-                      data: { name: account.name, currency: account.currency, active: !!checked },
+                      data: { name: account.name, currency: account.currency, active: !!checked, color: account.color },
                     })
                   }}
                 />
@@ -321,6 +347,26 @@ export function AccountsPage() {
                 </p>
               )}
             </div>
+            <div className="space-y-2">
+              <Label>Color</Label>
+              <div className="flex flex-wrap gap-2">
+                {ACCOUNT_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    title={c.label}
+                    className={cn(
+                      'h-7 w-7 rounded-full border-2 transition-transform hover:scale-110',
+                      createForm.watch('color') === c.value ? 'border-foreground scale-110' : 'border-transparent',
+                    )}
+                    style={{ backgroundColor: c.value }}
+                    onClick={() =>
+                      createForm.setValue('color', createForm.watch('color') === c.value ? null : c.value)
+                    }
+                  />
+                ))}
+              </div>
+            </div>
             <Button
               type="submit"
               className="w-full"
@@ -387,6 +433,26 @@ export function AccountsPage() {
                 }
               />
               <Label htmlFor="edit-active">Active</Label>
+            </div>
+            <div className="space-y-2">
+              <Label>Color</Label>
+              <div className="flex flex-wrap gap-2">
+                {ACCOUNT_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    title={c.label}
+                    className={cn(
+                      'h-7 w-7 rounded-full border-2 transition-transform hover:scale-110',
+                      editForm.watch('color') === c.value ? 'border-foreground scale-110' : 'border-transparent',
+                    )}
+                    style={{ backgroundColor: c.value }}
+                    onClick={() =>
+                      editForm.setValue('color', editForm.watch('color') === c.value ? null : c.value)
+                    }
+                  />
+                ))}
+              </div>
             </div>
             <Button
               type="submit"

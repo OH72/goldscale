@@ -219,7 +219,10 @@ export function TransactionsPage() {
               .sort((a, b) => (a.active === b.active ? 0 : a.active ? -1 : 1))
               .map((a) => (
               <SelectItem key={a.id} value={a.id} className={!a.active ? 'text-muted-foreground' : ''}>
-                {a.name}{!a.active ? ' (inactive)' : ''}
+                <span className="inline-flex items-center gap-2">
+                  {a.color && <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />}
+                  {a.name}{!a.active ? ' (inactive)' : ''}
+                </span>
               </SelectItem>
             ))}
           </SelectContent>
@@ -386,10 +389,16 @@ export function TransactionsPage() {
                     <TransactionBadge type={txn.type} />
                   </TableCell>
                   <TableCell className="overflow-hidden align-top">
-                    {txn.accountName}
+                    <span className="inline-flex items-center gap-1.5">
+                      {(() => { const a = accounts?.find((acc) => acc.id === txn.accountId); return a?.color ? <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} /> : null })()}
+                      {txn.accountName}
+                    </span>
                     {txn.type === 'TRANSFER' && txn.targetAccountName && (
-                      <div className="text-xs text-muted-foreground">
-                        → {txn.targetAccountName}
+                      <div className="text-xs text-muted-foreground inline-flex items-center gap-1.5 ml-0">
+                        <span className="inline-flex items-center gap-1.5">
+                          → {(() => { const a = accounts?.find((acc) => acc.id === txn.targetAccountId); return a?.color ? <><span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: a.color }} /></> : null })()}
+                          {txn.targetAccountName}
+                        </span>
                       </div>
                     )}
                   </TableCell>
@@ -468,6 +477,7 @@ export function TransactionsPage() {
           }
         }}
         editTransaction={editTxn}
+        defaultAccountId={filters.accountId}
       />
 
       {/* Delete Confirmation */}

@@ -18,5 +18,14 @@ export const queryKeys = {
   tags: {
     all: ['tags'] as const,
   },
-  dashboard: ['dashboard'] as const,
+  settings: {
+    all: ['settings'] as const,
+  },
+  dashboard: {
+    all: ['dashboard'] as const,
+    expensesByCategory: (filters: unknown) => ['dashboard', 'expenses-by-category', filters] as const,
+    incomeVsExpenses: (filters: unknown) => ['dashboard', 'income-vs-expenses', filters] as const,
+    expenseTrend: (filters: unknown) => ['dashboard', 'expense-trend', filters] as const,
+    exchangeRateHistory: (filters: unknown) => ['dashboard', 'exchange-rate-history', filters] as const,
+  },
 } as const

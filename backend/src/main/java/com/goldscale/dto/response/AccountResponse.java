@@ -11,6 +11,7 @@ public record AccountResponse(
         Currency currency,
         long balance,
         boolean active,
+        String color,
         Instant createdAt
 ) {
     public static AccountResponse from(Account account) {
@@ -20,6 +21,7 @@ public record AccountResponse(
                 account.getCurrency(),
                 account.getBalance(),
                 account.isActive(),
+                account.getColor(),
                 account.getCreatedAt()
         );
     }

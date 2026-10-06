@@ -27,6 +27,8 @@ public class Account {
 
     private boolean active = true;
 
+    private String color;
+
     @CreatedDate
     private Instant createdAt;
 

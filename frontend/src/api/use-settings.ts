@@ -1,0 +1,28 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { api } from './client'
+import { queryKeys } from './query-keys'
+import type { SettingsResponse, UpdateSettingsRequest } from '@/types/settings'
+
+export function useSettings() {
+  return useQuery({
+    queryKey: queryKeys.settings.all,
+    queryFn: () => api.get<SettingsResponse>('/settings'),
+  })
+}
+
+export function useUpdateSettings() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (data: UpdateSettingsRequest) =>
+      api.put<SettingsResponse>('/settings', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.settings.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all })
+      toast.success('Settings saved')
+    },
+    onError: (error: Error) => {
+      toast.error(error.message)
+    },
+  })
+}

@@ -48,6 +48,7 @@ public class AccountService {
         account.setName(request.name());
         account.setCurrency(request.currency());
         account.setBalance(request.initialBalance());
+        account.setColor(request.color());
         account = accountRepository.save(account);
 
         var txn = new Transaction();
@@ -73,6 +74,7 @@ public class AccountService {
         account.setName(request.name());
         account.setCurrency(request.currency());
         account.setActive(request.active());
+        account.setColor(request.color());
         return accountRepository.save(account);
     }
 
