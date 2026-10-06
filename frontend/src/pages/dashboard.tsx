@@ -52,6 +52,20 @@ const CHART_COLORS = [
   '#6db8be', '#d9a0b8', '#d4c968', '#6dbead', '#9ba3d6',
 ]
 
+function compactNumber(v: number): string {
+  const abs = Math.abs(v)
+  if (abs >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
+  if (abs >= 1_000) return `${(v / 1_000).toFixed(0)}K`
+  return `${v}`
+}
+
+const tooltipStyle: React.CSSProperties = {
+  backgroundColor: 'var(--card)',
+  borderColor: 'var(--border)',
+  color: 'var(--card-foreground)',
+  borderRadius: 8,
+}
+
 type DatePreset = 'this-month' | 'last-month' | 'last-3' | 'last-6' | 'this-year' | 'all-time' | 'custom'
 
 const PRESET_LABELS: Record<DatePreset, string> = {
@@ -420,6 +434,7 @@ export function DashboardPage() {
                       ))}
                     </Pie>
                     <Tooltip
+                      contentStyle={tooltipStyle}
                       formatter={(value: number) => [
                         formatCurrency(value, displayCurrency),
                         '',
@@ -431,11 +446,11 @@ export function DashboardPage() {
                 <div className="flex gap-6 text-sm">
                   <p>
                     <span className="text-muted-foreground">Expense: </span>
-                    <span className="font-semibold text-red-500">{formatCurrency(donutTotal, displayCurrency)}</span>
+                    <span className="font-semibold" style={{ color: '#ef4444' }}>{formatCurrency(donutTotal, displayCurrency)}</span>
                   </p>
                   <p>
                     <span className="text-muted-foreground">Income: </span>
-                    <span className="font-semibold text-green-500">{formatCurrency(totalIncome, displayCurrency)}</span>
+                    <span className="font-semibold" style={{ color: '#22c55e' }}>{formatCurrency(totalIncome, displayCurrency)}</span>
                   </p>
                 </div>
                 <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1">
@@ -469,8 +484,9 @@ export function DashboardPage() {
                 <BarChart data={barData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="period" className="text-xs" />
-                  <YAxis className="text-xs" tickFormatter={(v) => `${v}`} />
+                  <YAxis className="text-xs" tickFormatter={compactNumber} width={55} />
                   <Tooltip
+                    contentStyle={tooltipStyle}
                     formatter={(value: number, name: string) => [
                       formatCurrency(Math.round(value * 100), displayCurrency),
                       name.charAt(0).toUpperCase() + name.slice(1),
@@ -501,8 +517,9 @@ export function DashboardPage() {
               <ComposedChart data={netTrendData}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="period" className="text-xs" />
-                <YAxis className="text-xs" />
+                <YAxis className="text-xs" tickFormatter={compactNumber} width={55} />
                 <Tooltip
+                  contentStyle={tooltipStyle}
                   formatter={(value: number, name: string) => [
                     formatCurrency(Math.round(value * 100), displayCurrency),
                     name === 'net' ? 'Net' : 'Change',
@@ -550,6 +567,7 @@ export function DashboardPage() {
                 <XAxis dataKey="date" className="text-xs" interval="preserveStartEnd" />
                 <YAxis className="text-xs" />
                 <Tooltip
+                  contentStyle={tooltipStyle}
                   formatter={(value: number, name: string) => [
                     `${(value as number).toFixed(2)} ${displayCurrency}`,
                     `1 ${name}`,
@@ -590,8 +608,9 @@ export function DashboardPage() {
                 <BarChart data={trendChartData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                   <XAxis dataKey="period" className="text-xs" />
-                  <YAxis className="text-xs" />
+                  <YAxis className="text-xs" tickFormatter={compactNumber} width={55} />
                   <Tooltip
+                    contentStyle={tooltipStyle}
                     formatter={(value: number, name: string) => {
                       const cat = trendCategoryKeys.find((c) => c.id === name)
                       return [
