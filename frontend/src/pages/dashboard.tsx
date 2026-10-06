@@ -135,7 +135,7 @@ export function DashboardPage() {
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
   const chartColors = isDark ? CHART_COLORS_DARK : CHART_COLORS_LIGHT
-  const cursorFill = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
+  const cursorFill = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
   const { data, isLoading, error } = useDashboard()
   const { data: accounts = [] } = useAccounts()
   const { data: settings } = useSettings()
