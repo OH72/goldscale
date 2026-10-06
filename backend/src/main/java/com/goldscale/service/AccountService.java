@@ -32,10 +32,6 @@ public class AccountService {
     private final SettingsService settingsService;
     private final ExchangeRateService exchangeRateService;
 
-    public List<Account> findAll() {
-        return accountRepository.findAll();
-    }
-
     public List<AccountResponse> findAllWithConvertedBalance() {
         var displayCurrency = settingsService.get().getDisplayCurrency();
         var rates = exchangeRateService.getLatestRates();
