@@ -45,9 +45,15 @@ import {
   ComposedChart,
   ReferenceLine,
 } from 'recharts'
+import { useTheme } from 'next-themes'
 import { formatCurrency, fromSubunits } from '@/lib/currency'
 
-const CHART_COLORS = [
+const CHART_COLORS_LIGHT = [
+  '#3b82f6', '#ef4444', '#22c55e', '#f97316', '#8b5cf6',
+  '#06b6d4', '#ec4899', '#eab308', '#14b8a6', '#6366f1',
+]
+
+const CHART_COLORS_DARK = [
   '#5b9bd5', '#e07b6d', '#5cb888', '#e0a35c', '#9b87c9',
   '#4fadb5', '#cc84a0', '#c4b44e', '#4fbda0', '#8190c9',
 ]
@@ -126,6 +132,8 @@ function getPresetRange(preset: DatePreset, initialDate = '2022-01-01'): { from:
 
 export function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams()
+  const { resolvedTheme } = useTheme()
+  const chartColors = resolvedTheme === 'dark' ? CHART_COLORS_DARK : CHART_COLORS_LIGHT
   const { data, isLoading, error } = useDashboard()
   const { data: accounts = [] } = useAccounts()
   const { data: settings } = useSettings()
@@ -430,7 +438,7 @@ export function DashboardPage() {
                       nameKey="name"
                     >
                       {donutData.map((_, i) => (
-                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="none" />
+                        <Cell key={i} fill={chartColors[i % chartColors.length]} stroke="none" />
                       ))}
                     </Pie>
                     <Tooltip
@@ -458,7 +466,7 @@ export function DashboardPage() {
                     <span key={d.name} className="inline-flex items-center gap-1.5 text-xs">
                       <span
                         className="inline-block h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }}
+                        style={{ backgroundColor: chartColors[i % chartColors.length] }}
                       />
                       {d.name} ({((d.value / donutTotal) * 100).toFixed(0)}%)
                     </span>
@@ -580,7 +588,7 @@ export function DashboardPage() {
                     key={currency}
                     type="monotone"
                     dataKey={currency}
-                    stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                    stroke={chartColors[i % chartColors.length]}
                     strokeWidth={2}
                     dot={false}
                     name={currency}
@@ -630,7 +638,7 @@ export function DashboardPage() {
                       key={cat.id}
                       dataKey={cat.id}
                       stackId="expenses"
-                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                      fill={chartColors[i % chartColors.length]}
                       name={cat.id}
                     />
                   ))}
