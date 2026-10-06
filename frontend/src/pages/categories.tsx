@@ -7,12 +7,14 @@ import {
   useCreateCategory,
   useUpdateCategory,
   useDeleteCategory,
+  useBulkDeleteCategories,
 } from '@/api/use-categories'
 import { PageHeader } from '@/components/layout/page-header'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
@@ -34,7 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-import { MoreHorizontal, Plus } from 'lucide-react'
+import { MoreHorizontal, Plus, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CategoryResponse } from '@/types/category'
 import type { CategoryType } from '@/types/common'
@@ -56,6 +58,7 @@ export function CategoriesPage() {
   const createMutation = useCreateCategory()
   const updateMutation = useUpdateCategory()
   const deleteMutation = useDeleteCategory()
+  const bulkDeleteMutation = useBulkDeleteCategories()
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editCategory, setEditCategory] = useState<CategoryResponse | null>(
@@ -63,6 +66,8 @@ export function CategoriesPage() {
   )
   const [deleteCategory, setDeleteCategory] =
     useState<CategoryResponse | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
 
   const createForm = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
@@ -105,6 +110,28 @@ export function CategoriesPage() {
     setEditCategory(category)
   }
 
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll(items: CategoryResponse[]) {
+    const allSelected = items.every((c) => selectedIds.has(c.id))
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (allSelected) {
+        items.forEach((c) => next.delete(c.id))
+      } else {
+        items.forEach((c) => next.add(c.id))
+      }
+      return next
+    })
+  }
+
   function renderList(items: CategoryResponse[]) {
     if (items.length === 0) {
       return (
@@ -113,14 +140,27 @@ export function CategoriesPage() {
         </p>
       )
     }
+    const allSelected = items.length > 0 && items.every((c) => selectedIds.has(c.id))
+    const someSelected = items.some((c) => selectedIds.has(c.id))
     return (
       <div className="space-y-1">
+        <div className="flex items-center px-4 py-2">
+          <Checkbox
+            checked={allSelected}
+            data-state={someSelected && !allSelected ? 'indeterminate' : undefined}
+            onCheckedChange={() => toggleSelectAll(items)}
+          />
+        </div>
         {items.map((cat) => (
           <div
             key={cat.id}
             className="flex items-center justify-between rounded-md border px-4 py-3"
           >
             <div className="flex items-center gap-3">
+              <Checkbox
+                checked={selectedIds.has(cat.id)}
+                onCheckedChange={() => toggleSelect(cat.id)}
+              />
               <span className="font-medium">{cat.name}</span>
               <Badge variant="secondary">{cat.type}</Badge>
             </div>
@@ -153,6 +193,11 @@ export function CategoriesPage() {
   return (
     <div>
       <PageHeader title="Categories">
+        {selectedIds.size > 0 && (
+          <Button variant="destructive" onClick={() => setBulkDeleteOpen(true)}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete selected ({selectedIds.size})
+          </Button>
+        )}
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> New Category
         </Button>
@@ -276,6 +321,23 @@ export function CategoriesPage() {
               onSuccess: () => setDeleteCategory(null),
             })
           }
+        }}
+      />
+
+      {/* Bulk Delete Confirmation */}
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={(open) => !open && setBulkDeleteOpen(false)}
+        title="Delete Categories"
+        description={`Delete ${selectedIds.size} selected ${selectedIds.size === 1 ? 'category' : 'categories'}? This will fail if any are referenced by transactions.`}
+        loading={bulkDeleteMutation.isPending}
+        onConfirm={() => {
+          bulkDeleteMutation.mutate(Array.from(selectedIds), {
+            onSuccess: () => {
+              setSelectedIds(new Set())
+              setBulkDeleteOpen(false)
+            },
+          })
         }}
       />
     </div>

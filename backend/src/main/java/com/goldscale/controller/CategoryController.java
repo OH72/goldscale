@@ -54,4 +54,10 @@ public class CategoryController {
         categoryService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping
+    public ResponseEntity<Void> bulkDelete(@RequestBody List<String> ids) {
+        categoryService.bulkDelete(ids);
+        return ResponseEntity.noContent().build();
+    }
 }

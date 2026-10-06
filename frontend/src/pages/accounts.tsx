@@ -129,7 +129,7 @@ export function AccountsPage() {
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
     } else {
       setSortField(field)
-      setSortDir('asc')
+      setSortDir(field === 'name' ? 'asc' : 'desc')
     }
   }
 

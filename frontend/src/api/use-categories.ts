@@ -63,3 +63,17 @@ export function useDeleteCategory() {
     },
   })
 }
+
+export function useBulkDeleteCategories() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (ids: string[]) => api.deleteWithBody('/categories', ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all })
+      toast.success('Categories deleted')
+    },
+    onError: (error: Error) => {
+      toast.error(error instanceof ApiError ? error.message : 'Failed to delete categories')
+    },
+  })
+}

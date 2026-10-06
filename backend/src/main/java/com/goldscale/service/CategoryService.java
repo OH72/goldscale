@@ -11,6 +11,7 @@ import com.goldscale.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -68,5 +69,23 @@ public class CategoryService {
         }
 
         categoryRepository.delete(category);
+    }
+
+    public void bulkDelete(List<String> ids) {
+        var categories = categoryRepository.findAllById(ids);
+
+        var inUse = new ArrayList<String>();
+        for (var category : categories) {
+            if (transactionRepository.existsByCategoryIdAndDeletedFalse(category.getId())) {
+                inUse.add(category.getName());
+            }
+        }
+
+        if (!inUse.isEmpty()) {
+            throw new BusinessRuleException(
+                    "Cannot delete: the following categories have active transactions: " + String.join(", ", inUse));
+        }
+
+        categoryRepository.deleteAll(categories);
     }
 }
