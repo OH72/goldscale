@@ -83,6 +83,30 @@ const editSchema = z.object({
 type CreateForm = z.infer<typeof createSchema>
 type EditForm = z.infer<typeof editSchema>
 
+interface SortableHeadProps {
+  field: SortField
+  label: string
+  className?: string
+  sortField: SortField | null
+  sortDir: 'asc' | 'desc'
+  onSort: (field: SortField) => void
+}
+
+function SortableHead({ field, label, className, sortField, sortDir, onSort }: SortableHeadProps) {
+  return (
+    <TableHead className={className}>
+      <button className="inline-flex items-center gap-1 hover:text-foreground" onClick={() => onSort(field)}>
+        {label}
+        {sortField === field ? (
+          sortDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+        ) : (
+          <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+        )}
+      </button>
+    </TableHead>
+  )
+}
+
 export function AccountsPage() {
   const { data: accounts, isLoading } = useAccounts()
   const { data: settings } = useSettings()
@@ -176,24 +200,6 @@ export function AccountsPage() {
 
   if (isLoading) return <div className="p-6">Loading...</div>
 
-  function SortableHead({ field, label, className }: { field: SortField; label: string; className?: string }) {
-    return (
-      <TableHead className={className}>
-        <button
-          className="inline-flex items-center gap-1 hover:text-foreground"
-          onClick={() => toggleSort(field)}
-        >
-          {label}
-          {sortField === field ? (
-            sortDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
-          ) : (
-            <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-          )}
-        </button>
-      </TableHead>
-    )
-  }
-
   return (
     <div>
       <PageHeader title="Accounts">
@@ -227,14 +233,17 @@ export function AccountsPage() {
       <Table>
         <TableHeader>
           <TableRow>
-            <SortableHead field="name" label="Name" />
+            <SortableHead field="name" label="Name" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
             <TableHead className="w-16">Active</TableHead>
             <TableHead>Currency</TableHead>
-            <SortableHead field="balance" label="Balance" className="text-right" />
+            <SortableHead field="balance" label="Balance" className="text-right" sortField={sortField} sortDir={sortDir} onSort={toggleSort} />
             <SortableHead
               field="converted"
               label={displayCurrency ? `Balance in ${displayCurrency}` : 'Balance (display)'}
               className="text-right"
+              sortField={sortField}
+              sortDir={sortDir}
+              onSort={toggleSort}
             />
             <TableHead className="w-12" />
           </TableRow>
