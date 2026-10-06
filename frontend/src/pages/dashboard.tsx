@@ -48,8 +48,8 @@ import {
 import { formatCurrency, fromSubunits } from '@/lib/currency'
 
 const CHART_COLORS = [
-  '#3b82f6', '#ef4444', '#22c55e', '#f97316', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#eab308', '#14b8a6', '#6366f1',
+  '#7ba7d9', '#e89a8b', '#7fc49e', '#e8b87d', '#b09fd6',
+  '#6db8be', '#d9a0b8', '#d4c968', '#6dbead', '#9ba3d6',
 ]
 
 type DatePreset = 'this-month' | 'last-month' | 'last-3' | 'last-6' | 'this-year' | 'all-time' | 'custom'
@@ -416,7 +416,7 @@ export function DashboardPage() {
                       nameKey="name"
                     >
                       {donutData.map((_, i) => (
-                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} stroke="none" />
                       ))}
                     </Pie>
                     <Tooltip
