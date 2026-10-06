@@ -2,6 +2,7 @@ package com.goldscale.service;
 
 import com.goldscale.dto.request.CreateAccountRequest;
 import com.goldscale.dto.request.UpdateAccountRequest;
+import com.goldscale.dto.response.AccountResponse;
 import com.goldscale.exception.BusinessRuleException;
 import com.goldscale.exception.ResourceNotFoundException;
 import com.goldscale.model.Account;
@@ -28,9 +29,23 @@ public class AccountService {
     private final AccountRepository accountRepository;
     private final TransactionRepository transactionRepository;
     private final MongoTemplate mongoTemplate;
+    private final SettingsService settingsService;
+    private final ExchangeRateService exchangeRateService;
 
     public List<Account> findAll() {
         return accountRepository.findAll();
+    }
+
+    public List<AccountResponse> findAllWithConvertedBalance() {
+        var displayCurrency = settingsService.get().getDisplayCurrency();
+        var rates = exchangeRateService.getLatestRates();
+        return accountRepository.findAll().stream()
+                .map(a -> {
+                    var converted = exchangeRateService
+                            .convertWithRates(a.getBalance(), a.getCurrency(), displayCurrency, rates);
+                    return AccountResponse.from(a, converted.isPresent() ? converted.getAsLong() : null);
+                })
+                .toList();
     }
 
     public Account findById(String id) {

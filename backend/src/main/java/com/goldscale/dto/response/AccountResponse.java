@@ -5,6 +5,10 @@ import com.goldscale.model.Currency;
 
 import java.time.Instant;
 
+/**
+ * {@code balanceInDisplayCurrency} is populated only by GET /accounts (null when no exchange rate
+ * is available); it is null in create/update/findById/dashboard responses.
+ */
 public record AccountResponse(
         String id,
         String name,
@@ -12,9 +16,14 @@ public record AccountResponse(
         long balance,
         boolean active,
         String color,
-        Instant createdAt
+        Instant createdAt,
+        Long balanceInDisplayCurrency
 ) {
     public static AccountResponse from(Account account) {
+        return from(account, null);
+    }
+
+    public static AccountResponse from(Account account, Long balanceInDisplayCurrency) {
         return new AccountResponse(
                 account.getId(),
                 account.getName(),
@@ -22,7 +31,8 @@ public record AccountResponse(
                 account.getBalance(),
                 account.isActive(),
                 account.getColor(),
-                account.getCreatedAt()
+                account.getCreatedAt(),
+                balanceInDisplayCurrency
         );
     }
 }

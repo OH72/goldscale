@@ -15,6 +15,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.mongodb.core.MongoTemplate;
 
+import com.goldscale.model.Settings;
+
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,6 +32,8 @@ class AccountServiceTest {
     @Mock private AccountRepository accountRepository;
     @Mock private TransactionRepository transactionRepository;
     @Mock private MongoTemplate mongoTemplate;
+    @Mock private SettingsService settingsService;
+    @Mock private ExchangeRateService exchangeRateService;
 
     @InjectMocks private AccountService accountService;
 
@@ -126,5 +132,85 @@ class AccountServiceTest {
 
         verify(mongoTemplate, times(2)).updateMulti(any(), any(), eq(com.goldscale.model.Transaction.class));
         verify(accountRepository).delete(account);
+    }
+
+    // ---- findAllWithConvertedBalance ----
+
+    private static final Map<String, Long> RATES = Map.of(
+            "USD", 1_000_000L, "UAH", 25_000L, "EUR", 1_100_000L, "GBP", 0L);
+
+    private void givenDisplayCurrency(Currency currency, Map<String, Long> rates) {
+        var settings = new Settings();
+        settings.setDisplayCurrency(currency);
+        when(settingsService.get()).thenReturn(settings);
+        when(exchangeRateService.getLatestRates()).thenReturn(rates);
+        when(exchangeRateService.convertWithRates(anyLong(), any(), any(), any())).thenCallRealMethod();
+    }
+
+    private Account account(String id, Currency currency, long balance, boolean active) {
+        var account = new Account();
+        account.setId(id);
+        account.setName(id);
+        account.setCurrency(currency);
+        account.setBalance(balance);
+        account.setActive(active);
+        return account;
+    }
+
+    @Test
+    void should_returnUnchangedBalance_when_sameCurrencyAsDisplay() {
+        givenDisplayCurrency(Currency.UAH, RATES);
+        when(accountRepository.findAll()).thenReturn(List.of(account("a", Currency.UAH, 12345L, true)));
+
+        var result = accountService.findAllWithConvertedBalance();
+
+        assertThat(result).singleElement().satisfies(r -> {
+            assertThat(r.balance()).isEqualTo(12345L);
+            assertThat(r.balanceInDisplayCurrency()).isEqualTo(12345L);
+        });
+    }
+
+    @Test
+    void should_returnConvertedBalance_when_ratesAvailable() {
+        givenDisplayCurrency(Currency.UAH, RATES);
+        when(accountRepository.findAll()).thenReturn(List.of(account("a", Currency.USD, 1000L, true)));
+
+        var result = accountService.findAllWithConvertedBalance();
+
+        // 1000 * 1_000_000 / 25_000 = 40_000
+        assertThat(result.getFirst().balanceInDisplayCurrency()).isEqualTo(40_000L);
+        assertThat(result.getFirst().balance()).isEqualTo(1000L);
+    }
+
+    @Test
+    void should_returnNullConvertedBalance_when_rateMissing() {
+        givenDisplayCurrency(Currency.UAH, RATES);
+        when(accountRepository.findAll()).thenReturn(List.of(account("a", Currency.PLN, 1000L, true)));
+
+        var result = accountService.findAllWithConvertedBalance();
+
+        assertThat(result.getFirst().balanceInDisplayCurrency()).isNull();
+    }
+
+    @Test
+    void should_returnNullConvertedBalance_when_rateIsZero() {
+        givenDisplayCurrency(Currency.UAH, RATES);
+        when(accountRepository.findAll()).thenReturn(List.of(account("a", Currency.GBP, 1000L, true)));
+
+        var result = accountService.findAllWithConvertedBalance();
+
+        assertThat(result.getFirst().balanceInDisplayCurrency()).isNull();
+    }
+
+    @Test
+    void should_includeInactiveAccounts_when_convertingBalances() {
+        givenDisplayCurrency(Currency.UAH, RATES);
+        when(accountRepository.findAll()).thenReturn(List.of(account("a", Currency.USD, 1000L, false)));
+
+        var result = accountService.findAllWithConvertedBalance();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().active()).isFalse();
+        assertThat(result.getFirst().balanceInDisplayCurrency()).isEqualTo(40_000L);
     }
 }

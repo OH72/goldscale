@@ -8,9 +8,11 @@ import com.goldscale.dto.request.TransactionCommand.CreateIncome;
 import com.goldscale.dto.request.TransactionCommand.CreateTransfer;
 import com.goldscale.model.CategoryType;
 import com.goldscale.model.Currency;
+import com.goldscale.model.ExchangeRate;
 import com.goldscale.model.TransactionType;
 import com.goldscale.repository.AccountRepository;
 import com.goldscale.repository.CategoryRepository;
+import com.goldscale.repository.ExchangeRateRepository;
 import com.goldscale.repository.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,6 +21,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 
 import java.time.LocalDate;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -33,6 +36,7 @@ class DashboardServiceIT {
     @Autowired private AccountRepository accountRepository;
     @Autowired private CategoryRepository categoryRepository;
     @Autowired private TransactionRepository transactionRepository;
+    @Autowired private ExchangeRateRepository exchangeRateRepository;
 
     private String accountId;
     private String targetAccountId;
@@ -112,5 +116,30 @@ class DashboardServiceIT {
 
         assertThat(dashboard.recentTransactions())
                 .noneMatch(t -> "will delete".equals(t.description()));
+    }
+
+    private void seedRates() {
+        exchangeRateRepository.deleteAll();
+        var today = LocalDate.now();
+        for (int i = 0; i <= 7; i++) {
+            var rate = new ExchangeRate();
+            rate.setId(today.minusDays(i).toString());
+            // USD-based, scaled by 1_000_000; GBP deliberately absent
+            rate.setRates(Map.of("USD", 1_000_000L, "UAH", 25_000L, "EUR", 1_100_000L));
+            exchangeRateRepository.save(rate);
+        }
+    }
+
+    @Test
+    void should_convertMixedCurrencyNetWorth_when_ratesSeeded() {
+        seedRates();
+        // setUp accounts: Main UAH 1_000_000 + USD Account 50_000 USD-subunits
+        accountService.create(new CreateAccountRequest("No Rate", Currency.GBP, 5_000L));
+
+        var dashboard = dashboardService.getDashboard();
+
+        // 1_000_000 + 50_000 * 1_000_000 / 25_000 = 3_000_000; GBP has no rate and contributes 0
+        assertThat(dashboard.totalNetWorth()).isEqualTo(3_000_000L);
+        assertThat(dashboard.displayCurrency()).isEqualTo(Currency.UAH);
     }
 }

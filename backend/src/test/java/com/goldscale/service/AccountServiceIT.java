@@ -3,15 +3,23 @@ package com.goldscale.service;
 import com.goldscale.config.TestcontainersConfig;
 import com.goldscale.dto.request.CreateAccountRequest;
 import com.goldscale.model.Currency;
+import com.goldscale.model.ExchangeRate;
 import com.goldscale.model.Transaction;
 import com.goldscale.model.TransactionType;
+import com.goldscale.dto.request.UpdateAccountRequest;
+import com.goldscale.dto.request.UpdateSettingsRequest;
+import com.goldscale.dto.response.AccountResponse;
 import com.goldscale.repository.AccountRepository;
+import com.goldscale.repository.ExchangeRateRepository;
 import com.goldscale.repository.TransactionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+
+import java.time.LocalDate;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -22,11 +30,16 @@ class AccountServiceIT {
     @Autowired private AccountService accountService;
     @Autowired private AccountRepository accountRepository;
     @Autowired private TransactionRepository transactionRepository;
+    @Autowired private ExchangeRateRepository exchangeRateRepository;
+    @Autowired private DashboardService dashboardService;
+    @Autowired private SettingsService settingsService;
 
     @BeforeEach
     void cleanUp() {
         transactionRepository.deleteAll();
         accountRepository.deleteAll();
+        exchangeRateRepository.deleteAll();
+        settingsService.update(new UpdateSettingsRequest(Currency.UAH, null));
     }
 
     @Test
@@ -98,5 +111,64 @@ class AccountServiceIT {
                 .toList();
         assertThat(remaining).hasSize(1);
         assertThat(remaining.getFirst().isDeleted()).isTrue();
+    }
+
+    private void seedRates() {
+        exchangeRateRepository.deleteAll();
+        var today = LocalDate.now();
+        for (int i = 0; i <= 7; i++) {
+            var rate = new ExchangeRate();
+            rate.setId(today.minusDays(i).toString());
+            // USD-based, scaled by 1_000_000; GBP deliberately absent
+            rate.setRates(Map.of("USD", 1_000_000L, "UAH", 25_000L, "EUR", 1_100_000L));
+            exchangeRateRepository.save(rate);
+        }
+    }
+
+    @Test
+    void should_returnConvertedBalances_when_ratesSeeded() {
+        seedRates();
+        accountService.create(new CreateAccountRequest("UAH", Currency.UAH, 100_000L));
+        accountService.create(new CreateAccountRequest("USD", Currency.USD, 1_000L));
+        accountService.create(new CreateAccountRequest("EUR", Currency.EUR, 1_000L));
+
+        var result = accountService.findAllWithConvertedBalance().stream()
+                .collect(java.util.stream.Collectors.toMap(AccountResponse::name, AccountResponse::balanceInDisplayCurrency));
+
+        assertThat(result).containsEntry("UAH", 100_000L)
+                .containsEntry("USD", 40_000L)    // 1000 * 1_000_000 / 25_000
+                .containsEntry("EUR", 44_000L);   // 1000 * 1_100_000 / 25_000
+    }
+
+    @Test
+    void should_returnNullConvertedBalance_when_noRateForCurrency() {
+        seedRates();
+        accountService.create(new CreateAccountRequest("GBP", Currency.GBP, 1_000L));
+
+        var result = accountService.findAllWithConvertedBalance();
+
+        assertThat(result).singleElement().satisfies(r -> {
+            assertThat(r.balance()).isEqualTo(1_000L);
+            assertThat(r.balanceInDisplayCurrency()).isNull();
+        });
+    }
+
+    @Test
+    void should_matchDashboardNetWorth_when_summingActiveConvertedBalances() {
+        seedRates();
+        accountService.create(new CreateAccountRequest("UAH", Currency.UAH, 123_457L));
+        accountService.create(new CreateAccountRequest("USD", Currency.USD, 1_001L));
+        accountService.create(new CreateAccountRequest("EUR", Currency.EUR, 777L));
+        accountService.create(new CreateAccountRequest("GBP", Currency.GBP, 5_000L));
+        var inactive = accountService.create(new CreateAccountRequest("Old USD", Currency.USD, 9_999L));
+        accountService.update(inactive.getId(), new UpdateAccountRequest("Old USD", Currency.USD, false));
+
+        var sum = accountService.findAllWithConvertedBalance().stream()
+                .filter(AccountResponse::active)
+                .filter(a -> a.balanceInDisplayCurrency() != null)
+                .mapToLong(AccountResponse::balanceInDisplayCurrency)
+                .sum();
+
+        assertThat(sum).isEqualTo(dashboardService.getDashboard().totalNetWorth());
     }
 }

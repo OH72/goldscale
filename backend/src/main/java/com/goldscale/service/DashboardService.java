@@ -69,24 +69,14 @@ public class DashboardService {
 
     private long computeNetWorth(List<Account> accounts, Settings settings) {
         Currency displayCurrency = settings.getDisplayCurrency();
-        LocalDate today = LocalDate.now();
-        exchangeRateService.ensureRatesExist(today.minusDays(7), today.plusDays(1));
-        var ratesMap = exchangeRateService.getRatesForRange(today.minusDays(7), today.plusDays(1));
-        var latestEntry = ratesMap.lastEntry();
-        Map<String, Long> rates = latestEntry != null ? latestEntry.getValue() : Map.of();
+        var rates = exchangeRateService.getLatestRates();
 
         long total = 0;
         for (var account : accounts) {
             if (!account.isActive()) continue;
-            if (account.getCurrency() == displayCurrency) {
-                total += account.getBalance();
-            } else {
-                Long sourceRate = rates.get(account.getCurrency().name());
-                Long displayRate = rates.get(displayCurrency.name());
-                if (sourceRate != null && sourceRate > 0 && displayRate != null && displayRate > 0) {
-                    total += account.getBalance() * sourceRate / displayRate;
-                }
-            }
+            total += exchangeRateService
+                    .convertWithRates(account.getBalance(), account.getCurrency(), displayCurrency, rates)
+                    .orElse(0);
         }
         return total;
     }
@@ -196,11 +186,7 @@ public class DashboardService {
         var priorExpenses = fetchTransactionsBefore(TransactionType.EXPENSE, before, accountIds);
 
         // Use latest rates for all prior conversions (no per-day historical rates for old data)
-        LocalDate today = LocalDate.now();
-        exchangeRateService.ensureRatesExist(today.minusDays(7), today.plusDays(1));
-        var ratesMap = exchangeRateService.getRatesForRange(today.minusDays(7), today.plusDays(1));
-        var latestEntry = ratesMap.lastEntry();
-        Map<String, Long> rates = latestEntry != null ? latestEntry.getValue() : Map.of();
+        var rates = exchangeRateService.getLatestRates();
 
         long totalIncome = 0;
         for (var txn : priorIncomes) {

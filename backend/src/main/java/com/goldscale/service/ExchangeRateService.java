@@ -86,6 +86,30 @@ public class ExchangeRateService {
     }
 
     /**
+     * Latest internal USD-based rates (per-currency, scaled by 1_000_000), or an empty map if none exist.
+     */
+    public Map<String, Long> getLatestRates() {
+        LocalDate today = LocalDate.now();
+        ensureRatesExist(today.minusDays(7), today.plusDays(1));
+        var entry = getRatesForRange(today.minusDays(7), today.plusDays(1)).lastEntry();
+        return entry != null ? entry.getValue() : Map.of();
+    }
+
+    /**
+     * Convert an amount between currencies using internal USD-based rates (truncating division).
+     * Returns empty when either rate is missing or not positive.
+     */
+    public OptionalLong convertWithRates(long amount, Currency from, Currency to, Map<String, Long> rates) {
+        if (from == to) return OptionalLong.of(amount);
+        Long sourceRate = rates.get(from.name());
+        Long displayRate = rates.get(to.name());
+        if (sourceRate != null && sourceRate > 0 && displayRate != null && displayRate > 0) {
+            return OptionalLong.of(amount * sourceRate / displayRate);
+        }
+        return OptionalLong.empty();
+    }
+
+    /**
      * Return daily exchange rates for the given range, converted to displayCurrency format.
      */
     public List<ExchangeRateHistoryResponse> getHistory(LocalDate from, LocalDate to) {

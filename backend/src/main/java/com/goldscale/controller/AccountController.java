@@ -24,8 +24,7 @@ public class AccountController {
 
     @GetMapping
     public ResponseEntity<List<AccountResponse>> findAll() {
-        var accounts = accountService.findAll().stream()
-                .map(AccountResponse::from)
+        var accounts = accountService.findAllWithConvertedBalance().stream()
                 .sorted(java.util.Comparator.comparing(AccountResponse::name))
                 .toList();
         return ResponseEntity.ok(accounts);
