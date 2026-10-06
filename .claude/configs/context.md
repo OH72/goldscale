@@ -38,6 +38,7 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 - Always positive. Sign derived from TransactionType in business logic
 - Java type: `long` for amounts and balances. No BigDecimal needed
 - Frontend receives integers, divides by 100 for display
+- Display-currency conversion is done by the backend only. `GET /accounts` returns `AccountResponse.balanceInDisplayCurrency` (`Long`, null when no exchange rate); dashboard accounts, create/update/findById responses carry null.
 
 ### Transaction Types (enum)
 - `INITIAL_BALANCE` — created with account, editable (amount only), NOT deletable

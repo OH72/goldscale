@@ -197,6 +197,8 @@ public class GlobalExceptionHandler {
 
 13. **Reusing Query for count + find.** Build separate Query instances for count and data fetch, or create data query fresh after count. Mutations (pageable, sort) on a shared Query corrupt the count.
 
+14. **Duplicated currency conversion.** All conversion lives in `ExchangeRateService`: `getLatestRates()` for the latest USD-based rates and `convertWithRates(amount, from, to, rates)` returning `OptionalLong`. Never re-implement the `amount * sourceRate / displayRate` math in another service. A missing/non-positive rate yields `OptionalLong.empty()`; display fields map that to `null` (aggregates like net worth may skip it explicitly via `orElse(0)`).
+
 ## Package Structure
 ```
 com.goldscale

@@ -68,6 +68,11 @@ These rules apply to ALL code — backend and frontend.
 - Negative balance — allowed (overdraft). Don't block it.
 - Missing `@Transactional` on operations that modify multiple documents.
 
+### Missing Data Is Null, Not 0
+- What: when a value cannot be computed (e.g. no exchange rate), expose it as `null` / `OptionalLong.empty()` and let the UI show a placeholder. Never substitute 0 in a per-item display field. Aggregates may skip missing items only where that is documented.
+- Why: 0 looks like a real balance and silently misleads the user.
+- Example: wrong `balanceInDisplayCurrency = rate == null ? 0 : amount * rate / dr`; right `converted.isPresent() ? converted.getAsLong() : null` (TS: `number | null`, render `-`).
+
 ### Testing Mindset
 - Test the happy path AND the edge cases.
 - Key edge cases for this app:

@@ -195,6 +195,10 @@ export function formatCurrency(amountInSubunits: number, currency: string): stri
 
 13. **Frontend currency enum must match backend.** The `Currency` type and any Zod enum must exactly match the backend `Currency.java` enum values. Adding a value that doesn't exist on the backend causes 400 errors.
 
+14. **Never convert currency client-side.** Display-currency amounts come from the backend (e.g. `balanceInDisplayCurrency: number | null`). Render `null` as a placeholder, sort nulls last, and invalidate `queryKeys.accounts.all` when settings (display currency) change.
+
+15. **Components defined inside components.** Do not declare a component inside another component's body (it remounts every render). Hoist to module level and pass props.
+
 ## Project Structure
 ```
 src/
