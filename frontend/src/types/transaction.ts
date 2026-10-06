@@ -1,5 +1,4 @@
 import type { TransactionType, Currency } from './common'
-import type { AccountResponse } from './account'
 
 export interface TransactionResponse {
   id: string
@@ -80,7 +79,6 @@ export interface TransactionFilters {
 }
 
 export interface DashboardResponse {
-  accounts: AccountResponse[]
   recentTransactions: TransactionResponse[]
   totalNetWorth: number
   displayCurrency: Currency

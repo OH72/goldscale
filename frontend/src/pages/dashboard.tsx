@@ -6,6 +6,7 @@ import {
   useIncomeVsExpenses,
   useExpenseTrend,
 } from '@/api/use-dashboard'
+import { useAccounts } from '@/api/use-accounts'
 import { useExchangeRateHistory } from '@/api/use-exchange-rates'
 import { useSettings } from '@/api/use-settings'
 import { PageHeader } from '@/components/layout/page-header'
@@ -112,6 +113,7 @@ function getPresetRange(preset: DatePreset, initialDate = '2022-01-01'): { from:
 export function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { data, isLoading, error } = useDashboard()
+  const { data: accounts = [] } = useAccounts()
   const { data: settings } = useSettings()
   const initialDate = settings?.initialDate ?? '2022-01-01'
 
@@ -269,7 +271,7 @@ export function DashboardPage() {
   if (error) return <div className="p-6 text-destructive">Failed to load dashboard: {error.message}</div>
   if (!data) return null
 
-  const activeAccounts = data.accounts.filter((a) => a.active)
+  const activeAccounts = accounts.filter((a) => a.active)
   const displayCurrency = data.displayCurrency
   const hasRates = data.totalNetWorth !== 0 || activeAccounts.length === 0
 

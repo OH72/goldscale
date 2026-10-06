@@ -7,7 +7,7 @@ import java.time.Instant;
 
 /**
  * {@code balanceInDisplayCurrency} is populated only by GET /accounts (null when no exchange rate
- * is available); it is null in create/update/findById/dashboard responses.
+ * is available); it is null in create/update/findById responses.
  */
 public record AccountResponse(
         String id,

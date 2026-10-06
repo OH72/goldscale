@@ -1,6 +1,5 @@
 package com.goldscale.service;
 
-import com.goldscale.dto.response.AccountResponse;
 import com.goldscale.dto.response.CategoryExpenseResponse;
 import com.goldscale.dto.response.DashboardResponse;
 import com.goldscale.dto.response.ExpenseTrendResponse;
@@ -49,9 +48,6 @@ public class DashboardService {
 
     public DashboardResponse getDashboard() {
         var allAccounts = accountRepository.findAll();
-        var accounts = allAccounts.stream()
-                .map(AccountResponse::from)
-                .toList();
 
         var settings = settingsService.get();
         long totalNetWorth = computeNetWorth(allAccounts, settings);
@@ -64,7 +60,7 @@ public class DashboardService {
         var recentTxns = mongoTemplate.find(query, Transaction.class);
         var responses = enrichWithNames(recentTxns);
 
-        return new DashboardResponse(accounts, responses, totalNetWorth, settings.getDisplayCurrency());
+        return new DashboardResponse(responses, totalNetWorth, settings.getDisplayCurrency());
     }
 
     private long computeNetWorth(List<Account> accounts, Settings settings) {

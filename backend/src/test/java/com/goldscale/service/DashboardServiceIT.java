@@ -71,7 +71,6 @@ class DashboardServiceIT {
 
         var dashboard = dashboardService.getDashboard();
 
-        assertThat(dashboard.accounts()).hasSize(2);
         // recentTransactions excludes INITIAL_BALANCE
         assertThat(dashboard.recentTransactions()).hasSize(3);
         assertThat(dashboard.recentTransactions())
