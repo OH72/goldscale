@@ -133,7 +133,9 @@ function getPresetRange(preset: DatePreset, initialDate = '2022-01-01'): { from:
 export function DashboardPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { resolvedTheme } = useTheme()
-  const chartColors = resolvedTheme === 'dark' ? CHART_COLORS_DARK : CHART_COLORS_LIGHT
+  const isDark = resolvedTheme === 'dark'
+  const chartColors = isDark ? CHART_COLORS_DARK : CHART_COLORS_LIGHT
+  const cursorFill = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)'
   const { data, isLoading, error } = useDashboard()
   const { data: accounts = [] } = useAccounts()
   const { data: settings } = useSettings()
@@ -277,9 +279,13 @@ export function DashboardPage() {
   const rateChartData = useMemo(() => {
     if (!rateHistory || rateHistory.length === 0) return { data: [], currencies: [] }
     const currencies = Object.keys(rateHistory[0].rates)
-    const chartData = rateHistory.map((entry) => {
+    // Downsample to ~60 points max so tooltip markers align with visible ticks
+    const maxPoints = 60
+    const step = rateHistory.length > maxPoints ? Math.ceil(rateHistory.length / maxPoints) : 1
+    const sampled = rateHistory.filter((_, i) => i % step === 0 || i === rateHistory.length - 1)
+    const chartData = sampled.map((entry) => {
       const row: Record<string, number | string> = {
-        date: entry.date.slice(5), // "2026-10-01" -> "10-01"
+        date: entry.date.slice(5),
       }
       for (const [currency, subunits] of Object.entries(entry.rates)) {
         row[currency] = subunits / 100
@@ -495,6 +501,7 @@ export function DashboardPage() {
                   <YAxis className="text-xs" tickFormatter={compactNumber} width={55} />
                   <Tooltip
                     contentStyle={tooltipStyle}
+                    cursor={{ fill: cursorFill }}
                     formatter={(value: number, name: string) => [
                       formatCurrency(Math.round(value * 100), displayCurrency),
                       name.charAt(0).toUpperCase() + name.slice(1),
@@ -528,6 +535,7 @@ export function DashboardPage() {
                 <YAxis className="text-xs" tickFormatter={compactNumber} width={55} />
                 <Tooltip
                   contentStyle={tooltipStyle}
+                  cursor={{ fill: cursorFill }}
                   formatter={(value: number, name: string) => [
                     formatCurrency(Math.round(value * 100), displayCurrency),
                     name === 'net' ? 'Net' : 'Change',
@@ -572,7 +580,7 @@ export function DashboardPage() {
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={rateChartData.data}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                <XAxis dataKey="date" className="text-xs" interval="preserveStartEnd" />
+                <XAxis dataKey="date" className="text-xs" />
                 <YAxis className="text-xs" />
                 <Tooltip
                   contentStyle={tooltipStyle}
@@ -619,6 +627,7 @@ export function DashboardPage() {
                   <YAxis className="text-xs" tickFormatter={compactNumber} width={55} />
                   <Tooltip
                     contentStyle={tooltipStyle}
+                    cursor={{ fill: cursorFill }}
                     formatter={(value: number, name: string) => {
                       const cat = trendCategoryKeys.find((c) => c.id === name)
                       return [
