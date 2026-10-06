@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { RouterProvider } from 'react-router-dom'
 import { ErrorBoundary } from 'react-error-boundary'
+import { ThemeProvider } from 'next-themes'
 import { Toaster } from '@/components/ui/sonner'
 import { router } from './router'
 
@@ -30,11 +31,13 @@ function ErrorFallback({ error }: { error: Error }) {
 export function App() {
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-        <Toaster position="bottom-left" />
-        <ReactQueryDevtools initialIsOpen={false} />
-      </QueryClientProvider>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <QueryClientProvider client={queryClient}>
+          <RouterProvider router={router} />
+          <Toaster position="bottom-left" />
+          <ReactQueryDevtools initialIsOpen={false} />
+        </QueryClientProvider>
+      </ThemeProvider>
     </ErrorBoundary>
   )
 }
