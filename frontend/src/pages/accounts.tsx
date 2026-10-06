@@ -43,6 +43,7 @@ import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ArrowDown, ArrowUp, ArrowUpDown, MoreHorizontal, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useSettings } from '@/api/use-settings'
 import { formatCurrency, toSubunits } from '@/lib/currency'
 import type { AccountResponse } from '@/types/account'
 import type { Currency } from '@/types/common'
@@ -62,7 +63,7 @@ const ACCOUNT_COLORS = [
   { value: '#1e293b', label: 'Slate' },
 ]
 
-type SortField = 'name' | 'balance'
+type SortField = 'name' | 'balance' | 'converted'
 type SortDir = 'asc' | 'desc'
 
 const createSchema = z.object({
@@ -84,6 +85,8 @@ type EditForm = z.infer<typeof editSchema>
 
 export function AccountsPage() {
   const { data: accounts, isLoading } = useAccounts()
+  const { data: settings } = useSettings()
+  const displayCurrency = settings?.displayCurrency
   const createMutation = useCreateAccount()
   const updateMutation = useUpdateAccount()
   const deleteMutation = useDeleteAccount()
@@ -115,6 +118,15 @@ export function AccountsPage() {
       const dir = sortDir === 'asc' ? 1 : -1
       list = [...list].sort((a, b) => {
         if (sortField === 'name') return a.name.localeCompare(b.name) * dir
+        if (sortField === 'converted') {
+          const x = a.balanceInDisplayCurrency
+          const y = b.balanceInDisplayCurrency
+          // null (no exchange rate) always sorts last, in both directions
+          if (x === null && y === null) return 0
+          if (x === null) return 1
+          if (y === null) return -1
+          return (x - y) * dir
+        }
         return (a.balance - b.balance) * dir
       })
     }
@@ -164,6 +176,24 @@ export function AccountsPage() {
 
   if (isLoading) return <div className="p-6">Loading...</div>
 
+  function SortableHead({ field, label, className }: { field: SortField; label: string; className?: string }) {
+    return (
+      <TableHead className={className}>
+        <button
+          className="inline-flex items-center gap-1 hover:text-foreground"
+          onClick={() => toggleSort(field)}
+        >
+          {label}
+          {sortField === field ? (
+            sortDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
+          ) : (
+            <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+          )}
+        </button>
+      </TableHead>
+    )
+  }
+
   return (
     <div>
       <PageHeader title="Accounts">
@@ -197,34 +227,15 @@ export function AccountsPage() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>
-              <button
-                className="inline-flex items-center gap-1 hover:text-foreground"
-                onClick={() => toggleSort('name')}
-              >
-                Name
-                {sortField === 'name' ? (
-                  sortDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
-                ) : (
-                  <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-                )}
-              </button>
-            </TableHead>
+            <SortableHead field="name" label="Name" />
             <TableHead className="w-16">Active</TableHead>
             <TableHead>Currency</TableHead>
-            <TableHead className="text-right">
-              <button
-                className="inline-flex items-center gap-1 hover:text-foreground"
-                onClick={() => toggleSort('balance')}
-              >
-                Balance
-                {sortField === 'balance' ? (
-                  sortDir === 'asc' ? <ArrowUp className="h-3.5 w-3.5" /> : <ArrowDown className="h-3.5 w-3.5" />
-                ) : (
-                  <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-                )}
-              </button>
-            </TableHead>
+            <SortableHead field="balance" label="Balance" className="text-right" />
+            <SortableHead
+              field="converted"
+              label={displayCurrency ? `Balance in ${displayCurrency}` : 'Balance (display)'}
+              className="text-right"
+            />
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
@@ -257,6 +268,18 @@ export function AccountsPage() {
               <TableCell className="text-right">
                 {formatCurrency(account.balance, account.currency)}
               </TableCell>
+              <TableCell className="text-right">
+                {displayCurrency && account.balanceInDisplayCurrency !== null ? (
+                  formatCurrency(account.balanceInDisplayCurrency, displayCurrency)
+                ) : (
+                  <span
+                    className="text-muted-foreground"
+                    title={displayCurrency ? 'No exchange rate' : undefined}
+                  >
+                    -
+                  </span>
+                )}
+              </TableCell>
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -281,7 +304,7 @@ export function AccountsPage() {
           ))}
           {filteredAccounts.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-muted-foreground">
+              <TableCell colSpan={6} className="text-center text-muted-foreground">
                 No accounts yet
               </TableCell>
             </TableRow>

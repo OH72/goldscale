@@ -45,7 +45,6 @@ import {
   ReferenceLine,
 } from 'recharts'
 import { formatCurrency, fromSubunits } from '@/lib/currency'
-import { cn } from '@/lib/utils'
 
 const CHART_COLORS = [
   '#3b82f6', '#ef4444', '#22c55e', '#f97316', '#8b5cf6',
@@ -296,42 +295,6 @@ export function DashboardPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Account cards */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {data.accounts.map((account) => {
-          return (
-            <Card key={account.id} className={cn(!account.active && 'opacity-60')}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
-                  <span className="inline-flex items-center gap-2">
-                    {account.color && (
-                      <span
-                        className="inline-block h-3 w-3 rounded-full shrink-0"
-                        style={{ backgroundColor: account.color }}
-                      />
-                    )}
-                    {account.name}
-                  </span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">
-                  {formatCurrency(account.balance, account.currency)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {account.currency}
-                </p>
-              </CardContent>
-            </Card>
-          )
-        })}
-        {data.accounts.length === 0 && (
-          <p className="col-span-full text-center text-muted-foreground">
-            No accounts yet
-          </p>
-        )}
-      </div>
 
       {/* Filter Panel */}
       <Card className="mb-6">

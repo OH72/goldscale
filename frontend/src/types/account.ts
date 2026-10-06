@@ -5,6 +5,7 @@ export interface AccountResponse {
   name: string
   currency: Currency
   balance: number
+  balanceInDisplayCurrency: number | null
   active: boolean
   color: string | null
   createdAt: string
