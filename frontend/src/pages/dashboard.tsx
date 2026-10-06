@@ -49,8 +49,8 @@ import { useTheme } from 'next-themes'
 import { formatCurrency, fromSubunits } from '@/lib/currency'
 
 const CHART_COLORS_LIGHT = [
-  '#3b82f6', '#ef4444', '#22c55e', '#f97316', '#8b5cf6',
-  '#06b6d4', '#ec4899', '#eab308', '#14b8a6', '#6366f1',
+  '#5a92c8', '#d4736a', '#56a87a', '#d49a56', '#9680bd',
+  '#4a9ea6', '#c07a96', '#b5a84a', '#4a9e8a', '#7a82b8',
 ]
 
 const CHART_COLORS_DARK = [
