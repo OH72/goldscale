@@ -48,8 +48,8 @@ import {
 import { formatCurrency, fromSubunits } from '@/lib/currency'
 
 const CHART_COLORS = [
-  '#7ba7d9', '#e89a8b', '#7fc49e', '#e8b87d', '#b09fd6',
-  '#6db8be', '#d9a0b8', '#d4c968', '#6dbead', '#9ba3d6',
+  '#5b9bd5', '#e07b6d', '#5cb888', '#e0a35c', '#9b87c9',
+  '#4fadb5', '#cc84a0', '#c4b44e', '#4fbda0', '#8190c9',
 ]
 
 function compactNumber(v: number): string {
