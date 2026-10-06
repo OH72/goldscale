@@ -54,8 +54,8 @@ const CHART_COLORS_LIGHT = [
 ]
 
 const CHART_COLORS_DARK = [
-  '#4a80b0', '#b8655a', '#4a9470', '#b8864a', '#7e6da6',
-  '#3e8f96', '#a66b84', '#9e923f', '#3e9683', '#6974a6',
+  '#6ba3dbb3', '#f08878b3', '#6dcf9ab3', '#f0b868b3', '#ab95dbb3',
+  '#5ec4cdb3', '#db8fadb3', '#d6c85cb3', '#5ec4adb3', '#919ed6b3',
 ]
 
 function compactNumber(v: number): string {
