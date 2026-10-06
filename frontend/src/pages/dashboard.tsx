@@ -49,8 +49,8 @@ import { useTheme } from 'next-themes'
 import { formatCurrency, fromSubunits } from '@/lib/currency'
 
 const CHART_COLORS = [
-  '#4a8fe0', '#e36058', '#3dba6e', '#e8a040', '#9070d0',
-  '#2fb8c4', '#d76e90', '#ccc038', '#2fb898', '#6e78d0',
+  '#5590cc', '#d06860', '#4aaa6e', '#d09848', '#8a74c0',
+  '#3aacb4', '#c47488', '#bab040', '#3aac90', '#7478c0',
 ]
 
 function compactNumber(v: number): string {
