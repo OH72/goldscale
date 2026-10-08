@@ -73,6 +73,11 @@ These rules apply to ALL code — backend and frontend.
 - Why: 0 looks like a real balance and silently misleads the user.
 - Example: wrong `balanceInDisplayCurrency = rate == null ? 0 : amount * rate / dr`; right `converted.isPresent() ? converted.getAsLong() : null` (TS: `number | null`, render `-`).
 
+### Filter vs Query Confusion
+- What: when a filter narrows which categories of data to include, use it to **gate** (skip entirely) — not to change the query predicate. E.g., `types=[INCOME, EXPENSE]` means "only process income and expense"; it does NOT mean query `.in(types)`.
+- Why: querying `.in(types)` in a method that expects a single type mixes all selected types together, producing wrong totals. This caused a real bug where selecting all three types inflated income/expense by counting transfers as both.
+- Example: wrong: `Criteria.where("type").in(types)`; right: `if (!types.contains(type)) return List.of(); Criteria.where("type").is(type)`.
+
 ### Testing Mindset
 - Test the happy path AND the edge cases.
 - Key edge cases for this app:

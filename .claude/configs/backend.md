@@ -199,6 +199,25 @@ public class GlobalExceptionHandler {
 
 14. **Duplicated currency conversion.** All conversion lives in `ExchangeRateService`: `getLatestRates()` for the latest USD-based rates and `convertWithRates(amount, from, to, rates)` returning `OptionalLong`. Never re-implement the `amount * sourceRate / displayRate` math in another service. A missing/non-positive rate yields `OptionalLong.empty()`; display fields map that to `null` (aggregates like net worth may skip it explicitly via `orElse(0)`).
 
+## Dashboard Service Patterns
+
+### Types filter — gate, don't query
+The `types` filter param controls which transaction types are included at all. It does NOT change the per-type query:
+```java
+// CORRECT: gate inclusion, keep .is(type)
+private List<Transaction> fetchTransactions(TransactionType type, ..., List<TransactionType> types) {
+    if (types != null && !types.isEmpty() && !types.contains(type)) return List.of();
+    var criteria = Criteria.where("type").is(type)...;
+}
+
+// WRONG: .in(types) matches ALL selected types in a single query
+var criteria = Criteria.where("type").in(types)...;  // BUG: counts all types together
+```
+Why: each type is fetched and aggregated separately (income vs expense). Using `.in(types)` mixes them.
+
+### groupBy parameter
+`getExpensesGrouped` and `getExpenseTrend` accept `groupBy=category|tag`. Tag grouping iterates over `txn.getTags()` — one transaction contributes to each of its tags. Untagged/uncategorized transactions use sentinel keys `"untagged"`/`"uncategorized"`. `resolveGroupNames()` resolves IDs to display names via batch repository lookups.
+
 ## Package Structure
 ```
 com.goldscale
@@ -209,7 +228,9 @@ com.goldscale
 ├── model/
 │   ├── Account.java
 │   ├── Category.java
+│   ├── Tag.java
 │   ├── Transaction.java
+│   ├── ExchangeRate.java
 │   ├── Settings.java
 │   ├── TransactionType.java
 │   ├── CategoryType.java
@@ -227,20 +248,33 @@ com.goldscale
 │       ├── CategoryResponse.java
 │       ├── TransactionResponse.java
 │       ├── DashboardResponse.java
+│       ├── GroupExpenseResponse.java
+│       ├── ExpenseTrendResponse.java
+│       ├── IncomeVsExpenseResponse.java
+│       ├── IncomeVsExpenseResult.java
 │       └── ErrorResponse.java
 ├── repository/
 │   ├── AccountRepository.java
 │   ├── CategoryRepository.java
+│   ├── TagRepository.java
+│   ├── ExchangeRateRepository.java
 │   └── TransactionRepository.java
 ├── service/
 │   ├── AccountService.java
 │   ├── CategoryService.java
+│   ├── TagService.java
 │   ├── TransactionService.java
+│   ├── DashboardService.java
+│   ├── ExchangeRateService.java
+│   ├── SettingsService.java
 │   └── BalanceService.java
 ├── controller/
 │   ├── AccountController.java
 │   ├── CategoryController.java
+│   ├── TagController.java
 │   ├── TransactionController.java
+│   ├── SettingsController.java
+│   ├── ExchangeRateController.java
 │   └── DashboardController.java
 └── exception/
     ├── GlobalExceptionHandler.java

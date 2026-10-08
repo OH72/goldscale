@@ -22,6 +22,8 @@ The most critical responsibility. Verify that:
 - Enum values match exactly between Java and TypeScript (INITIAL_BALANCE, INCOME, EXPENSE, TRANSFER)
 - Pagination format is consistent (Spring Page response structure vs frontend expectations)
 - Query parameter names for filtering match between frontend URL params and backend controller `@RequestParam`
+- Dashboard chart endpoints: `GroupExpenseResponse(id, name, amount)` used for both category and tag grouping — verify frontend types match
+- `ExpenseTrendResponse.groups` (not `.categories`) — field was renamed during groupBy feature
 
 ### 3. Architectural Consistency
 - No feature creep — if it's not in the current sprint, don't build it

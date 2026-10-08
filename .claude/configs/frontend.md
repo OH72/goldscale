@@ -156,6 +156,24 @@ export function formatCurrency(amountInSubunits: number, currency: string): stri
 | Hovered table row | `useState` | No other component cares |
 | Auth credentials | Zustand with persist | Survives page refresh (localStorage) |
 
+## Dark Theme (next-themes)
+- `ThemeProvider` wraps the app in `app.tsx` with `attribute="class"`
+- Use `resolvedTheme` from `useTheme()` for runtime theme detection (e.g. chart color palette selection)
+- Theme toggle button in root layout header (sun/moon icons)
+- Recharts tooltips use CSS custom properties for theme-aware styling: `backgroundColor: 'var(--card)'`, `borderColor: 'var(--border)'`, `color: 'var(--card-foreground)'`
+- Two chart color palettes: `CHART_COLORS_LIGHT` (vibrant Tailwind) and `CHART_COLORS_DARK` (desaturated)
+- Bar chart hover cursor: `cursor={{ fill: cursorFill }}` where `cursorFill` is theme-dependent rgba
+
+## Dashboard Charts & Filters
+- Filter panel: Period (preset select), From/To (date inputs), Accounts/Categories/Tags (multiselect popovers with search), Type (multiselect), Group by (category/tag toggle)
+- All filter popovers: search input at top, items sorted alphabetically, checkbox per item, Clear button
+- `ChartFilters` interface in `use-dashboard.ts` holds all filter state including `groupBy`
+- `buildChartParams()` serializes filters to URL search params (multi-value via `append`)
+- Charts: Expenses by Category/Tag (donut), Income vs Expenses (bar), Net Trend (composed bar+line), Exchange Rates (line), Expense Trend by Category/Tag (stacked bar)
+- Frontend types: `GroupExpenseResponse(id, name, amount)` — generic for both groupings; `ExpenseTrendResponse(period, groups)`
+- Y-axis uses `compactNumber` formatter (K/M abbreviations) with `width={55}` to prevent overflow
+- Exchange rate chart downsampled to ~60 points for tooltip/marker alignment
+
 ## Common Frontend Bugs to Avoid
 
 1. **Floating point display.** Backend sends amounts as integers (1234 = 12.34 UAH). Always divide by 100 for display, multiply by 100 for sending. Never store the divided value — keep integers in state, format only in display components.
@@ -208,6 +226,9 @@ src/
 │   ├── use-accounts.ts     # account queries + mutations
 │   ├── use-categories.ts
 │   ├── use-transactions.ts
+│   ├── use-tags.ts
+│   ├── use-settings.ts
+│   ├── use-exchange-rates.ts
 │   └── use-dashboard.ts
 ├── components/
 │   ├── ui/                 # shadcn generated (don't manually edit often)
@@ -225,7 +246,9 @@ src/
 │   ├── transactions.tsx
 │   ├── transaction-form.tsx
 │   ├── categories.tsx
-│   └── analytics.tsx
+│   ├── tags.tsx
+│   ├── settings.tsx
+│   └── import.tsx
 ├── stores/
 │   └── ui-store.ts
 ├── types/
@@ -261,8 +284,11 @@ react-hook-form @hookform/resolvers zod
 # Charts
 recharts
 
+# Theme
+next-themes
+
 # Utilities
-date-fns react-error-boundary
+date-fns react-error-boundary lucide-react
 
 # Dev
 @tanstack/react-query-devtools

@@ -19,6 +19,7 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 - React Hook Form + Zod — forms and validation
 - TanStack Table — data tables
 - Recharts — charts
+- next-themes — dark/light theme toggling (attribute="class" on html)
 - date-fns — date formatting
 - sonner — toast notifications
 - react-error-boundary — error boundaries
@@ -28,8 +29,10 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 ### Collections
 - `accounts` — user bank accounts with denormalized balance
 - `categories` — income/expense categories (flat, no hierarchy)
+- `tags` — free-form labels; a transaction can have 0..N tags (`tags: List<String>` of tag IDs)
 - `transactions` — all financial operations
-- `settings` — app preferences (default currency)
+- `exchangeRates` — daily USD-based exchange rates for currency conversion
+- `settings` — app preferences (default currency, initial date)
 - NO `users` collection — single user, auth via config
 
 ### Amounts
@@ -71,6 +74,21 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 ### Timestamps
 - `LocalDate` for business date (user-selected)
 - `Instant` for system timestamps (createdAt, updatedAt)
+
+### Tags
+- Free-form labels stored in `tags` collection (id, name, createdAt)
+- Transaction field `tags: List<String>` holds tag IDs (can be empty/null)
+- One transaction can have multiple tags; in tag-grouped analytics, it contributes to **each** tag's total
+- MongoDB `.in(tagIds)` works on array fields for filtering
+
+### Dashboard Analytics
+- All chart endpoints accept optional filters: `accountIds`, `categoryIds`, `tagIds`, `types`
+- `types` filter **gates inclusion** — if INCOME is not in the filter, income transactions are skipped entirely. It does NOT change the per-type query (always `.is(type)`, never `.in(types)`)
+- `groupBy=category|tag` parameter on expenses-by-category and expense-trend endpoints
+- Response uses generic `GroupExpenseResponse(id, name, amount)` for both category and tag grouping
+- `ExpenseTrendResponse(period, groups: List<GroupExpenseResponse>)` — monthly breakdown
+- Transfers crossing account filter boundary count as income/expense in income-vs-expenses chart
+- Currency conversion uses historical rates for the transaction date within the selected range
 
 ### Indexes (transactions)
 - `{accountId: 1, date: -1}` — primary query pattern
