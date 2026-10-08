@@ -19,15 +19,17 @@ interface ChartFilters {
   from: string
   to: string
   accountIds?: string[]
+  categoryIds?: string[]
+  tagIds?: string[]
+  types?: string[]
 }
 
 function buildChartParams(filters: ChartFilters): URLSearchParams {
   const params = new URLSearchParams({ from: filters.from, to: filters.to })
-  if (filters.accountIds?.length) {
-    for (const id of filters.accountIds) {
-      params.append('accountIds', id)
-    }
-  }
+  for (const id of filters.accountIds ?? []) params.append('accountIds', id)
+  for (const id of filters.categoryIds ?? []) params.append('categoryIds', id)
+  for (const id of filters.tagIds ?? []) params.append('tagIds', id)
+  for (const t of filters.types ?? []) params.append('types', t)
   return params
 }
 

@@ -77,13 +77,14 @@ public class DashboardService {
         return total;
     }
 
-    public List<CategoryExpenseResponse> getExpensesByCategory(LocalDate from, LocalDate to, List<String> accountIds) {
+    public List<CategoryExpenseResponse> getExpensesByCategory(LocalDate from, LocalDate to,
+            List<String> accountIds, List<String> categoryIds, List<String> tagIds, List<TransactionType> types) {
         var settings = settingsService.get();
         var displayCurrency = settings.getDisplayCurrency();
         exchangeRateService.ensureRatesExist(from, to);
         var historicalRates = exchangeRateService.getRatesForRange(from, to);
         var accountCurrencies = buildAccountCurrencyMap();
-        var transactions = fetchTransactions(TransactionType.EXPENSE, from, to, accountIds);
+        var transactions = fetchTransactions(TransactionType.EXPENSE, from, to, accountIds, categoryIds, tagIds, types);
 
         // Group by categoryId and sum converted amounts
         Map<String, Long> totals = new HashMap<>();
@@ -111,19 +112,20 @@ public class DashboardService {
                 .toList();
     }
 
-    public IncomeVsExpenseResult getIncomeVsExpenses(LocalDate from, LocalDate to, List<String> accountIds) {
+    public IncomeVsExpenseResult getIncomeVsExpenses(LocalDate from, LocalDate to,
+            List<String> accountIds, List<String> categoryIds, List<String> tagIds, List<TransactionType> types) {
         var settings = settingsService.get();
         var displayCurrency = settings.getDisplayCurrency();
         var accountCurrencies = buildAccountCurrencyMap();
 
         // Compute prior net (all income - expenses before 'from')
-        long priorNet = computePriorNet(from, accountIds, displayCurrency, accountCurrencies);
+        long priorNet = computePriorNet(from, accountIds, categoryIds, tagIds, types, displayCurrency, accountCurrencies);
 
         exchangeRateService.ensureRatesExist(from, to);
         var historicalRates = exchangeRateService.getRatesForRange(from, to);
 
-        var incomes = fetchTransactions(TransactionType.INCOME, from, to, accountIds);
-        var expenses = fetchTransactions(TransactionType.EXPENSE, from, to, accountIds);
+        var incomes = fetchTransactions(TransactionType.INCOME, from, to, accountIds, categoryIds, tagIds, types);
+        var expenses = fetchTransactions(TransactionType.EXPENSE, from, to, accountIds, categoryIds, tagIds, types);
 
         // Group by month
         Map<YearMonth, Long> incomeByMonth = new LinkedHashMap<>();
@@ -142,8 +144,9 @@ public class DashboardService {
             expenseByMonth.merge(month, converted, Long::sum);
         }
 
-        // Transfers crossing account filter boundary
-        if (accountIds != null && !accountIds.isEmpty()) {
+        // Transfers crossing account filter boundary (skip if types filter excludes TRANSFER)
+        boolean includeTransfers = types == null || types.isEmpty() || types.contains(TransactionType.TRANSFER);
+        if (includeTransfers && accountIds != null && !accountIds.isEmpty()) {
             var selectedSet = new HashSet<>(accountIds);
             var transfers = fetchTransfers(from, to, accountIds);
             for (var txn : transfers) {
@@ -177,9 +180,10 @@ public class DashboardService {
     }
 
     private long computePriorNet(LocalDate before, List<String> accountIds,
+                                 List<String> categoryIds, List<String> tagIds, List<TransactionType> types,
                                  Currency displayCurrency, Map<String, Currency> accountCurrencies) {
-        var priorIncomes = fetchTransactionsBefore(TransactionType.INCOME, before, accountIds);
-        var priorExpenses = fetchTransactionsBefore(TransactionType.EXPENSE, before, accountIds);
+        var priorIncomes = fetchTransactionsBefore(TransactionType.INCOME, before, accountIds, categoryIds, tagIds, types);
+        var priorExpenses = fetchTransactionsBefore(TransactionType.EXPENSE, before, accountIds, categoryIds, tagIds, types);
 
         // Use latest rates for all prior conversions (no per-day historical rates for old data)
         var rates = exchangeRateService.getLatestRates();
@@ -195,8 +199,9 @@ public class DashboardService {
                     accountCurrencies.get(txn.getAccountId()), displayCurrency, rates);
         }
 
-        // Transfers crossing account filter boundary
-        if (accountIds != null && !accountIds.isEmpty()) {
+        // Transfers crossing account filter boundary (skip if types filter excludes TRANSFER)
+        boolean includeTransfers = types == null || types.isEmpty() || types.contains(TransactionType.TRANSFER);
+        if (includeTransfers && accountIds != null && !accountIds.isEmpty()) {
             var selectedSet = new HashSet<>(accountIds);
             var transfers = fetchTransfersBefore(before, accountIds);
             for (var txn : transfers) {
@@ -227,13 +232,14 @@ public class DashboardService {
         return amount;
     }
 
-    public List<ExpenseTrendResponse> getExpenseTrend(LocalDate from, LocalDate to, List<String> accountIds) {
+    public List<ExpenseTrendResponse> getExpenseTrend(LocalDate from, LocalDate to,
+            List<String> accountIds, List<String> categoryIds, List<String> tagIds, List<TransactionType> types) {
         var settings = settingsService.get();
         var displayCurrency = settings.getDisplayCurrency();
         exchangeRateService.ensureRatesExist(from, to);
         var historicalRates = exchangeRateService.getRatesForRange(from, to);
         var accountCurrencies = buildAccountCurrencyMap();
-        var transactions = fetchTransactions(TransactionType.EXPENSE, from, to, accountIds);
+        var transactions = fetchTransactions(TransactionType.EXPENSE, from, to, accountIds, categoryIds, tagIds, types);
 
         // Group by month -> categoryId -> sum
         Map<YearMonth, Map<String, Long>> monthlyTotals = new LinkedHashMap<>();
@@ -274,22 +280,47 @@ public class DashboardService {
         return results;
     }
 
-    private List<Transaction> fetchTransactions(TransactionType type, LocalDate from, LocalDate to, List<String> accountIds) {
-        var criteria = Criteria.where("deleted").ne(true).and("type").is(type)
+    private List<Transaction> fetchTransactions(TransactionType type, LocalDate from, LocalDate to,
+            List<String> accountIds, List<String> categoryIds, List<String> tagIds, List<TransactionType> types) {
+        var criteria = Criteria.where("deleted").ne(true)
                 .and("date").gte(from).lte(to);
-        if (accountIds != null && !accountIds.isEmpty()) {
-            criteria = criteria.and("accountId").in(accountIds);
+        // If explicit types filter provided and contains the requested type, use it; otherwise filter by single type
+        if (types != null && !types.isEmpty()) {
+            if (!types.contains(type)) return List.of();
+            criteria = criteria.and("type").in(types);
+        } else {
+            criteria = criteria.and("type").is(type);
         }
+        criteria = applyOptionalFilters(criteria, accountIds, categoryIds, tagIds);
         return mongoTemplate.find(Query.query(criteria), Transaction.class);
     }
 
-    private List<Transaction> fetchTransactionsBefore(TransactionType type, LocalDate before, List<String> accountIds) {
-        var criteria = Criteria.where("deleted").ne(true).and("type").is(type)
+    private List<Transaction> fetchTransactionsBefore(TransactionType type, LocalDate before,
+            List<String> accountIds, List<String> categoryIds, List<String> tagIds, List<TransactionType> types) {
+        var criteria = Criteria.where("deleted").ne(true)
                 .and("date").lt(before);
+        if (types != null && !types.isEmpty()) {
+            if (!types.contains(type)) return List.of();
+            criteria = criteria.and("type").in(types);
+        } else {
+            criteria = criteria.and("type").is(type);
+        }
+        criteria = applyOptionalFilters(criteria, accountIds, categoryIds, tagIds);
+        return mongoTemplate.find(Query.query(criteria), Transaction.class);
+    }
+
+    private Criteria applyOptionalFilters(Criteria criteria, List<String> accountIds,
+            List<String> categoryIds, List<String> tagIds) {
         if (accountIds != null && !accountIds.isEmpty()) {
             criteria = criteria.and("accountId").in(accountIds);
         }
-        return mongoTemplate.find(Query.query(criteria), Transaction.class);
+        if (categoryIds != null && !categoryIds.isEmpty()) {
+            criteria = criteria.and("categoryId").in(categoryIds);
+        }
+        if (tagIds != null && !tagIds.isEmpty()) {
+            criteria = criteria.and("tags").in(tagIds);
+        }
+        return criteria;
     }
 
     private List<Transaction> fetchTransfers(LocalDate from, LocalDate to, List<String> accountIds) {

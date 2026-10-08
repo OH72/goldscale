@@ -4,6 +4,7 @@ import com.goldscale.dto.response.CategoryExpenseResponse;
 import com.goldscale.dto.response.DashboardResponse;
 import com.goldscale.dto.response.ExpenseTrendResponse;
 import com.goldscale.dto.response.IncomeVsExpenseResult;
+import com.goldscale.model.TransactionType;
 import com.goldscale.service.DashboardService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -31,23 +32,32 @@ public class DashboardController {
     public ResponseEntity<List<CategoryExpenseResponse>> getExpensesByCategory(
             @RequestParam LocalDate from,
             @RequestParam LocalDate to,
-            @RequestParam(required = false) List<String> accountIds) {
-        return ResponseEntity.ok(dashboardService.getExpensesByCategory(from, to, accountIds));
+            @RequestParam(required = false) List<String> accountIds,
+            @RequestParam(required = false) List<String> categoryIds,
+            @RequestParam(required = false) List<String> tagIds,
+            @RequestParam(required = false) List<TransactionType> types) {
+        return ResponseEntity.ok(dashboardService.getExpensesByCategory(from, to, accountIds, categoryIds, tagIds, types));
     }
 
     @GetMapping("/income-vs-expenses")
     public ResponseEntity<IncomeVsExpenseResult> getIncomeVsExpenses(
             @RequestParam LocalDate from,
             @RequestParam LocalDate to,
-            @RequestParam(required = false) List<String> accountIds) {
-        return ResponseEntity.ok(dashboardService.getIncomeVsExpenses(from, to, accountIds));
+            @RequestParam(required = false) List<String> accountIds,
+            @RequestParam(required = false) List<String> categoryIds,
+            @RequestParam(required = false) List<String> tagIds,
+            @RequestParam(required = false) List<TransactionType> types) {
+        return ResponseEntity.ok(dashboardService.getIncomeVsExpenses(from, to, accountIds, categoryIds, tagIds, types));
     }
 
     @GetMapping("/expense-trend")
     public ResponseEntity<List<ExpenseTrendResponse>> getExpenseTrend(
             @RequestParam LocalDate from,
             @RequestParam LocalDate to,
-            @RequestParam(required = false) List<String> accountIds) {
-        return ResponseEntity.ok(dashboardService.getExpenseTrend(from, to, accountIds));
+            @RequestParam(required = false) List<String> accountIds,
+            @RequestParam(required = false) List<String> categoryIds,
+            @RequestParam(required = false) List<String> tagIds,
+            @RequestParam(required = false) List<TransactionType> types) {
+        return ResponseEntity.ok(dashboardService.getExpenseTrend(from, to, accountIds, categoryIds, tagIds, types));
     }
 }

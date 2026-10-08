@@ -7,6 +7,8 @@ import {
   useExpenseTrend,
 } from '@/api/use-dashboard'
 import { useAccounts } from '@/api/use-accounts'
+import { useCategories } from '@/api/use-categories'
+import { useTags } from '@/api/use-tags'
 import { useExchangeRateHistory } from '@/api/use-exchange-rates'
 import { useSettings } from '@/api/use-settings'
 import { PageHeader } from '@/components/layout/page-header'
@@ -138,6 +140,8 @@ export function DashboardPage() {
   const cursorFill = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'
   const { data, isLoading, error } = useDashboard()
   const { data: accounts = [] } = useAccounts()
+  const { data: categories = [] } = useCategories()
+  const { data: tags = [] } = useTags()
   const { data: settings } = useSettings()
   const initialDate = settings?.initialDate ?? '2022-01-01'
 
@@ -147,6 +151,9 @@ export function DashboardPage() {
   const [customFrom, setCustomFrom] = useState(initialRange.from)
   const [customTo, setCustomTo] = useState(initialRange.to)
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([])
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
 
   const dateRange = useMemo(() => ({
     from: customFrom,
@@ -157,7 +164,10 @@ export function DashboardPage() {
     from: dateRange.from,
     to: dateRange.to,
     accountIds: selectedAccountIds.length > 0 ? selectedAccountIds : undefined,
-  }), [dateRange, selectedAccountIds])
+    categoryIds: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
+    tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
+    types: selectedTypes.length > 0 ? selectedTypes : undefined,
+  }), [dateRange, selectedAccountIds, selectedCategoryIds, selectedTagIds, selectedTypes])
 
   const { data: expenseData, isLoading: expenseLoading } = useExpensesByCategory(chartFilters)
   const { data: incomeVsExpenseData, isLoading: iveLoading } = useIncomeVsExpenses(chartFilters)
@@ -407,6 +417,135 @@ export function DashboardPage() {
                     size="sm"
                     className="mt-2 w-full"
                     onClick={() => setSelectedAccountIds([])}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Categories</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-44 justify-between font-normal">
+                  {selectedCategoryIds.length === 0
+                    ? 'All categories'
+                    : `${selectedCategoryIds.length} selected`}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {categories.map((c) => (
+                    <label
+                      key={c.id}
+                      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={selectedCategoryIds.includes(c.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedCategoryIds((prev) =>
+                            checked ? [...prev, c.id] : prev.filter((id) => id !== c.id),
+                          )
+                        }}
+                      />
+                      {c.name}
+                    </label>
+                  ))}
+                </div>
+                {selectedCategoryIds.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 w-full"
+                    onClick={() => setSelectedCategoryIds([])}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Tags</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-44 justify-between font-normal">
+                  {selectedTagIds.length === 0
+                    ? 'All tags'
+                    : `${selectedTagIds.length} selected`}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <div className="space-y-1 max-h-48 overflow-y-auto">
+                  {tags.map((t) => (
+                    <label
+                      key={t.id}
+                      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={selectedTagIds.includes(t.id)}
+                        onCheckedChange={(checked) => {
+                          setSelectedTagIds((prev) =>
+                            checked ? [...prev, t.id] : prev.filter((id) => id !== t.id),
+                          )
+                        }}
+                      />
+                      {t.name}
+                    </label>
+                  ))}
+                </div>
+                {selectedTagIds.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 w-full"
+                    onClick={() => setSelectedTagIds([])}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Type</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-44 justify-between font-normal">
+                  {selectedTypes.length === 0
+                    ? 'All types'
+                    : `${selectedTypes.length} selected`}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-2" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <div className="space-y-1">
+                  {(['INCOME', 'EXPENSE', 'TRANSFER'] as const).map((t) => (
+                    <label
+                      key={t}
+                      className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={selectedTypes.includes(t)}
+                        onCheckedChange={(checked) => {
+                          setSelectedTypes((prev) =>
+                            checked ? [...prev, t] : prev.filter((v) => v !== t),
+                          )
+                        }}
+                      />
+                      {t.charAt(0) + t.slice(1).toLowerCase()}
+                    </label>
+                  ))}
+                </div>
+                {selectedTypes.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 w-full"
+                    onClick={() => setSelectedTypes([])}
                   >
                     Clear
                   </Button>
