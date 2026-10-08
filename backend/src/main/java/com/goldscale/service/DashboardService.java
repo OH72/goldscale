@@ -282,29 +282,20 @@ public class DashboardService {
 
     private List<Transaction> fetchTransactions(TransactionType type, LocalDate from, LocalDate to,
             List<String> accountIds, List<String> categoryIds, List<String> tagIds, List<TransactionType> types) {
+        if (types != null && !types.isEmpty() && !types.contains(type)) return List.of();
         var criteria = Criteria.where("deleted").ne(true)
+                .and("type").is(type)
                 .and("date").gte(from).lte(to);
-        // If explicit types filter provided and contains the requested type, use it; otherwise filter by single type
-        if (types != null && !types.isEmpty()) {
-            if (!types.contains(type)) return List.of();
-            criteria = criteria.and("type").in(types);
-        } else {
-            criteria = criteria.and("type").is(type);
-        }
         criteria = applyOptionalFilters(criteria, accountIds, categoryIds, tagIds);
         return mongoTemplate.find(Query.query(criteria), Transaction.class);
     }
 
     private List<Transaction> fetchTransactionsBefore(TransactionType type, LocalDate before,
             List<String> accountIds, List<String> categoryIds, List<String> tagIds, List<TransactionType> types) {
+        if (types != null && !types.isEmpty() && !types.contains(type)) return List.of();
         var criteria = Criteria.where("deleted").ne(true)
+                .and("type").is(type)
                 .and("date").lt(before);
-        if (types != null && !types.isEmpty()) {
-            if (!types.contains(type)) return List.of();
-            criteria = criteria.and("type").in(types);
-        } else {
-            criteria = criteria.and("type").is(type);
-        }
         criteria = applyOptionalFilters(criteria, accountIds, categoryIds, tagIds);
         return mongoTemplate.find(Query.query(criteria), Transaction.class);
     }
