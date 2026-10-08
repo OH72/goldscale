@@ -3,7 +3,7 @@ import { api } from './client'
 import { queryKeys } from './query-keys'
 import type {
   DashboardResponse,
-  CategoryExpenseResponse,
+  GroupExpenseResponse,
   IncomeVsExpenseResult,
   ExpenseTrendResponse,
 } from '@/types/transaction'
@@ -22,6 +22,7 @@ interface ChartFilters {
   categoryIds?: string[]
   tagIds?: string[]
   types?: string[]
+  groupBy?: string
 }
 
 function buildChartParams(filters: ChartFilters): URLSearchParams {
@@ -30,6 +31,7 @@ function buildChartParams(filters: ChartFilters): URLSearchParams {
   for (const id of filters.categoryIds ?? []) params.append('categoryIds', id)
   for (const id of filters.tagIds ?? []) params.append('tagIds', id)
   for (const t of filters.types ?? []) params.append('types', t)
+  if (filters.groupBy) params.set('groupBy', filters.groupBy)
   return params
 }
 
@@ -37,7 +39,7 @@ export function useExpensesByCategory(filters: ChartFilters) {
   return useQuery({
     queryKey: queryKeys.dashboard.expensesByCategory(filters),
     queryFn: () =>
-      api.get<CategoryExpenseResponse[]>(
+      api.get<GroupExpenseResponse[]>(
         `/dashboard/expenses-by-category?${buildChartParams(filters)}`,
       ),
   })

@@ -1,6 +1,6 @@
 package com.goldscale.service;
 
-import com.goldscale.dto.response.CategoryExpenseResponse;
+import com.goldscale.dto.response.GroupExpenseResponse;
 import com.goldscale.dto.response.DashboardResponse;
 import com.goldscale.dto.response.ExpenseTrendResponse;
 import com.goldscale.dto.response.IncomeVsExpenseResponse;
@@ -77,8 +77,9 @@ public class DashboardService {
         return total;
     }
 
-    public List<CategoryExpenseResponse> getExpensesByCategory(LocalDate from, LocalDate to,
-            List<String> accountIds, List<String> categoryIds, List<String> tagIds, List<TransactionType> types) {
+    public List<GroupExpenseResponse> getExpensesGrouped(LocalDate from, LocalDate to,
+            List<String> accountIds, List<String> categoryIds, List<String> tagIds,
+            List<TransactionType> types, String groupBy) {
         var settings = settingsService.get();
         var displayCurrency = settings.getDisplayCurrency();
         exchangeRateService.ensureRatesExist(from, to);
@@ -86,29 +87,30 @@ public class DashboardService {
         var accountCurrencies = buildAccountCurrencyMap();
         var transactions = fetchTransactions(TransactionType.EXPENSE, from, to, accountIds, categoryIds, tagIds, types);
 
-        // Group by categoryId and sum converted amounts
         Map<String, Long> totals = new HashMap<>();
+        boolean byTag = "tag".equals(groupBy);
+
         for (var txn : transactions) {
             long converted = convertAmount(txn.getAmount(), accountCurrencies.get(txn.getAccountId()),
                     displayCurrency, historicalRates, txn.getDate());
-            totals.merge(txn.getCategoryId() != null ? txn.getCategoryId() : "uncategorized", converted, Long::sum);
+            if (byTag) {
+                if (txn.getTags() != null && !txn.getTags().isEmpty()) {
+                    for (var tagId : txn.getTags()) {
+                        totals.merge(tagId, converted, Long::sum);
+                    }
+                } else {
+                    totals.merge("untagged", converted, Long::sum);
+                }
+            } else {
+                totals.merge(txn.getCategoryId() != null ? txn.getCategoryId() : "uncategorized", converted, Long::sum);
+            }
         }
 
-        // Resolve category names
-        var categoryNames = totals.keySet().stream()
-                .filter(id -> !"uncategorized".equals(id))
-                .collect(Collectors.toSet());
-        Map<String, String> nameMap = categoryNames.isEmpty()
-                ? Map.of()
-                : categoryRepository.findAllById(categoryNames).stream()
-                        .collect(Collectors.toMap(c -> c.getId(), c -> c.getName()));
+        Map<String, String> nameMap = resolveGroupNames(totals.keySet(), byTag);
 
         return totals.entrySet().stream()
-                .map(e -> new CategoryExpenseResponse(
-                        e.getKey(),
-                        nameMap.getOrDefault(e.getKey(), "Uncategorized"),
-                        e.getValue()))
-                .sorted(Comparator.comparingLong(CategoryExpenseResponse::amount).reversed())
+                .map(e -> new GroupExpenseResponse(e.getKey(), nameMap.getOrDefault(e.getKey(), byTag ? "Untagged" : "Uncategorized"), e.getValue()))
+                .sorted(Comparator.comparingLong(GroupExpenseResponse::amount).reversed())
                 .toList();
     }
 
@@ -233,48 +235,53 @@ public class DashboardService {
     }
 
     public List<ExpenseTrendResponse> getExpenseTrend(LocalDate from, LocalDate to,
-            List<String> accountIds, List<String> categoryIds, List<String> tagIds, List<TransactionType> types) {
+            List<String> accountIds, List<String> categoryIds, List<String> tagIds,
+            List<TransactionType> types, String groupBy) {
         var settings = settingsService.get();
         var displayCurrency = settings.getDisplayCurrency();
         exchangeRateService.ensureRatesExist(from, to);
         var historicalRates = exchangeRateService.getRatesForRange(from, to);
         var accountCurrencies = buildAccountCurrencyMap();
         var transactions = fetchTransactions(TransactionType.EXPENSE, from, to, accountIds, categoryIds, tagIds, types);
+        boolean byTag = "tag".equals(groupBy);
 
-        // Group by month -> categoryId -> sum
+        // Group by month -> groupKey -> sum
         Map<YearMonth, Map<String, Long>> monthlyTotals = new LinkedHashMap<>();
         for (var txn : transactions) {
             var month = YearMonth.from(txn.getDate());
             long converted = convertAmount(txn.getAmount(), accountCurrencies.get(txn.getAccountId()),
                     displayCurrency, historicalRates, txn.getDate());
-            String catId = txn.getCategoryId() != null ? txn.getCategoryId() : "uncategorized";
-            monthlyTotals.computeIfAbsent(month, k -> new HashMap<>()).merge(catId, converted, Long::sum);
+            if (byTag) {
+                if (txn.getTags() != null && !txn.getTags().isEmpty()) {
+                    for (var tagId : txn.getTags()) {
+                        monthlyTotals.computeIfAbsent(month, k -> new HashMap<>()).merge(tagId, converted, Long::sum);
+                    }
+                } else {
+                    monthlyTotals.computeIfAbsent(month, k -> new HashMap<>()).merge("untagged", converted, Long::sum);
+                }
+            } else {
+                String catId = txn.getCategoryId() != null ? txn.getCategoryId() : "uncategorized";
+                monthlyTotals.computeIfAbsent(month, k -> new HashMap<>()).merge(catId, converted, Long::sum);
+            }
         }
 
-        // Collect all category IDs for name resolution
-        var allCategoryIds = monthlyTotals.values().stream()
+        var allIds = monthlyTotals.values().stream()
                 .flatMap(m -> m.keySet().stream())
-                .filter(id -> !"uncategorized".equals(id))
                 .collect(Collectors.toSet());
-        Map<String, String> nameMap = allCategoryIds.isEmpty()
-                ? Map.of()
-                : categoryRepository.findAllById(allCategoryIds).stream()
-                        .collect(Collectors.toMap(c -> c.getId(), c -> c.getName()));
+        Map<String, String> nameMap = resolveGroupNames(allIds, byTag);
 
         // Build results for all months in range
+        String fallback = byTag ? "Untagged" : "Uncategorized";
         var results = new ArrayList<ExpenseTrendResponse>();
         var current = YearMonth.from(from);
         var end = YearMonth.from(to);
         while (!current.isAfter(end)) {
-            var categoryTotals = monthlyTotals.getOrDefault(current, Map.of());
-            var categories = categoryTotals.entrySet().stream()
-                    .map(e -> new CategoryExpenseResponse(
-                            e.getKey(),
-                            nameMap.getOrDefault(e.getKey(), "Uncategorized"),
-                            e.getValue()))
-                    .sorted(Comparator.comparingLong(CategoryExpenseResponse::amount).reversed())
+            var groupTotals = monthlyTotals.getOrDefault(current, Map.of());
+            var groups = groupTotals.entrySet().stream()
+                    .map(e -> new GroupExpenseResponse(e.getKey(), nameMap.getOrDefault(e.getKey(), fallback), e.getValue()))
+                    .sorted(Comparator.comparingLong(GroupExpenseResponse::amount).reversed())
                     .toList();
-            results.add(new ExpenseTrendResponse(current.toString(), categories));
+            results.add(new ExpenseTrendResponse(current.toString(), groups));
             current = current.plusMonths(1);
         }
         return results;
@@ -356,6 +363,19 @@ public class DashboardService {
         }
 
         return amount;
+    }
+
+    private Map<String, String> resolveGroupNames(java.util.Set<String> ids, boolean byTag) {
+        var filtered = ids.stream()
+                .filter(id -> !"uncategorized".equals(id) && !"untagged".equals(id))
+                .collect(Collectors.toSet());
+        if (filtered.isEmpty()) return Map.of();
+        if (byTag) {
+            return tagRepository.findAllById(filtered).stream()
+                    .collect(Collectors.toMap(Tag::getId, Tag::getName));
+        }
+        return categoryRepository.findAllById(filtered).stream()
+                .collect(Collectors.toMap(c -> c.getId(), c -> c.getName()));
     }
 
     private List<TransactionResponse> enrichWithNames(List<Transaction> transactions) {

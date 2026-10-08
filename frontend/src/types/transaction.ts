@@ -84,9 +84,9 @@ export interface DashboardResponse {
   displayCurrency: Currency
 }
 
-export interface CategoryExpenseResponse {
-  categoryId: string
-  categoryName: string
+export interface GroupExpenseResponse {
+  id: string
+  name: string
   amount: number
 }
 
@@ -104,7 +104,7 @@ export interface IncomeVsExpenseResult {
 
 export interface ExpenseTrendResponse {
   period: string
-  categories: CategoryExpenseResponse[]
+  groups: GroupExpenseResponse[]
 }
 
 export interface AuditResponse {

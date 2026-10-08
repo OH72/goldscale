@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ChevronsUpDown } from 'lucide-react'
+import { ChevronsUpDown, Search } from 'lucide-react'
 import {
   PieChart,
   Pie,
@@ -154,6 +154,10 @@ export function DashboardPage() {
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [selectedTypes, setSelectedTypes] = useState<string[]>([])
+  const [groupBy, setGroupBy] = useState<'category' | 'tag'>('category')
+  const [accountSearch, setAccountSearch] = useState('')
+  const [categorySearch, setCategorySearch] = useState('')
+  const [tagSearch, setTagSearch] = useState('')
 
   const dateRange = useMemo(() => ({
     from: customFrom,
@@ -167,7 +171,8 @@ export function DashboardPage() {
     categoryIds: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
     tagIds: selectedTagIds.length > 0 ? selectedTagIds : undefined,
     types: selectedTypes.length > 0 ? selectedTypes : undefined,
-  }), [dateRange, selectedAccountIds, selectedCategoryIds, selectedTagIds, selectedTypes])
+    groupBy,
+  }), [dateRange, selectedAccountIds, selectedCategoryIds, selectedTagIds, selectedTypes, groupBy])
 
   const { data: expenseData, isLoading: expenseLoading } = useExpensesByCategory(chartFilters)
   const { data: incomeVsExpenseData, isLoading: iveLoading } = useIncomeVsExpenses(chartFilters)
@@ -193,7 +198,7 @@ export function DashboardPage() {
     const top = expenseData.slice(0, 8)
     const rest = expenseData.slice(8)
     const result = top.map((d) => ({
-      name: d.categoryName,
+      name: d.name,
       value: d.amount,
     }))
     if (rest.length > 0) {
@@ -239,25 +244,25 @@ export function DashboardPage() {
   }, [incomeVsExpenseData])
 
   // Expense trend: top 6 categories + Other, stacked per month
-  const { trendChartData, trendCategoryKeys } = useMemo(() => {
-    if (!trendData || trendData.length === 0) return { trendChartData: [], trendCategoryKeys: [] }
+  const { trendChartData, trendGroupKeys } = useMemo(() => {
+    if (!trendData || trendData.length === 0) return { trendChartData: [], trendGroupKeys: [] }
 
-    // Find top 6 categories by total across all months
-    const totalByCategory = new Map<string, { name: string; total: number }>()
+    // Find top 6 groups by total across all months
+    const totalByGroup = new Map<string, { name: string; total: number }>()
     for (const month of trendData) {
-      for (const cat of month.categories) {
-        const existing = totalByCategory.get(cat.categoryId)
+      for (const g of month.groups) {
+        const existing = totalByGroup.get(g.id)
         if (existing) {
-          existing.total += cat.amount
+          existing.total += g.amount
         } else {
-          totalByCategory.set(cat.categoryId, { name: cat.categoryName, total: cat.amount })
+          totalByGroup.set(g.id, { name: g.name, total: g.amount })
         }
       }
     }
-    const sorted = [...totalByCategory.entries()]
+    const sorted = [...totalByGroup.entries()]
       .sort((a, b) => b[1].total - a[1].total)
     const topIds = new Set(sorted.slice(0, 6).map(([id]) => id))
-    const categoryKeys = sorted.slice(0, 6).map(([id, { name }]) => ({ id, name }))
+    const groupKeys = sorted.slice(0, 6).map(([id, { name }]) => ({ id, name }))
     const hasOther = sorted.length > 6
 
     // Build chart data
@@ -265,25 +270,25 @@ export function DashboardPage() {
       const row: Record<string, number | string> = {
         period: month.period.slice(2).replace('-', '/'),
       }
-      for (const { id } of categoryKeys) {
+      for (const { id } of groupKeys) {
         row[id] = 0
       }
       if (hasOther) row['other'] = 0
 
-      for (const cat of month.categories) {
-        if (topIds.has(cat.categoryId)) {
-          row[cat.categoryId] = fromSubunits(cat.amount)
+      for (const g of month.groups) {
+        if (topIds.has(g.id)) {
+          row[g.id] = fromSubunits(g.amount)
         } else if (hasOther) {
-          row['other'] = (row['other'] as number) + fromSubunits(cat.amount)
+          row['other'] = (row['other'] as number) + fromSubunits(g.amount)
         }
       }
       return row
     })
 
-    const keys = [...categoryKeys.map((c) => ({ id: c.id, name: c.name }))]
+    const keys = [...groupKeys.map((c) => ({ id: c.id, name: c.name }))]
     if (hasOther) keys.push({ id: 'other', name: 'Other' })
 
-    return { trendChartData: chartData, trendCategoryKeys: keys }
+    return { trendChartData: chartData, trendGroupKeys: keys }
   }, [trendData])
 
   const rateChartData = useMemo(() => {
@@ -388,8 +393,21 @@ export function DashboardPage() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-56 p-2" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <div className="relative mb-2">
+                  <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search..."
+                    className="h-8 pl-7 text-sm"
+                    value={accountSearch}
+                    onChange={(e) => setAccountSearch(e.target.value)}
+                  />
+                </div>
                 <div className="space-y-1 max-h-48 overflow-y-auto">
-                  {activeAccounts.map((a) => (
+                  {activeAccounts
+                    .slice()
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .filter((a) => a.name.toLowerCase().includes(accountSearch.toLowerCase()))
+                    .map((a) => (
                     <label
                       key={a.id}
                       className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
@@ -436,8 +454,21 @@ export function DashboardPage() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-56 p-2" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <div className="relative mb-2">
+                  <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search..."
+                    className="h-8 pl-7 text-sm"
+                    value={categorySearch}
+                    onChange={(e) => setCategorySearch(e.target.value)}
+                  />
+                </div>
                 <div className="space-y-1 max-h-48 overflow-y-auto">
-                  {categories.map((c) => (
+                  {categories
+                    .slice()
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .filter((c) => c.name.toLowerCase().includes(categorySearch.toLowerCase()))
+                    .map((c) => (
                     <label
                       key={c.id}
                       className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
@@ -479,8 +510,21 @@ export function DashboardPage() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-56 p-2" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <div className="relative mb-2">
+                  <Search className="absolute left-2 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                  <Input
+                    placeholder="Search..."
+                    className="h-8 pl-7 text-sm"
+                    value={tagSearch}
+                    onChange={(e) => setTagSearch(e.target.value)}
+                  />
+                </div>
                 <div className="space-y-1 max-h-48 overflow-y-auto">
-                  {tags.map((t) => (
+                  {tags
+                    .slice()
+                    .sort((a, b) => a.name.localeCompare(b.name))
+                    .filter((t) => t.name.toLowerCase().includes(tagSearch.toLowerCase()))
+                    .map((t) => (
                     <label
                       key={t.id}
                       className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent cursor-pointer"
@@ -553,6 +597,27 @@ export function DashboardPage() {
               </PopoverContent>
             </Popover>
           </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Group by</Label>
+            <div className="flex gap-1 rounded-md border p-0.5 h-9 items-center">
+              <Button
+                variant={groupBy === 'category' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2.5 text-xs"
+                onClick={() => setGroupBy('category')}
+              >
+                Category
+              </Button>
+              <Button
+                variant={groupBy === 'tag' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2.5 text-xs"
+                onClick={() => setGroupBy('tag')}
+              >
+                Tag
+              </Button>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -561,7 +626,9 @@ export function DashboardPage() {
         {/* Expenses by Category Donut */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Expenses by Category</CardTitle>
+            <CardTitle className="text-base">
+              Expenses by {groupBy === 'category' ? 'Category' : 'Tag'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {expenseLoading ? (
@@ -588,11 +655,10 @@ export function DashboardPage() {
                     </Pie>
                     <Tooltip
                       contentStyle={tooltipStyle}
-                      formatter={(value: number) => [
+                      formatter={(value: number, name: string) => [
                         formatCurrency(value, displayCurrency),
-                        '',
+                        name,
                       ]}
-                      labelFormatter={(name: string) => name}
                     />
                   </PieChart>
                 </ResponsiveContainer>
@@ -750,7 +816,9 @@ export function DashboardPage() {
       {/* Expense Trend */}
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle className="text-base">Expense Trend by Category</CardTitle>
+          <CardTitle className="text-base">
+            Expense Trend by {groupBy === 'category' ? 'Category' : 'Tag'}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {trendLoading ? (
@@ -768,7 +836,7 @@ export function DashboardPage() {
                     contentStyle={tooltipStyle}
                     cursor={{ fill: cursorFill }}
                     formatter={(value: number, name: string) => {
-                      const cat = trendCategoryKeys.find((c) => c.id === name)
+                      const cat = trendGroupKeys.find((c) => c.id === name)
                       return [
                         formatCurrency(Math.round(value as number * 100), displayCurrency),
                         cat?.name ?? name,
@@ -777,11 +845,11 @@ export function DashboardPage() {
                   />
                   <Legend
                     formatter={(value: string) => {
-                      const cat = trendCategoryKeys.find((c) => c.id === value)
+                      const cat = trendGroupKeys.find((c) => c.id === value)
                       return cat?.name ?? value
                     }}
                   />
-                  {trendCategoryKeys.map((cat, i) => (
+                  {trendGroupKeys.map((cat, i) => (
                     <Bar
                       key={cat.id}
                       dataKey={cat.id}

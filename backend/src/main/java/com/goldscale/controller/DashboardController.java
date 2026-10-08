@@ -1,8 +1,8 @@
 package com.goldscale.controller;
 
-import com.goldscale.dto.response.CategoryExpenseResponse;
 import com.goldscale.dto.response.DashboardResponse;
 import com.goldscale.dto.response.ExpenseTrendResponse;
+import com.goldscale.dto.response.GroupExpenseResponse;
 import com.goldscale.dto.response.IncomeVsExpenseResult;
 import com.goldscale.model.TransactionType;
 import com.goldscale.service.DashboardService;
@@ -29,14 +29,15 @@ public class DashboardController {
     }
 
     @GetMapping("/expenses-by-category")
-    public ResponseEntity<List<CategoryExpenseResponse>> getExpensesByCategory(
+    public ResponseEntity<List<GroupExpenseResponse>> getExpensesByCategory(
             @RequestParam LocalDate from,
             @RequestParam LocalDate to,
             @RequestParam(required = false) List<String> accountIds,
             @RequestParam(required = false) List<String> categoryIds,
             @RequestParam(required = false) List<String> tagIds,
-            @RequestParam(required = false) List<TransactionType> types) {
-        return ResponseEntity.ok(dashboardService.getExpensesByCategory(from, to, accountIds, categoryIds, tagIds, types));
+            @RequestParam(required = false) List<TransactionType> types,
+            @RequestParam(defaultValue = "category") String groupBy) {
+        return ResponseEntity.ok(dashboardService.getExpensesGrouped(from, to, accountIds, categoryIds, tagIds, types, groupBy));
     }
 
     @GetMapping("/income-vs-expenses")
@@ -57,7 +58,8 @@ public class DashboardController {
             @RequestParam(required = false) List<String> accountIds,
             @RequestParam(required = false) List<String> categoryIds,
             @RequestParam(required = false) List<String> tagIds,
-            @RequestParam(required = false) List<TransactionType> types) {
-        return ResponseEntity.ok(dashboardService.getExpenseTrend(from, to, accountIds, categoryIds, tagIds, types));
+            @RequestParam(required = false) List<TransactionType> types,
+            @RequestParam(defaultValue = "category") String groupBy) {
+        return ResponseEntity.ok(dashboardService.getExpenseTrend(from, to, accountIds, categoryIds, tagIds, types, groupBy));
     }
 }

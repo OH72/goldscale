@@ -4,5 +4,5 @@ import java.util.List;
 
 public record ExpenseTrendResponse(
         String period,
-        List<CategoryExpenseResponse> categories
+        List<GroupExpenseResponse> groups
 ) {}
