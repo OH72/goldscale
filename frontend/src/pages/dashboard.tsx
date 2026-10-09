@@ -82,7 +82,7 @@ function DebtSummarySection() {
 
   if (isLoading) return null
   const displayCurrency = summary?.displayCurrency ?? ''
-  const entries = summary?.entries ?? []
+  const entries = Array.isArray(summary?.entries) ? summary.entries : []
 
   return (
     <Card className="mb-6">
