@@ -6,6 +6,7 @@ import com.goldscale.dto.request.UpdateDebtRecordRequest;
 import com.goldscale.exception.BusinessRuleException;
 import com.goldscale.exception.ResourceNotFoundException;
 import com.goldscale.model.*;
+import com.goldscale.model.Currency;
 import com.goldscale.repository.CategoryRepository;
 import com.goldscale.repository.DebtRecordRepository;
 import com.goldscale.repository.PersonRepository;
