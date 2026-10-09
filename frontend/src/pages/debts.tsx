@@ -489,9 +489,6 @@ export function DebtsPage() {
         </Button>
       </PageHeader>
 
-      {/* Summary */}
-      <SummarySection />
-
       {/* Filter Bar */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Select
