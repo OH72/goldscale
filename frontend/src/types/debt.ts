@@ -39,10 +39,14 @@ export interface DebtRecordResponse {
 export interface DebtSummaryEntry {
   personId: string
   personName: string
-  currency: Currency
   totalDebt: number
   totalLoan: number
   net: number
+}
+
+export interface DebtSummaryResponse {
+  displayCurrency: Currency
+  entries: DebtSummaryEntry[]
 }
 
 export interface CreateDebtRecordRequest {

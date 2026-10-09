@@ -4,7 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
   useDebtRecords,
-  useDebtSummary,
   useCreateDebtRecord,
   useUpdateDebtRecord,
   useDeleteDebtRecord,
@@ -20,7 +19,6 @@ import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
@@ -108,61 +106,6 @@ const paymentSchema = z.object({
 })
 
 type PaymentForm = z.infer<typeof paymentSchema>
-
-// --- Summary Section ---
-
-function SummarySection() {
-  const { data: summary, isLoading } = useDebtSummary()
-
-  if (isLoading) return null
-  if (!summary || summary.length === 0) return null
-
-  return (
-    <Card className="mb-6">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Summary by Person</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {summary.map((entry) => (
-            <div
-              key={`${entry.personId}-${entry.currency}`}
-              className="rounded-md border p-3"
-            >
-              <div className="mb-1 flex items-center justify-between">
-                <span className="font-medium">{entry.personName}</span>
-                <Badge variant="outline">{entry.currency}</Badge>
-              </div>
-              {entry.totalDebt > 0 && (
-                <div className="text-sm text-red-600 dark:text-red-400">
-                  I owe: {formatCurrency(entry.totalDebt, entry.currency)}
-                </div>
-              )}
-              {entry.totalLoan > 0 && (
-                <div className="text-sm text-green-600 dark:text-green-400">
-                  They owe: {formatCurrency(entry.totalLoan, entry.currency)}
-                </div>
-              )}
-              <div
-                className={cn(
-                  'mt-1 text-sm font-medium',
-                  entry.net > 0
-                    ? 'text-green-600 dark:text-green-400'
-                    : entry.net < 0
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-muted-foreground',
-                )}
-              >
-                Net: {entry.net > 0 ? '+' : ''}
-                {formatCurrency(entry.net, entry.currency)}
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
 
 // --- Payment Row ---
 

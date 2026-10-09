@@ -4,7 +4,7 @@ import { api, ApiError } from './client'
 import { queryKeys } from './query-keys'
 import type {
   DebtRecordResponse,
-  DebtSummaryEntry,
+  DebtSummaryResponse,
   CreateDebtRecordRequest,
   UpdateDebtRecordRequest,
   AddPaymentRequest,
@@ -142,6 +142,6 @@ export function useToggleDebtStatus() {
 export function useDebtSummary() {
   return useQuery({
     queryKey: queryKeys.debtRecords.summary,
-    queryFn: () => api.get<DebtSummaryEntry[]>('/debt-records/summary'),
+    queryFn: () => api.get<DebtSummaryResponse>('/debt-records/summary'),
   })
 }

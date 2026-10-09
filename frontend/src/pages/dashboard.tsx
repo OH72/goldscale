@@ -10,7 +10,10 @@ import { useAccounts } from '@/api/use-accounts'
 import { useCategories } from '@/api/use-categories'
 import { useTags } from '@/api/use-tags'
 import { useExchangeRateHistory } from '@/api/use-exchange-rates'
+import { useDebtSummary } from '@/api/use-debt-records'
 import { useSettings } from '@/api/use-settings'
+import { Badge } from '@/components/ui/badge'
+import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/layout/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -72,6 +75,56 @@ const tooltipStyle: React.CSSProperties = {
   borderColor: 'var(--border)',
   color: 'var(--card-foreground)',
   borderRadius: 8,
+}
+
+function DebtSummarySection() {
+  const { data: summary } = useDebtSummary()
+
+  if (!summary || summary.entries.length === 0) return null
+  const { displayCurrency, entries } = summary
+
+  return (
+    <Card className="mb-6">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base">Summary by Person</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {entries.map((entry) => (
+            <div key={entry.personId} className="rounded-md border p-3">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="font-medium">{entry.personName}</span>
+                <Badge variant="outline">{displayCurrency}</Badge>
+              </div>
+              {entry.totalDebt > 0 && (
+                <div className="text-sm text-red-600 dark:text-red-400">
+                  I owe: {formatCurrency(entry.totalDebt, displayCurrency)}
+                </div>
+              )}
+              {entry.totalLoan > 0 && (
+                <div className="text-sm text-green-600 dark:text-green-400">
+                  They owe: {formatCurrency(entry.totalLoan, displayCurrency)}
+                </div>
+              )}
+              <div
+                className={cn(
+                  'mt-1 text-sm font-medium',
+                  entry.net > 0
+                    ? 'text-green-600 dark:text-green-400'
+                    : entry.net < 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-muted-foreground',
+                )}
+              >
+                Net: {entry.net > 0 ? '+' : ''}
+                {formatCurrency(entry.net, displayCurrency)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
 }
 
 type DatePreset = 'this-month' | 'last-month' | 'last-3' | 'last-6' | 'this-year' | 'all-time' | 'custom'
@@ -339,6 +392,8 @@ export function DashboardPage() {
           )}
         </CardContent>
       </Card>
+
+      <DebtSummarySection />
 
       {/* Filter Panel */}
       <Card className="mb-6">
