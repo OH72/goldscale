@@ -7,7 +7,6 @@ export function useLatestRates() {
   return useQuery({
     queryKey: ['exchange-rates', 'latest'],
     queryFn: () => api.get<Record<string, number>>('/exchange-rates/latest'),
-    staleTime: 5 * 60 * 1000,
   })
 }
 

@@ -9,10 +9,13 @@ import { router } from './router'
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
-      gcTime: 10 * 60 * 1000,
+      // Server data is never treated as fresh: refetch on every mount and
+      // window focus. Filter/sort choices live in Zustand, not the query cache.
+      staleTime: 0,
+      gcTime: 60 * 1000,
       retry: 1,
-      refetchOnWindowFocus: false,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
     },
   },
 })
