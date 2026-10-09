@@ -34,6 +34,7 @@ public class DebtRecordService {
     private final MongoTemplate mongoTemplate;
     private final ExchangeRateService exchangeRateService;
     private final SettingsService settingsService;
+    private final TagService tagService;
 
     public List<DebtRecordResponse> findAll(String personId, DebtType type, DebtStatus status) {
         var criteria = Criteria.where("deleted").ne(true);
@@ -72,6 +73,7 @@ public class DebtRecordService {
         record.setCoveredAmount(0);
         record.setCurrency(request.currency());
         record.setCategoryId(request.categoryId());
+        record.setTagIds(normalizeTagIds(request.tagIds()));
         record.setDescription(request.description());
         record.setDate(request.date());
         record.setStatus(DebtStatus.OPEN);
@@ -102,6 +104,7 @@ public class DebtRecordService {
         record.setAmount(request.amount());
         record.setCurrency(request.currency());
         record.setCategoryId(request.categoryId());
+        record.setTagIds(normalizeTagIds(request.tagIds()));
         record.setDescription(request.description());
         record.setDate(request.date());
         if (request.type() != null) {
@@ -270,12 +273,20 @@ public class DebtRecordService {
         }
     }
 
+    private static List<String> normalizeTagIds(List<String> tagIds) {
+        return tagIds == null ? new ArrayList<>() : tagIds.stream().distinct().collect(Collectors.toCollection(ArrayList::new));
+    }
+
     private List<DebtRecordResponse> enrichWithNames(List<DebtRecord> records) {
         var personIds = new HashSet<String>();
         var categoryIds = new HashSet<String>();
+        var tagIds = new HashSet<String>();
 
         for (var record : records) {
             personIds.add(record.getPersonId());
+            if (record.getTagIds() != null) {
+                tagIds.addAll(record.getTagIds());
+            }
             if (record.getCategoryId() != null) {
                 categoryIds.add(record.getCategoryId());
             }
@@ -289,13 +300,16 @@ public class DebtRecordService {
                 : categoryRepository.findAllById(categoryIds).stream()
                         .collect(Collectors.toMap(Category::getId, Category::getName));
 
+        var tagNames = tagService.getTagNamesByIds(new ArrayList<>(tagIds));
+
         return records.stream()
                 .map(record -> DebtRecordResponse.from(
                         record,
                         personNames.getOrDefault(record.getPersonId(), "Unknown"),
                         record.getCategoryId() != null
                                 ? categoryNames.getOrDefault(record.getCategoryId(), null)
-                                : null
+                                : null,
+                        tagNames
                 ))
                 .toList();
     }

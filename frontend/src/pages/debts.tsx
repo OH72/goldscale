@@ -13,6 +13,9 @@ import {
 } from '@/api/use-debt-records'
 import { usePeople } from '@/api/use-people'
 import { useCategories } from '@/api/use-categories'
+import { useTags } from '@/api/use-tags'
+import { CategorySelect } from '@/components/category-select'
+import { TagMultiSelect } from '@/components/tag-multi-select'
 import { useFilterStore } from '@/stores/filter-store'
 import { PageHeader } from '@/components/layout/page-header'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -81,6 +84,7 @@ const createRecordSchema = z.object({
   amount: z.coerce.number().positive('Amount must be positive'),
   currency: z.enum(['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'USDT']),
   categoryId: z.string().optional(),
+  tagIds: z.array(z.string()).optional(),
   description: z.string().optional(),
   date: z.string().min(1, 'Date is required'),
 })
@@ -93,6 +97,7 @@ const editRecordSchema = z.object({
   amount: z.coerce.number().positive('Amount must be positive'),
   currency: z.enum(['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'USDT']),
   categoryId: z.string().optional(),
+  tagIds: z.array(z.string()).optional(),
   description: z.string().optional(),
   date: z.string().min(1, 'Date is required'),
 })
@@ -226,6 +231,11 @@ function RecordRow({
           {record.categoryName && (
             <Badge variant="secondary">{record.categoryName}</Badge>
           )}
+          {record.tagNames?.map((name) => (
+            <Badge key={name} variant="outline" className="text-xs">
+              {name}
+            </Badge>
+          ))}
           {record.description && (
             <span className="truncate text-sm text-muted-foreground">
               {record.description}
@@ -315,6 +325,7 @@ function RecordRow({
 export function DebtsPage() {
   const { data: people } = usePeople()
   const { data: categories } = useCategories()
+  const { data: tags } = useTags()
   const { personId, type, status, search } = useFilterStore((s) => s.debts)
   const setDebts = useFilterStore((s) => s.setDebts)
   const resetDebts = useFilterStore((s) => s.resetDebts)
@@ -355,6 +366,7 @@ export function DebtsPage() {
       amount: 0,
       currency: 'UAH',
       categoryId: '',
+      tagIds: [],
       description: '',
       date: new Date().toISOString().slice(0, 10),
     },
@@ -400,6 +412,7 @@ export function DebtsPage() {
         amount: toSubunits(data.amount),
         currency: data.currency,
         categoryId: data.categoryId || null,
+        tagIds: data.tagIds ?? [],
         description: data.description || null,
         date: data.date,
       },
@@ -423,6 +436,7 @@ export function DebtsPage() {
           amount: toSubunits(data.amount),
           currency: data.currency,
           categoryId: data.categoryId || null,
+          tagIds: data.tagIds ?? [],
           description: data.description || null,
           date: data.date,
         },
@@ -440,6 +454,7 @@ export function DebtsPage() {
       amount: fromSubunits(record.amount),
       currency: record.currency,
       categoryId: record.categoryId ?? '',
+      tagIds: record.tagIds ?? [],
       description: record.description ?? '',
       date: record.date,
     })
@@ -675,29 +690,20 @@ export function DebtsPage() {
 
             <div className="space-y-2">
               <Label>Category (optional)</Label>
-              <Select
-                value={createForm.watch('categoryId') || 'NONE'}
-                onValueChange={(v) =>
-                  createForm.setValue('categoryId', v === 'NONE' ? '' : v)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="None">
-                    {(v: string) => v === 'NONE' ? 'None' : categories?.find((c) => c.id === v)?.name ?? v}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="NONE">None</SelectItem>
-                  {categories
-                    ?.slice()
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <CategorySelect
+                categories={categories}
+                value={createForm.watch('categoryId') ?? ''}
+                onChange={(id) => createForm.setValue('categoryId', id)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tags (optional)</Label>
+              <TagMultiSelect
+                tags={tags}
+                value={createForm.watch('tagIds') ?? []}
+                onChange={(ids) => createForm.setValue('tagIds', ids)}
+              />
             </div>
 
             <div className="space-y-2">
@@ -837,29 +843,20 @@ export function DebtsPage() {
 
             <div className="space-y-2">
               <Label>Category (optional)</Label>
-              <Select
-                value={editForm.watch('categoryId') || 'NONE'}
-                onValueChange={(v) =>
-                  editForm.setValue('categoryId', v === 'NONE' ? '' : v)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="None">
-                    {(v: string) => v === 'NONE' ? 'None' : categories?.find((c) => c.id === v)?.name ?? v}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="NONE">None</SelectItem>
-                  {categories
-                    ?.slice()
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <CategorySelect
+                categories={categories}
+                value={editForm.watch('categoryId') ?? ''}
+                onChange={(id) => editForm.setValue('categoryId', id)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tags (optional)</Label>
+              <TagMultiSelect
+                tags={tags}
+                value={editForm.watch('tagIds') ?? []}
+                onChange={(ids) => editForm.setValue('tagIds', ids)}
+              />
             </div>
 
             <div className="space-y-2">

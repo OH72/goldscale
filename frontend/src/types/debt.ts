@@ -57,6 +57,8 @@ export interface DebtRecordResponse {
   currency: Currency
   categoryId: string | null
   categoryName: string | null
+  tagIds: string[]
+  tagNames: string[]
   description: string | null
   date: string
   status: DebtStatus
@@ -84,6 +86,7 @@ export interface CreateDebtRecordRequest {
   amount: number
   currency: Currency
   categoryId?: string | null
+  tagIds?: string[]
   description?: string | null
   date: string
 }
@@ -94,6 +97,7 @@ export interface UpdateDebtRecordRequest {
   amount: number
   currency: Currency
   categoryId?: string | null
+  tagIds?: string[]
   description?: string | null
   date: string
 }

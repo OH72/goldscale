@@ -5,6 +5,7 @@ import com.goldscale.model.*;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 public record DebtRecordResponse(
         String id,
@@ -17,6 +18,8 @@ public record DebtRecordResponse(
         Currency currency,
         String categoryId,
         String categoryName,
+        List<String> tagIds,
+        List<String> tagNames,
         String description,
         LocalDate date,
         DebtStatus status,
@@ -24,7 +27,9 @@ public record DebtRecordResponse(
         Instant createdAt,
         Instant updatedAt
 ) {
-    public static DebtRecordResponse from(DebtRecord record, String personName, String categoryName) {
+    public static DebtRecordResponse from(DebtRecord record, String personName, String categoryName,
+                                         Map<String, String> tagNamesMap) {
+        var tagIds = record.getTagIds() == null ? List.<String>of() : record.getTagIds();
         return new DebtRecordResponse(
                 record.getId(),
                 record.getPersonId(),
@@ -36,6 +41,8 @@ public record DebtRecordResponse(
                 record.getCurrency(),
                 record.getCategoryId(),
                 categoryName,
+                tagIds,
+                tagIds.stream().map(id -> tagNamesMap.getOrDefault(id, id)).toList(),
                 record.getDescription(),
                 record.getDate(),
                 record.getStatus(),

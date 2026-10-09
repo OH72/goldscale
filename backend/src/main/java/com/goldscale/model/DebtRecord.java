@@ -24,6 +24,7 @@ public class DebtRecord {
     private long coveredAmount;
     private Currency currency;
     private String categoryId;
+    private List<String> tagIds;
     private String description;
     private LocalDate date;
     private DebtStatus status;

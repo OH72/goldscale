@@ -36,6 +36,7 @@ class DebtRecordServiceTest {
     @Mock private MongoTemplate mongoTemplate;
     @Mock private ExchangeRateService exchangeRateService;
     @Mock private SettingsService settingsService;
+    @Mock private TagService tagService;
 
     @InjectMocks private DebtRecordService debtRecordService;
 
@@ -63,6 +64,32 @@ class DebtRecordServiceTest {
         assertThat(result.status()).isEqualTo(DebtStatus.OPEN);
         assertThat(result.coveredAmount()).isEqualTo(0);
         verify(debtRecordRepository).save(any());
+    }
+
+    @Test
+    void should_saveTagsAndReturnTagNames_when_createWithTags() {
+        var request = new CreateDebtRecordRequest(
+                "p1", DebtType.LOAN, 5000L, Currency.USD, null,
+                java.util.Arrays.asList("t1", "t2", "t1"), "test", LocalDate.now());
+
+        var person = new Person();
+        person.setId("p1");
+        person.setName("Alice");
+
+        when(personRepository.existsById("p1")).thenReturn(true);
+        when(personRepository.findAllById(any())).thenReturn(List.of(person));
+        when(tagService.getTagNamesByIds(any())).thenReturn(java.util.Map.of("t1", "Food", "t2", "Trip"));
+        when(debtRecordRepository.save(any())).thenAnswer(inv -> {
+            var record = (DebtRecord) inv.getArgument(0);
+            record.setId("dr1");
+            record.setCreatedAt(Instant.now());
+            return record;
+        });
+
+        var result = debtRecordService.create(request);
+
+        assertThat(result.tagIds()).containsExactly("t1", "t2");
+        assertThat(result.tagNames()).containsExactly("Food", "Trip");
     }
 
     @Test
