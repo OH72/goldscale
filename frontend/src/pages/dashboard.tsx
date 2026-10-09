@@ -81,7 +81,7 @@ function DebtSummarySection() {
   const { data: summary, isLoading, isError } = useDebtSummary()
 
   if (isLoading) return null
-  const displayCurrency = summary?.displayCurrency
+  const displayCurrency = summary?.displayCurrency ?? ''
   const entries = summary?.entries ?? []
 
   return (
