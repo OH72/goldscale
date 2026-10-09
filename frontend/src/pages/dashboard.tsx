@@ -77,6 +77,66 @@ const tooltipStyle: React.CSSProperties = {
   borderRadius: 8,
 }
 
+function NetWorthCard({
+  totalNetWorth,
+  displayCurrency,
+  showRatesHint,
+}: {
+  totalNetWorth: number
+  displayCurrency: string
+  showRatesHint: boolean
+}) {
+  const { data: debtSummary } = useDebtSummary()
+  const debtEntries = Array.isArray(debtSummary?.entries)
+    ? debtSummary.entries
+    : []
+  const debtNet = debtEntries.reduce((sum, e) => sum + e.net, 0)
+  const hasDebts = debtEntries.length > 0
+
+  return (
+    <Card className="mb-6">
+      <CardContent className="grid gap-6 pt-6 sm:grid-cols-2">
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">
+            Total Net Worth
+          </p>
+          <p className="text-3xl font-bold">
+            {formatCurrency(totalNetWorth, displayCurrency)}
+          </p>
+          {showRatesHint && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Set exchange rates in Settings for multi-currency totals
+            </p>
+          )}
+        </div>
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">
+            Net Worth incl. Debts &amp; Loans
+          </p>
+          <p className="text-3xl font-bold">
+            {formatCurrency(totalNetWorth + debtNet, displayCurrency)}
+          </p>
+          {hasDebts && (
+            <p
+              className={cn(
+                'mt-1 text-xs',
+                debtNet > 0
+                  ? 'text-green-600 dark:text-green-400'
+                  : debtNet < 0
+                    ? 'text-red-600 dark:text-red-400'
+                    : 'text-muted-foreground',
+              )}
+            >
+              {debtNet > 0 ? '+' : ''}
+              {formatCurrency(debtNet, displayCurrency)} from open debts &amp; loans
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 function DebtSummarySection() {
   const { data: summary, isLoading, isError } = useDebtSummary()
 
@@ -383,23 +443,11 @@ export function DashboardPage() {
       <PageHeader title="Dashboard" />
 
       {/* Net Worth */}
-      <Card className="mb-6">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium text-muted-foreground">
-            Total Net Worth
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-3xl font-bold">
-            {formatCurrency(data.totalNetWorth, displayCurrency)}
-          </p>
-          {!hasRates && activeAccounts.length > 0 && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Set exchange rates in Settings for multi-currency totals
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      <NetWorthCard
+        totalNetWorth={data.totalNetWorth}
+        displayCurrency={displayCurrency}
+        showRatesHint={!hasRates && activeAccounts.length > 0}
+      />
 
       <DebtSummarySection />
 
