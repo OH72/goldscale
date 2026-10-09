@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useFilterStore } from '@/stores/filter-store'
 import {
   useDashboard,
   useExpensesByCategory,
@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ChevronsUpDown, Search } from 'lucide-react'
+import { ChevronsUpDown, RotateCcw, Search } from 'lucide-react'
 import {
   PieChart,
   Pie,
@@ -133,7 +133,6 @@ function getPresetRange(preset: DatePreset, initialDate = '2022-01-01'): { from:
 }
 
 export function DashboardPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === 'dark'
   const chartColors = isDark ? CHART_COLORS_DARK : CHART_COLORS_LIGHT
@@ -145,16 +144,19 @@ export function DashboardPage() {
   const { data: settings } = useSettings()
   const initialDate = settings?.initialDate ?? '2022-01-01'
 
-  const presetParam = (searchParams.get('preset') as DatePreset) ?? 'last-6'
-  const initialRange = getPresetRange(presetParam, initialDate)
-  const [preset, setPreset] = useState<DatePreset>(presetParam)
-  const [customFrom, setCustomFrom] = useState(initialRange.from)
-  const [customTo, setCustomTo] = useState(initialRange.to)
-  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([])
-  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([])
-  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
-  const [selectedTypes, setSelectedTypes] = useState<string[]>([])
-  const [groupBy, setGroupBy] = useState<'category' | 'tag'>('category')
+  const {
+    preset: storePreset, customFrom: storedFrom, customTo: storedTo,
+    selectedAccountIds, selectedCategoryIds, selectedTagIds, selectedTypes, groupBy,
+  } = useFilterStore((s) => s.dashboard)
+  const setDashboard = useFilterStore((s) => s.setDashboard)
+  const resetDashboard = useFilterStore((s) => s.resetDashboard)
+  const hasActiveFilters = storePreset !== 'last-6' || storedFrom !== '' || storedTo !== '' ||
+    selectedAccountIds.length > 0 || selectedCategoryIds.length > 0 ||
+    selectedTagIds.length > 0 || selectedTypes.length > 0 || groupBy !== 'category'
+  const preset = storePreset as DatePreset
+  const defaultRange = useMemo(() => getPresetRange(preset, initialDate), [preset, initialDate])
+  const customFrom = storedFrom || defaultRange.from
+  const customTo = storedTo || defaultRange.to
   const [accountSearch, setAccountSearch] = useState('')
   const [categorySearch, setCategorySearch] = useState('')
   const [tagSearch, setTagSearch] = useState('')
@@ -181,15 +183,12 @@ export function DashboardPage() {
 
   function handlePresetChange(value: string) {
     const p = value as DatePreset
-    setPreset(p)
     if (p !== 'custom') {
       const range = getPresetRange(p, initialDate)
-      setCustomFrom(range.from)
-      setCustomTo(range.to)
+      setDashboard({ preset: p, customFrom: range.from, customTo: range.to })
+    } else {
+      setDashboard({ preset: p })
     }
-    const next = new URLSearchParams(searchParams)
-    next.set('preset', p)
-    setSearchParams(next)
   }
 
   // Donut data: top 8 + Other
@@ -364,8 +363,7 @@ export function DashboardPage() {
               className="w-38"
               value={customFrom}
               onChange={(e) => {
-                setCustomFrom(e.target.value)
-                setPreset('custom')
+                setDashboard({ customFrom: e.target.value, preset: 'custom' })
               }}
             />
           </div>
@@ -376,8 +374,7 @@ export function DashboardPage() {
               className="w-38"
               value={customTo}
               onChange={(e) => {
-                setCustomTo(e.target.value)
-                setPreset('custom')
+                setDashboard({ customTo: e.target.value, preset: 'custom' })
               }}
             />
           </div>
@@ -415,9 +412,11 @@ export function DashboardPage() {
                       <Checkbox
                         checked={selectedAccountIds.includes(a.id)}
                         onCheckedChange={(checked) => {
-                          setSelectedAccountIds((prev) =>
-                            checked ? [...prev, a.id] : prev.filter((id) => id !== a.id),
-                          )
+                          setDashboard({
+                            selectedAccountIds: checked
+                              ? [...selectedAccountIds, a.id]
+                              : selectedAccountIds.filter((id) => id !== a.id),
+                          })
                         }}
                       />
                       <span className="inline-flex items-center gap-1.5">
@@ -434,7 +433,7 @@ export function DashboardPage() {
                     variant="ghost"
                     size="sm"
                     className="mt-2 w-full"
-                    onClick={() => setSelectedAccountIds([])}
+                    onClick={() => setDashboard({ selectedAccountIds: [] })}
                   >
                     Clear
                   </Button>
@@ -476,9 +475,11 @@ export function DashboardPage() {
                       <Checkbox
                         checked={selectedCategoryIds.includes(c.id)}
                         onCheckedChange={(checked) => {
-                          setSelectedCategoryIds((prev) =>
-                            checked ? [...prev, c.id] : prev.filter((id) => id !== c.id),
-                          )
+                          setDashboard({
+                            selectedCategoryIds: checked
+                              ? [...selectedCategoryIds, c.id]
+                              : selectedCategoryIds.filter((id) => id !== c.id),
+                          })
                         }}
                       />
                       {c.name}
@@ -490,7 +491,7 @@ export function DashboardPage() {
                     variant="ghost"
                     size="sm"
                     className="mt-2 w-full"
-                    onClick={() => setSelectedCategoryIds([])}
+                    onClick={() => setDashboard({ selectedCategoryIds: [] })}
                   >
                     Clear
                   </Button>
@@ -532,9 +533,11 @@ export function DashboardPage() {
                       <Checkbox
                         checked={selectedTagIds.includes(t.id)}
                         onCheckedChange={(checked) => {
-                          setSelectedTagIds((prev) =>
-                            checked ? [...prev, t.id] : prev.filter((id) => id !== t.id),
-                          )
+                          setDashboard({
+                            selectedTagIds: checked
+                              ? [...selectedTagIds, t.id]
+                              : selectedTagIds.filter((id) => id !== t.id),
+                          })
                         }}
                       />
                       {t.name}
@@ -546,7 +549,7 @@ export function DashboardPage() {
                     variant="ghost"
                     size="sm"
                     className="mt-2 w-full"
-                    onClick={() => setSelectedTagIds([])}
+                    onClick={() => setDashboard({ selectedTagIds: [] })}
                   >
                     Clear
                   </Button>
@@ -575,9 +578,11 @@ export function DashboardPage() {
                       <Checkbox
                         checked={selectedTypes.includes(t)}
                         onCheckedChange={(checked) => {
-                          setSelectedTypes((prev) =>
-                            checked ? [...prev, t] : prev.filter((v) => v !== t),
-                          )
+                          setDashboard({
+                            selectedTypes: checked
+                              ? [...selectedTypes, t]
+                              : selectedTypes.filter((v) => v !== t),
+                          })
                         }}
                       />
                       {t.charAt(0) + t.slice(1).toLowerCase()}
@@ -589,7 +594,7 @@ export function DashboardPage() {
                     variant="ghost"
                     size="sm"
                     className="mt-2 w-full"
-                    onClick={() => setSelectedTypes([])}
+                    onClick={() => setDashboard({ selectedTypes: [] })}
                   >
                     Clear
                   </Button>
@@ -604,7 +609,7 @@ export function DashboardPage() {
                 variant={groupBy === 'category' ? 'secondary' : 'ghost'}
                 size="sm"
                 className="h-7 px-2.5 text-xs"
-                onClick={() => setGroupBy('category')}
+                onClick={() => setDashboard({ groupBy: 'category' })}
               >
                 Category
               </Button>
@@ -612,12 +617,17 @@ export function DashboardPage() {
                 variant={groupBy === 'tag' ? 'secondary' : 'ghost'}
                 size="sm"
                 className="h-7 px-2.5 text-xs"
-                onClick={() => setGroupBy('tag')}
+                onClick={() => setDashboard({ groupBy: 'tag' })}
               >
                 Tag
               </Button>
             </div>
           </div>
+          {hasActiveFilters && (
+            <Button variant="ghost" size="sm" onClick={resetDashboard} className="self-end">
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reset
+            </Button>
+          )}
         </CardContent>
       </Card>
 

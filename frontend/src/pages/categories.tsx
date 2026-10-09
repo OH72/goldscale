@@ -36,10 +36,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-import { MoreHorizontal, Plus, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CategoryResponse } from '@/types/category'
 import type { CategoryType } from '@/types/common'
+import { useFilterStore } from '@/stores/filter-store'
 
 const categorySchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -75,8 +76,10 @@ export function CategoriesPage() {
     useState<CategoryResponse | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
-  const [typeFilter, setTypeFilter] = useState<'ALL' | CategoryType>('ALL')
-  const [search, setSearch] = useState('')
+  const { typeFilter, search } = useFilterStore((s) => s.categories)
+  const setCategories = useFilterStore((s) => s.setCategories)
+  const resetCategories = useFilterStore((s) => s.resetCategories)
+  const hasActiveFilters = typeFilter !== 'ALL' || search !== ''
 
   const createForm = useForm<CategoryForm>({
     resolver: zodResolver(categorySchema),
@@ -167,7 +170,7 @@ export function CategoriesPage() {
       <Tabs
         value={typeFilter}
         onValueChange={(v) => {
-          setTypeFilter(v as 'ALL' | CategoryType)
+          setCategories({ typeFilter: v as 'ALL' | CategoryType })
           setSelectedIds(new Set())
         }}
       >
@@ -187,13 +190,18 @@ export function CategoriesPage() {
         </TabsList>
       </Tabs>
 
-      <div className="mt-4">
+      <div className="mt-4 flex items-center gap-2">
         <Input
           placeholder="Search categories..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => setCategories({ search: e.target.value })}
           className="max-w-sm"
         />
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={() => { resetCategories(); setSelectedIds(new Set()) }}>
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reset
+          </Button>
+        )}
       </div>
 
       {sortedCategories.length === 0 ? (

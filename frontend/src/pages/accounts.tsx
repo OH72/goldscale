@@ -41,12 +41,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import { Checkbox } from '@/components/ui/checkbox'
-import { ArrowDown, ArrowUp, ArrowUpDown, MoreHorizontal, Plus } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowUpDown, MoreHorizontal, Plus, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useSettings } from '@/api/use-settings'
 import { formatCurrency, toSubunits } from '@/lib/currency'
 import type { AccountResponse } from '@/types/account'
 import type { Currency } from '@/types/common'
+import { useFilterStore } from '@/stores/filter-store'
 
 const CURRENCIES: Currency[] = ['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'USDT']
 
@@ -120,16 +121,16 @@ export function AccountsPage() {
   const [deleteAccount, setDeleteAccount] = useState<AccountResponse | null>(
     null,
   )
-  const [currencyFilter, setCurrencyFilter] = useState<Currency | ''>('')
-  const [sortField, setSortField] = useState<SortField | null>('name')
-  const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const { currencyFilter, sortField, sortDir } = useFilterStore((s) => s.accounts)
+  const setAccounts = useFilterStore((s) => s.setAccounts)
+  const resetAccounts = useFilterStore((s) => s.resetAccounts)
+  const hasActiveFilters = currencyFilter !== '' || sortField !== 'name' || sortDir !== 'asc'
 
   function toggleSort(field: SortField) {
     if (sortField === field) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+      setAccounts({ sortDir: sortDir === 'asc' ? 'desc' : 'asc' })
     } else {
-      setSortField(field)
-      setSortDir(field === 'name' ? 'asc' : 'desc')
+      setAccounts({ sortField: field, sortDir: field === 'name' ? 'asc' : 'desc' })
     }
   }
 
@@ -213,7 +214,7 @@ export function AccountsPage() {
           <Label className="text-sm text-muted-foreground">Currency</Label>
           <Select
             value={currencyFilter || 'ALL'}
-            onValueChange={(v) => setCurrencyFilter(v === 'ALL' ? '' : (v as Currency))}
+            onValueChange={(v) => setAccounts({ currencyFilter: v === 'ALL' ? '' : (v as Currency) })}
           >
             <SelectTrigger className="w-32">
               <SelectValue />
@@ -228,6 +229,11 @@ export function AccountsPage() {
             </SelectContent>
           </Select>
         </div>
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={resetAccounts}>
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reset
+          </Button>
+        )}
       </div>
 
       <Table>
