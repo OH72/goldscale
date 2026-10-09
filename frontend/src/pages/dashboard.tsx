@@ -78,10 +78,11 @@ const tooltipStyle: React.CSSProperties = {
 }
 
 function DebtSummarySection() {
-  const { data: summary } = useDebtSummary()
+  const { data: summary, isLoading, isError } = useDebtSummary()
 
-  if (!summary || summary.entries.length === 0) return null
-  const { displayCurrency, entries } = summary
+  if (isLoading) return null
+  const displayCurrency = summary?.displayCurrency
+  const entries = summary?.entries ?? []
 
   return (
     <Card className="mb-6">
@@ -89,6 +90,13 @@ function DebtSummarySection() {
         <CardTitle className="text-base">Summary by Person</CardTitle>
       </CardHeader>
       <CardContent>
+        {(isError || entries.length === 0) && (
+          <p className="text-sm text-muted-foreground">
+            {isError
+              ? 'Failed to load debt summary'
+              : 'No open debts or loans'}
+          </p>
+        )}
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {entries.map((entry) => (
             <div key={entry.personId} className="rounded-md border p-3">
