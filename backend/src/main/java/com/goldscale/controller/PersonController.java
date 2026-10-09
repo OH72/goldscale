@@ -3,9 +3,11 @@ package com.goldscale.controller;
 import com.goldscale.dto.request.CreatePersonRequest;
 import com.goldscale.dto.request.UpdatePersonRequest;
 import com.goldscale.dto.response.PersonResponse;
+import com.goldscale.model.PersonSortField;
 import com.goldscale.service.PersonService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,11 +22,10 @@ public class PersonController {
     private final PersonService personService;
 
     @GetMapping
-    public ResponseEntity<List<PersonResponse>> findAll() {
-        var people = personService.findAll().stream()
-                .map(PersonResponse::from)
-                .toList();
-        return ResponseEntity.ok(people);
+    public ResponseEntity<List<PersonResponse>> findAll(
+            @RequestParam(defaultValue = "NAME") PersonSortField sortBy,
+            @RequestParam(defaultValue = "ASC") Sort.Direction direction) {
+        return ResponseEntity.ok(personService.findAllWithSummary(sortBy, direction));
     }
 
     @PostMapping

@@ -1,13 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api, ApiError } from './client'
 import { queryKeys } from './query-keys'
-import type { PersonResponse } from '@/types/debt'
+import type { PersonResponse, PersonSortField, SortDirection } from '@/types/debt'
 
-export function usePeople() {
+export function usePeople(
+  sortBy: PersonSortField = 'NAME',
+  direction: SortDirection = 'ASC',
+) {
   return useQuery({
-    queryKey: queryKeys.people.all,
-    queryFn: () => api.get<PersonResponse[]>('/people'),
+    queryKey: [...queryKeys.people.all, sortBy, direction],
+    queryFn: () =>
+      api.get<PersonResponse[]>(`/people?sortBy=${sortBy}&direction=${direction}`),
+    placeholderData: keepPreviousData,
   })
 }
 

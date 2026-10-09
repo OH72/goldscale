@@ -28,6 +28,7 @@ class PersonServiceTest {
 
     @Mock private PersonRepository personRepository;
     @Mock private DebtRecordRepository debtRecordRepository;
+    @Mock private DebtRecordService debtRecordService;
 
     @InjectMocks private PersonService personService;
 
@@ -46,6 +47,51 @@ class PersonServiceTest {
 
         assertThat(result).hasSize(2);
         assertThat(result.get(0).getName()).isEqualTo("Alice");
+    }
+
+    @Test
+    void should_sortPeopleByNetDescending_when_findAllWithSummary() {
+        var alice = new Person();
+        alice.setId("p1");
+        alice.setName("Alice");
+        var bob = new Person();
+        bob.setId("p2");
+        bob.setName("Bob");
+        var carol = new Person();
+        carol.setId("p3");
+        carol.setName("Carol");
+
+        when(personRepository.findAll(any(Sort.class))).thenReturn(List.of(alice, bob, carol));
+        when(debtRecordService.getSummaryByPerson()).thenReturn(java.util.Map.of(
+                "p1", new com.goldscale.dto.response.DebtSummaryEntry("p1", "Alice", 500, 0, -500),
+                "p2", new com.goldscale.dto.response.DebtSummaryEntry("p2", "Bob", 0, 900, 900)));
+
+        var result = personService.findAllWithSummary(
+                com.goldscale.model.PersonSortField.NET, Sort.Direction.DESC);
+
+        assertThat(result).extracting(com.goldscale.dto.response.PersonResponse::name)
+                .containsExactly("Bob", "Carol", "Alice");
+        assertThat(result.get(0).totalLoan()).isEqualTo(900);
+        assertThat(result.get(1).net()).isZero();
+    }
+
+    @Test
+    void should_sortPeopleByNameAscending_when_findAllWithSummary() {
+        var bob = new Person();
+        bob.setId("p2");
+        bob.setName("bob");
+        var alice = new Person();
+        alice.setId("p1");
+        alice.setName("Alice");
+
+        when(personRepository.findAll(any(Sort.class))).thenReturn(List.of(bob, alice));
+        when(debtRecordService.getSummaryByPerson()).thenReturn(java.util.Map.of());
+
+        var result = personService.findAllWithSummary(
+                com.goldscale.model.PersonSortField.NAME, Sort.Direction.ASC);
+
+        assertThat(result).extracting(com.goldscale.dto.response.PersonResponse::name)
+                .containsExactly("Alice", "bob");
     }
 
     @Test

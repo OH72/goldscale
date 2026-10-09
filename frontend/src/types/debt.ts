@@ -7,7 +7,13 @@ export interface PersonResponse {
   id: string
   name: string
   createdAt: string
+  totalDebt: number
+  totalLoan: number
+  net: number
 }
+
+export type PersonSortField = 'NAME' | 'TOTAL_DEBT' | 'TOTAL_LOAN' | 'NET'
+export type SortDirection = 'ASC' | 'DESC'
 
 export interface PaymentResponse {
   id: string

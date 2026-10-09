@@ -2,10 +2,12 @@ package com.goldscale.service;
 
 import com.goldscale.dto.request.CreatePersonRequest;
 import com.goldscale.dto.request.UpdatePersonRequest;
+import com.goldscale.dto.response.PersonResponse;
 import com.goldscale.exception.BusinessRuleException;
 import com.goldscale.exception.ResourceNotFoundException;
 import com.goldscale.model.DebtStatus;
 import com.goldscale.model.Person;
+import com.goldscale.model.PersonSortField;
 import com.goldscale.repository.DebtRecordRepository;
 import com.goldscale.repository.PersonRepository;
 import lombok.RequiredArgsConstructor;
@@ -13,6 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -21,9 +24,30 @@ public class PersonService {
 
     private final PersonRepository personRepository;
     private final DebtRecordRepository debtRecordRepository;
+    private final DebtRecordService debtRecordService;
 
     public List<Person> findAll() {
         return personRepository.findAll(Sort.by(Sort.Direction.ASC, "name"));
+    }
+
+    public List<PersonResponse> findAllWithSummary(PersonSortField sortBy, Sort.Direction direction) {
+        var summaries = debtRecordService.getSummaryByPerson();
+        var comparator = switch (sortBy) {
+            case NAME -> Comparator.comparing(PersonResponse::name, String.CASE_INSENSITIVE_ORDER);
+            case TOTAL_DEBT -> Comparator.comparingLong(PersonResponse::totalDebt);
+            case TOTAL_LOAN -> Comparator.comparingLong(PersonResponse::totalLoan);
+            case NET -> Comparator.comparingLong(PersonResponse::net);
+        };
+        if (direction == Sort.Direction.DESC) {
+            comparator = comparator.reversed();
+        }
+        // Tie-break by name so ordering is stable
+        comparator = comparator.thenComparing(PersonResponse::name, String.CASE_INSENSITIVE_ORDER);
+
+        return findAll().stream()
+                .map(p -> PersonResponse.from(p, summaries.get(p.getId())))
+                .sorted(comparator)
+                .toList();
     }
 
     public Person findById(String id) {

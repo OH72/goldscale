@@ -187,13 +187,19 @@ public class DebtRecordService {
 
     public DebtSummaryResponse getSummary() {
         var displayCurrency = settingsService.get().getDisplayCurrency();
+        var summaries = new ArrayList<>(getSummaryByPerson().values());
+        return new DebtSummaryResponse(displayCurrency, summaries);
+    }
+
+    /** Open debt/loan totals per person, converted to the display currency. */
+    public Map<String, DebtSummaryEntry> getSummaryByPerson() {
+        var displayCurrency = settingsService.get().getDisplayCurrency();
         var rates = exchangeRateService.getLatestRates();
 
         var records = debtRecordRepository.findByDeletedFalse().stream()
                 .filter(r -> r.getStatus() == DebtStatus.OPEN)
                 .toList();
 
-        // Collect all person IDs for batch lookup
         var personIds = records.stream()
                 .map(DebtRecord::getPersonId)
                 .collect(Collectors.toSet());
@@ -201,20 +207,18 @@ public class DebtRecordService {
         var personNames = personRepository.findAllById(personIds).stream()
                 .collect(Collectors.toMap(Person::getId, Person::getName));
 
-        // Group by personId only (amounts converted to display currency)
         var grouped = records.stream()
                 .collect(Collectors.groupingBy(DebtRecord::getPersonId));
 
-        var summaries = new ArrayList<DebtSummaryEntry>();
+        var summaries = new LinkedHashMap<String, DebtSummaryEntry>();
 
         for (var entry : grouped.entrySet()) {
             var personId = entry.getKey();
-            var group = entry.getValue();
 
             long totalDebt = 0;
             long totalLoan = 0;
 
-            for (var record : group) {
+            for (var record : entry.getValue()) {
                 long remaining = record.getAmount() - record.getCoveredAmount();
                 var converted = exchangeRateService.convertWithRates(
                         remaining, record.getCurrency(), displayCurrency, rates);
@@ -227,7 +231,7 @@ public class DebtRecordService {
                 }
             }
 
-            summaries.add(new DebtSummaryEntry(
+            summaries.put(personId, new DebtSummaryEntry(
                     personId,
                     personNames.getOrDefault(personId, "Unknown"),
                     totalDebt,
@@ -236,7 +240,7 @@ public class DebtRecordService {
             ));
         }
 
-        return new DebtSummaryResponse(displayCurrency, summaries);
+        return summaries;
     }
 
     // --- Internal helpers ---

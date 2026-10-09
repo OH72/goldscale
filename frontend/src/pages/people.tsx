@@ -21,10 +21,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-import { MoreHorizontal, Plus } from 'lucide-react'
+import { ArrowDown, ArrowUp, MoreHorizontal, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/currency'
-import type { PersonResponse } from '@/types/debt'
+import type { PersonResponse, PersonSortField, SortDirection } from '@/types/debt'
 
 const personSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -32,15 +32,45 @@ const personSchema = z.object({
 
 type PersonForm = z.infer<typeof personSchema>
 
+interface SortHeaderProps {
+  label: string
+  field: PersonSortField
+  sortBy: PersonSortField
+  direction: SortDirection
+  onSort: (field: PersonSortField) => void
+  className?: string
+}
+
+function SortHeader({ label, field, sortBy, direction, onSort, className }: SortHeaderProps) {
+  const active = sortBy === field
+  return (
+    <button
+      type="button"
+      className={cn('flex items-center gap-1 hover:text-foreground', active && 'text-foreground', className)}
+      onClick={() => onSort(field)}
+    >
+      {label}
+      {active && (direction === 'ASC' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
+    </button>
+  )
+}
+
 export function PeoplePage() {
-  const { data: people, isLoading } = usePeople()
+  const [sortBy, setSortBy] = useState<PersonSortField>('NAME')
+  const [direction, setDirection] = useState<SortDirection>('ASC')
+  const { data: people, isLoading } = usePeople(sortBy, direction)
   const { data: debtSummary } = useDebtSummary()
   const displayCurrency = debtSummary?.displayCurrency ?? ''
-  const summaryByPerson = new Map(
-    (Array.isArray(debtSummary?.entries) ? debtSummary.entries : []).map(
-      (e) => [e.personId, e],
-    ),
-  )
+
+  function toggleSort(field: PersonSortField) {
+    if (field === sortBy) {
+      setDirection((d) => (d === 'ASC' ? 'DESC' : 'ASC'))
+    } else {
+      setSortBy(field)
+      setDirection(field === 'NAME' ? 'ASC' : 'DESC')
+    }
+  }
+
   const createMutation = useCreatePerson()
   const updateMutation = useUpdatePerson()
   const deleteMutation = useDeletePerson()
@@ -85,7 +115,7 @@ export function PeoplePage() {
     setEditPerson(person)
   }
 
-  const sorted = people?.slice().sort((a, b) => a.name.localeCompare(b.name)) ?? []
+  const sorted = people ?? []
 
   if (isLoading) return <div className="p-6">Loading...</div>
 
@@ -102,17 +132,14 @@ export function PeoplePage() {
       ) : (
         <div className="space-y-1">
           <div className="hidden grid-cols-[1fr_8rem_8rem_8rem_2.5rem] gap-4 px-4 text-xs font-medium text-muted-foreground sm:grid">
-            <span>Name</span>
-            <span className="text-right">I owe</span>
-            <span className="text-right">They owe</span>
-            <span className="text-right">Net</span>
+            <SortHeader label="Name" field="NAME" sortBy={sortBy} direction={direction} onSort={toggleSort} />
+            <SortHeader label="I owe" field="TOTAL_DEBT" sortBy={sortBy} direction={direction} onSort={toggleSort} className="justify-end" />
+            <SortHeader label="They owe" field="TOTAL_LOAN" sortBy={sortBy} direction={direction} onSort={toggleSort} className="justify-end" />
+            <SortHeader label="Net" field="NET" sortBy={sortBy} direction={direction} onSort={toggleSort} className="justify-end" />
             <span />
           </div>
           {sorted.map((person) => {
-            const entry = summaryByPerson.get(person.id)
-            const totalDebt = entry?.totalDebt ?? 0
-            const totalLoan = entry?.totalLoan ?? 0
-            const net = entry?.net ?? 0
+            const { totalDebt, totalLoan, net } = person
             return (
               <div
                 key={person.id}
