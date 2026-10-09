@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useDebtSummary } from '@/api/use-debt-records'
 import { usePeople, useCreatePerson, useUpdatePerson, useDeletePerson } from '@/api/use-people'
 import { PageHeader } from '@/components/layout/page-header'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -22,6 +23,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { MoreHorizontal, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatCurrency } from '@/lib/currency'
 import type { PersonResponse } from '@/types/debt'
 
 const personSchema = z.object({
@@ -32,6 +34,13 @@ type PersonForm = z.infer<typeof personSchema>
 
 export function PeoplePage() {
   const { data: people, isLoading } = usePeople()
+  const { data: debtSummary } = useDebtSummary()
+  const displayCurrency = debtSummary?.displayCurrency ?? ''
+  const summaryByPerson = new Map(
+    (Array.isArray(debtSummary?.entries) ? debtSummary.entries : []).map(
+      (e) => [e.personId, e],
+    ),
+  )
   const createMutation = useCreatePerson()
   const updateMutation = useUpdatePerson()
   const deleteMutation = useDeletePerson()
@@ -92,32 +101,79 @@ export function PeoplePage() {
         <p className="py-8 text-center text-muted-foreground">No people yet</p>
       ) : (
         <div className="space-y-1">
-          {sorted.map((person) => (
-            <div
-              key={person.id}
-              className="flex items-center justify-between rounded-md border px-4 py-3"
-            >
-              <span className="font-medium">{person.name}</span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => openEdit(person)}>
-                    Edit
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={() => setDeletePerson(person)}
-                  >
-                    Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          ))}
+          <div className="hidden grid-cols-[1fr_8rem_8rem_8rem_2.5rem] gap-4 px-4 text-xs font-medium text-muted-foreground sm:grid">
+            <span>Name</span>
+            <span className="text-right">I owe</span>
+            <span className="text-right">They owe</span>
+            <span className="text-right">Net</span>
+            <span />
+          </div>
+          {sorted.map((person) => {
+            const entry = summaryByPerson.get(person.id)
+            const totalDebt = entry?.totalDebt ?? 0
+            const totalLoan = entry?.totalLoan ?? 0
+            const net = entry?.net ?? 0
+            return (
+              <div
+                key={person.id}
+                className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 rounded-md border px-4 py-3 sm:grid-cols-[1fr_8rem_8rem_8rem_2.5rem]"
+              >
+                <span className="font-medium">{person.name}</span>
+                <span
+                  className={cn(
+                    'hidden text-right text-sm sm:block',
+                    totalDebt > 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  {totalDebt > 0 ? formatCurrency(totalDebt, displayCurrency) : '—'}
+                </span>
+                <span
+                  className={cn(
+                    'hidden text-right text-sm sm:block',
+                    totalLoan > 0
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  {totalLoan > 0 ? formatCurrency(totalLoan, displayCurrency) : '—'}
+                </span>
+                <span
+                  className={cn(
+                    'hidden text-right text-sm font-medium sm:block',
+                    net > 0
+                      ? 'text-green-600 dark:text-green-400'
+                      : net < 0
+                        ? 'text-red-600 dark:text-red-400'
+                        : 'text-muted-foreground',
+                  )}
+                >
+                  {net === 0
+                    ? '—'
+                    : `${net > 0 ? '+' : ''}${formatCurrency(net, displayCurrency)}`}
+                </span>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => openEdit(person)}>
+                      Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="text-destructive"
+                      onClick={() => setDeletePerson(person)}
+                    >
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            )
+          })}
         </div>
       )}
 

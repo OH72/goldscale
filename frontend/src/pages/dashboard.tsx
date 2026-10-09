@@ -12,7 +12,6 @@ import { useTags } from '@/api/use-tags'
 import { useExchangeRateHistory } from '@/api/use-exchange-rates'
 import { useDebtSummary } from '@/api/use-debt-records'
 import { useSettings } from '@/api/use-settings'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/layout/page-header'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -131,64 +130,6 @@ function NetWorthCard({
               {formatCurrency(debtNet, displayCurrency)} from open debts &amp; loans
             </p>
           )}
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
-
-function DebtSummarySection() {
-  const { data: summary, isLoading, isError } = useDebtSummary()
-
-  if (isLoading) return null
-  const displayCurrency = summary?.displayCurrency ?? ''
-  const entries = Array.isArray(summary?.entries) ? summary.entries : []
-
-  return (
-    <Card className="mb-6">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">Summary by Person</CardTitle>
-      </CardHeader>
-      <CardContent>
-        {(isError || entries.length === 0) && (
-          <p className="text-sm text-muted-foreground">
-            {isError
-              ? 'Failed to load debt summary'
-              : 'No open debts or loans'}
-          </p>
-        )}
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {entries.map((entry) => (
-            <div key={entry.personId} className="rounded-md border p-3">
-              <div className="mb-1 flex items-center justify-between">
-                <span className="font-medium">{entry.personName}</span>
-                <Badge variant="outline">{displayCurrency}</Badge>
-              </div>
-              {entry.totalDebt > 0 && (
-                <div className="text-sm text-red-600 dark:text-red-400">
-                  I owe: {formatCurrency(entry.totalDebt, displayCurrency)}
-                </div>
-              )}
-              {entry.totalLoan > 0 && (
-                <div className="text-sm text-green-600 dark:text-green-400">
-                  They owe: {formatCurrency(entry.totalLoan, displayCurrency)}
-                </div>
-              )}
-              <div
-                className={cn(
-                  'mt-1 text-sm font-medium',
-                  entry.net > 0
-                    ? 'text-green-600 dark:text-green-400'
-                    : entry.net < 0
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-muted-foreground',
-                )}
-              >
-                Net: {entry.net > 0 ? '+' : ''}
-                {formatCurrency(entry.net, displayCurrency)}
-              </div>
-            </div>
-          ))}
         </div>
       </CardContent>
     </Card>
@@ -448,8 +389,6 @@ export function DashboardPage() {
         displayCurrency={displayCurrency}
         showRatesHint={!hasRates && activeAccounts.length > 0}
       />
-
-      <DebtSummarySection />
 
       {/* Filter Panel */}
       <Card className="mb-6">
