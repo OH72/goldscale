@@ -2,8 +2,10 @@ package com.goldscale.controller;
 
 import com.goldscale.dto.request.CreatePersonRequest;
 import com.goldscale.dto.request.UpdatePersonRequest;
+import com.goldscale.dto.response.OffsetResponse;
 import com.goldscale.dto.response.PersonResponse;
 import com.goldscale.model.PersonSortField;
+import com.goldscale.service.DebtOffsetService;
 import com.goldscale.service.PersonService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -20,12 +22,23 @@ import java.util.List;
 public class PersonController {
 
     private final PersonService personService;
+    private final DebtOffsetService debtOffsetService;
 
     @GetMapping
     public ResponseEntity<List<PersonResponse>> findAll(
             @RequestParam(defaultValue = "NAME") PersonSortField sortBy,
             @RequestParam(defaultValue = "ASC") Sort.Direction direction) {
         return ResponseEntity.ok(personService.findAllWithSummary(sortBy, direction));
+    }
+
+    @GetMapping("/{id}/offset")
+    public ResponseEntity<OffsetResponse> previewOffset(@PathVariable String id) {
+        return ResponseEntity.ok(debtOffsetService.preview(id));
+    }
+
+    @PostMapping("/{id}/offset")
+    public ResponseEntity<OffsetResponse> offset(@PathVariable String id) {
+        return ResponseEntity.ok(debtOffsetService.execute(id));
     }
 
     @PostMapping

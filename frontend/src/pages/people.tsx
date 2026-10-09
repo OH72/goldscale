@@ -3,7 +3,14 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useDebtSummary } from '@/api/use-debt-records'
-import { usePeople, useCreatePerson, useUpdatePerson, useDeletePerson } from '@/api/use-people'
+import {
+  usePeople,
+  useCreatePerson,
+  useUpdatePerson,
+  useDeletePerson,
+  useOffsetPreview,
+  useOffsetPerson,
+} from '@/api/use-people'
 import { PageHeader } from '@/components/layout/page-header'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
@@ -21,10 +28,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-import { ArrowDown, ArrowUp, MoreHorizontal, Plus } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowLeftRight, MoreHorizontal, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/currency'
-import type { PersonResponse, PersonSortField, SortDirection } from '@/types/debt'
+import { formatDate } from '@/lib/date'
+import type {
+  OffsetAllocation,
+  PersonResponse,
+  PersonSortField,
+  SortDirection,
+} from '@/types/debt'
 
 const personSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -55,6 +68,42 @@ function SortHeader({ label, field, sortBy, direction, onSort, className }: Sort
   )
 }
 
+function AllocationList({
+  title,
+  allocations,
+  currency,
+}: {
+  title: string
+  allocations: OffsetAllocation[]
+  currency: string
+}) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-medium text-muted-foreground">{title}</p>
+      <div className="space-y-1">
+        {allocations.map((a) => (
+          <div
+            key={a.recordId}
+            className="flex items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-1.5 text-sm"
+          >
+            <span className="min-w-0 truncate">
+              {formatDate(a.date)}
+              {a.description ? ` · ${a.description}` : ''}
+            </span>
+            <span className="shrink-0 text-right">
+              <span className="font-medium">−{formatCurrency(a.amount, currency)}</span>
+              <span className="ml-2 text-xs text-muted-foreground">
+                {formatCurrency(a.remainingBefore, currency)} →{' '}
+                {a.remainingAfter === 0 ? 'closed' : formatCurrency(a.remainingAfter, currency)}
+              </span>
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export function PeoplePage() {
   const [sortBy, setSortBy] = useState<PersonSortField>('NAME')
   const [direction, setDirection] = useState<SortDirection>('ASC')
@@ -78,6 +127,9 @@ export function PeoplePage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editPerson, setEditPerson] = useState<PersonResponse | null>(null)
   const [deletePerson, setDeletePerson] = useState<PersonResponse | null>(null)
+  const [offsetPersonTarget, setOffsetPersonTarget] = useState<PersonResponse | null>(null)
+  const offsetPreview = useOffsetPreview(offsetPersonTarget?.id ?? null)
+  const offsetMutation = useOffsetPerson()
 
   const createForm = useForm<PersonForm>({
     resolver: zodResolver(personSchema),
@@ -131,7 +183,7 @@ export function PeoplePage() {
         <p className="py-8 text-center text-muted-foreground">No people yet</p>
       ) : (
         <div className="space-y-1">
-          <div className="hidden grid-cols-[1fr_8rem_8rem_8rem_2.5rem] gap-4 px-4 text-xs font-medium text-muted-foreground sm:grid">
+          <div className="hidden grid-cols-[1fr_8rem_8rem_8rem_9rem] gap-4 px-4 text-xs font-medium text-muted-foreground sm:grid">
             <SortHeader label="Name" field="NAME" sortBy={sortBy} direction={direction} onSort={toggleSort} />
             <SortHeader label="I owe" field="TOTAL_DEBT" sortBy={sortBy} direction={direction} onSort={toggleSort} className="justify-end" />
             <SortHeader label="They owe" field="TOTAL_LOAN" sortBy={sortBy} direction={direction} onSort={toggleSort} className="justify-end" />
@@ -143,7 +195,7 @@ export function PeoplePage() {
             return (
               <div
                 key={person.id}
-                className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 rounded-md border px-4 py-3 sm:grid-cols-[1fr_8rem_8rem_8rem_2.5rem]"
+                className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 rounded-md border px-4 py-3 sm:grid-cols-[1fr_8rem_8rem_8rem_9rem]"
               >
                 <span className="font-medium">{person.name}</span>
                 <span
@@ -180,6 +232,16 @@ export function PeoplePage() {
                     ? '—'
                     : `${net > 0 ? '+' : ''}${formatCurrency(net, displayCurrency)}`}
                 </span>
+                <div className="flex items-center justify-end gap-1">
+                {person.canOffset && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setOffsetPersonTarget(person)}
+                  >
+                    <ArrowLeftRight className="mr-1 h-3.5 w-3.5" /> Offset
+                  </Button>
+                )}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon">
@@ -198,6 +260,7 @@ export function PeoplePage() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+                </div>
               </div>
             )
           })}
@@ -272,6 +335,60 @@ export function PeoplePage() {
               {updateMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Offset Dialog */}
+      <Dialog
+        open={!!offsetPersonTarget}
+        onOpenChange={(open) => !open && setOffsetPersonTarget(null)}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Offset debts and loans: {offsetPersonTarget?.name}</DialogTitle>
+          </DialogHeader>
+          {offsetPreview.isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
+          {offsetPreview.data && offsetPreview.data.currencies.length === 0 && (
+            <p className="text-sm text-muted-foreground">Nothing to offset anymore.</p>
+          )}
+          {offsetPreview.data?.currencies.map((entry) => (
+            <div key={entry.currency} className="space-y-3 rounded-md border p-3">
+              <p className="text-sm font-medium">
+                {formatCurrency(entry.amount, entry.currency)} will be offset
+              </p>
+              <AllocationList
+                title="I owe (debts)"
+                allocations={entry.debts}
+                currency={entry.currency}
+              />
+              <AllocationList
+                title="They owe (loans)"
+                allocations={entry.loans}
+                currency={entry.currency}
+              />
+            </div>
+          ))}
+          <p className="text-xs text-muted-foreground">
+            Oldest records are covered first. A payment is added to each record, and
+            fully covered records are closed. Amounts in different currencies are not offset.
+          </p>
+          <Button
+            className="w-full"
+            disabled={
+              offsetMutation.isPending ||
+              !offsetPreview.data ||
+              offsetPreview.data.currencies.length === 0
+            }
+            onClick={() => {
+              if (offsetPersonTarget) {
+                offsetMutation.mutate(offsetPersonTarget.id, {
+                  onSuccess: () => setOffsetPersonTarget(null),
+                })
+              }
+            }}
+          >
+            {offsetMutation.isPending ? 'Offsetting...' : 'Confirm offset'}
+          </Button>
         </DialogContent>
       </Dialog>
 

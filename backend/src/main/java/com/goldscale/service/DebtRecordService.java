@@ -20,6 +20,7 @@ import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -131,24 +132,29 @@ public class DebtRecordService {
                     "Payment amount (" + request.amount() + ") exceeds remaining amount (" + remaining + ")");
         }
 
+        record = applyPayment(record, request.amount(), request.date(), request.description());
+
+        return enrichWithNames(List.of(record)).getFirst();
+    }
+
+    /** Adds a payment, updates the covered amount and closes the record when fully covered. */
+    DebtRecord applyPayment(DebtRecord record, long amount, LocalDate date, String description) {
         var payment = new Payment();
         payment.setId(UUID.randomUUID().toString());
-        payment.setAmount(request.amount());
-        payment.setDate(request.date());
-        payment.setDescription(request.description());
+        payment.setAmount(amount);
+        payment.setDate(date);
+        payment.setDescription(description);
         payment.setCreatedAt(Instant.now());
 
         record.getPayments().add(payment);
-        record.setCoveredAmount(record.getCoveredAmount() + request.amount());
+        record.setCoveredAmount(record.getCoveredAmount() + amount);
 
         if (record.getCoveredAmount() >= record.getAmount()) {
             record.setStatus(DebtStatus.CLOSED);
         }
 
         record.setUpdatedAt(Instant.now());
-        record = debtRecordRepository.save(record);
-
-        return enrichWithNames(List.of(record)).getFirst();
+        return debtRecordRepository.save(record);
     }
 
     public DebtRecordResponse removePayment(String id, String paymentId) {

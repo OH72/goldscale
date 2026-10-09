@@ -6,6 +6,7 @@ import java.time.Instant;
 
 /**
  * Debt amounts are open-record totals converted to the display currency (subunits).
+ * canOffset is true when open debts can be offset against open loans in a shared currency.
  */
 public record PersonResponse(
         String id,
@@ -13,17 +14,18 @@ public record PersonResponse(
         Instant createdAt,
         long totalDebt,
         long totalLoan,
-        long net
+        long net,
+        boolean canOffset
 ) {
     public static PersonResponse from(Person person) {
-        return new PersonResponse(person.getId(), person.getName(), person.getCreatedAt(), 0, 0, 0);
+        return new PersonResponse(person.getId(), person.getName(), person.getCreatedAt(), 0, 0, 0, false);
     }
 
-    public static PersonResponse from(Person person, DebtSummaryEntry summary) {
+    public static PersonResponse from(Person person, DebtSummaryEntry summary, boolean canOffset) {
         if (summary == null) {
             return from(person);
         }
         return new PersonResponse(person.getId(), person.getName(), person.getCreatedAt(),
-                summary.totalDebt(), summary.totalLoan(), summary.net());
+                summary.totalDebt(), summary.totalLoan(), summary.net(), canOffset);
     }
 }

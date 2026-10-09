@@ -29,6 +29,7 @@ class PersonServiceTest {
     @Mock private PersonRepository personRepository;
     @Mock private DebtRecordRepository debtRecordRepository;
     @Mock private DebtRecordService debtRecordService;
+    @Mock private DebtOffsetService debtOffsetService;
 
     @InjectMocks private PersonService personService;
 

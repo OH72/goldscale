@@ -10,6 +10,29 @@ export interface PersonResponse {
   totalDebt: number
   totalLoan: number
   net: number
+  canOffset: boolean
+}
+
+export interface OffsetAllocation {
+  recordId: string
+  description: string | null
+  date: string
+  remainingBefore: number
+  amount: number
+  remainingAfter: number
+}
+
+export interface OffsetCurrencyEntry {
+  currency: Currency
+  amount: number
+  debts: OffsetAllocation[]
+  loans: OffsetAllocation[]
+}
+
+export interface OffsetResponse {
+  personId: string
+  personName: string
+  currencies: OffsetCurrencyEntry[]
 }
 
 export type PersonSortField = 'NAME' | 'TOTAL_DEBT' | 'TOTAL_LOAN' | 'NET'

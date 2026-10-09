@@ -2,7 +2,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { toast } from 'sonner'
 import { api, ApiError } from './client'
 import { queryKeys } from './query-keys'
-import type { PersonResponse, PersonSortField, SortDirection } from '@/types/debt'
+import type { OffsetResponse, PersonResponse, PersonSortField, SortDirection } from '@/types/debt'
 
 export function usePeople(
   sortBy: PersonSortField = 'NAME',
@@ -56,6 +56,31 @@ export function useDeletePerson() {
     },
     onError: (error: Error) => {
       toast.error(error instanceof ApiError ? error.message : 'Failed to delete person')
+    },
+  })
+}
+
+export function useOffsetPreview(personId: string | null) {
+  return useQuery({
+    queryKey: [...queryKeys.people.all, 'offset', personId],
+    queryFn: () => api.get<OffsetResponse>(`/people/${personId}/offset`),
+    enabled: !!personId,
+  })
+}
+
+export function useOffsetPerson() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (personId: string) =>
+      api.post<OffsetResponse>(`/people/${personId}/offset`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.summary })
+      toast.success('Debts and loans offset')
+    },
+    onError: (error: Error) => {
+      toast.error(error instanceof ApiError ? error.message : 'Failed to offset')
     },
   })
 }

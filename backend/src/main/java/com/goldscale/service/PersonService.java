@@ -25,6 +25,7 @@ public class PersonService {
     private final PersonRepository personRepository;
     private final DebtRecordRepository debtRecordRepository;
     private final DebtRecordService debtRecordService;
+    private final DebtOffsetService debtOffsetService;
 
     public List<Person> findAll() {
         return personRepository.findAll(Sort.by(Sort.Direction.ASC, "name"));
@@ -32,6 +33,7 @@ public class PersonService {
 
     public List<PersonResponse> findAllWithSummary(PersonSortField sortBy, Sort.Direction direction) {
         var summaries = debtRecordService.getSummaryByPerson();
+        var offsetPersonIds = debtOffsetService.personIdsWithOffset();
         var comparator = switch (sortBy) {
             case NAME -> Comparator.comparing(PersonResponse::name, String.CASE_INSENSITIVE_ORDER);
             case TOTAL_DEBT -> Comparator.comparingLong(PersonResponse::totalDebt);
@@ -45,7 +47,7 @@ public class PersonService {
         comparator = comparator.thenComparing(PersonResponse::name, String.CASE_INSENSITIVE_ORDER);
 
         return findAll().stream()
-                .map(p -> PersonResponse.from(p, summaries.get(p.getId())))
+                .map(p -> PersonResponse.from(p, summaries.get(p.getId()), offsetPersonIds.contains(p.getId())))
                 .sorted(comparator)
                 .toList();
     }
