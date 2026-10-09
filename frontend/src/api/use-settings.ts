@@ -20,6 +20,8 @@ export function useUpdateSettings() {
       queryClient.invalidateQueries({ queryKey: queryKeys.settings.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
       toast.success('Settings saved')
     },
     onError: (error: Error) => {

@@ -46,6 +46,8 @@ export function useBackupRestore() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.tags.all })

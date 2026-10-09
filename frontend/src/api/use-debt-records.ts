@@ -52,6 +52,7 @@ export function useCreateDebtRecord() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.summary })
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
       toast.success('Record created')
     },
     onError: (error: Error) => {
@@ -68,6 +69,7 @@ export function useUpdateDebtRecord() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.summary })
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
       toast.success('Record updated')
     },
     onError: (error: Error) => {
@@ -83,6 +85,7 @@ export function useDeleteDebtRecord() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.summary })
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
       toast.success('Record deleted')
     },
     onError: (error: Error) => {
@@ -99,6 +102,7 @@ export function useAddPayment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.summary })
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
       toast.success('Payment added')
     },
     onError: (error: Error) => {
@@ -115,6 +119,7 @@ export function useRemovePayment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.summary })
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
       toast.success('Payment removed')
     },
     onError: (error: Error) => {
@@ -131,6 +136,7 @@ export function useToggleDebtStatus() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.summary })
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
       toast.success('Status toggled')
     },
     onError: (error: Error) => {
