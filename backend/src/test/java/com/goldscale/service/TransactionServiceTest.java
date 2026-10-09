@@ -23,6 +23,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
+import org.mockito.InOrder;
 
 @ExtendWith(MockitoExtension.class)
 class TransactionServiceTest {
@@ -31,6 +32,7 @@ class TransactionServiceTest {
     @Mock private AccountRepository accountRepository;
     @Mock private CategoryRepository categoryRepository;
     @Mock private BalanceService balanceService;
+    @Mock private TagService tagService;
     @Mock private MongoTemplate mongoTemplate;
 
     @InjectMocks private TransactionService transactionService;
@@ -87,22 +89,6 @@ class TransactionServiceTest {
         transactionService.create(new CreateExpense("acc-1", 3000L, "cat-2", LocalDate.now(), null));
 
         verify(balanceService).adjustBalance("acc-1", -3000L);
-    }
-
-    @Test
-    void should_throwBusinessRule_when_categoryTypeMismatch() {
-        var expenseCategory = new Category();
-        expenseCategory.setId("cat-exp");
-        expenseCategory.setName("Food");
-        expenseCategory.setType(CategoryType.EXPENSE);
-
-        when(accountRepository.existsById("acc-1")).thenReturn(true);
-        when(categoryRepository.findById("cat-exp")).thenReturn(Optional.of(expenseCategory));
-
-        assertThatThrownBy(() -> transactionService.create(
-                new CreateIncome("acc-1", 1000L, "cat-exp", LocalDate.now(), null)))
-                .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("EXPENSE but expected INCOME");
     }
 
     @Test
@@ -173,6 +159,10 @@ class TransactionServiceTest {
 
     @Test
     void should_adjustByDelta_when_incomeAmountEdited() {
+        var incomeCategory = new Category();
+        incomeCategory.setId("cat-1");
+        incomeCategory.setType(CategoryType.INCOME);
+
         var txn = new Transaction();
         txn.setId("txn-1");
         txn.setType(TransactionType.INCOME);
@@ -180,10 +170,6 @@ class TransactionServiceTest {
         txn.setAmount(5000L);
         txn.setCategoryId("cat-1");
         txn.setDeleted(false);
-
-        var incomeCategory = new Category();
-        incomeCategory.setId("cat-1");
-        incomeCategory.setType(CategoryType.INCOME);
 
         var account = new Account();
         account.setId("acc-1");
@@ -297,9 +283,12 @@ class TransactionServiceTest {
         transactionService.update("txn-t1", new UpdateTransactionRequest(
                 60000L, null, LocalDate.now(), "updated", 1600L));
 
-        // source: -(60000 - 50000) = -10000
-        verify(balanceService).adjustBalance("acc-1", -10000L);
-        // target: 1600 - 1350 = 250
-        verify(balanceService).adjustBalance("acc-2", 250L);
+        // Reverse old: source +50000, target -1350
+        // Apply new: source -60000, target +1600
+        var inOrder = inOrder(balanceService);
+        inOrder.verify(balanceService).adjustBalance("acc-1", 50000L);
+        inOrder.verify(balanceService).adjustBalance("acc-2", -1350L);
+        inOrder.verify(balanceService).adjustBalance("acc-1", -60000L);
+        inOrder.verify(balanceService).adjustBalance("acc-2", 1600L);
     }
 }

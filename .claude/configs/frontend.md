@@ -196,10 +196,11 @@ export function formatCurrency(amountInSubunits: number, currency: string): stri
 6. **HTML inputs return strings.** `<input type="number">` returns a string, not a number. Use `z.coerce.number()` in Zod schemas, or parseInt/parseFloat explicitly.
 
 7. **Transfer form complexity.** The transaction form must show/hide fields based on type:
-   - INCOME: account + amount + category(INCOME) + date
-   - EXPENSE: account + amount + category(EXPENSE) + date
+   - INCOME: account + amount + category + date
+   - EXPENSE: account + amount + category + date
    - TRANSFER: sourceAccount + targetAccount + amount + targetAmount + date
    - Cross-currency transfer: show both amount fields + calculated exchange rate
+   - Categories are universal — all categories shown regardless of transaction type
 
 8. **Stale closures in callbacks.** When passing callbacks to components, use `useCallback` only when necessary (when the callback is a dependency of another hook or is passed to a memoized child).
 

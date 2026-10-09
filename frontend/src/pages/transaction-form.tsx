@@ -86,7 +86,9 @@ export function TransactionFormDialog({
   const { data: recentTxns } = useTransactions({ page: 0, size: 100 })
 
   const filteredCategories = categories?.filter((c) =>
-    txnType === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE',
+    txnType === 'INCOME'
+      ? c.type === 'INCOME' || c.type === 'BOTH'
+      : c.type === 'EXPENSE' || c.type === 'BOTH',
   )
 
   const sortedCategories = useMemo(() => {

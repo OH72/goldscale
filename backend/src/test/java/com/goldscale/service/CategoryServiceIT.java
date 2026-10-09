@@ -51,11 +51,13 @@ class CategoryServiceIT {
     }
 
     @Test
-    void should_allowSameNameDifferentType_when_created() {
+    void should_rejectDuplicateName_when_created() {
         categoryService.create(new CreateCategoryRequest("Other", CategoryType.INCOME, null));
-        categoryService.create(new CreateCategoryRequest("Other", CategoryType.EXPENSE, null));
 
-        assertThat(categoryRepository.findAll()).hasSize(2);
+        assertThatThrownBy(() -> categoryService.create(
+                new CreateCategoryRequest("Other", CategoryType.EXPENSE, null)))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("already exists");
     }
 
     @Test

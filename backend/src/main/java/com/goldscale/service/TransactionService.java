@@ -151,8 +151,7 @@ public class TransactionService {
 
         validateAccountExists(accountId);
         if (categoryId != null) {
-            validateCategoryType(categoryId, type == TransactionType.INCOME
-                    ? CategoryType.INCOME : CategoryType.EXPENSE);
+            validateCategoryForTransaction(categoryId, type);
         }
 
         var txn = new Transaction();
@@ -231,9 +230,7 @@ public class TransactionService {
 
     private TransactionResponse updateIncomeOrExpense(Transaction txn, UpdateTransactionRequest request) {
         if (request.categoryId() != null) {
-            var expectedCategoryType = txn.getType() == TransactionType.INCOME
-                    ? CategoryType.INCOME : CategoryType.EXPENSE;
-            validateCategoryType(request.categoryId(), expectedCategoryType);
+            validateCategoryForTransaction(request.categoryId(), txn.getType());
         }
 
         String oldAccountId = txn.getAccountId();
@@ -324,13 +321,16 @@ public class TransactionService {
         }
     }
 
-    private void validateCategoryType(String categoryId, CategoryType expectedType) {
+    private void validateCategoryForTransaction(String categoryId, TransactionType transactionType) {
         var category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", categoryId));
-        if (category.getType() != expectedType) {
+        var catType = category.getType();
+        if (catType == CategoryType.BOTH) return;
+        var expected = transactionType == TransactionType.INCOME ? CategoryType.INCOME : CategoryType.EXPENSE;
+        if (catType != expected) {
             throw new BusinessRuleException(
-                    "Category '" + category.getName() + "' is " + category.getType()
-                            + " but expected " + expectedType);
+                    "Category '" + category.getName() + "' is " + catType
+                            + " but transaction type is " + transactionType);
         }
     }
 

@@ -5,7 +5,6 @@ import com.goldscale.dto.request.UpdateCategoryRequest;
 import com.goldscale.exception.BusinessRuleException;
 import com.goldscale.exception.ResourceNotFoundException;
 import com.goldscale.model.Category;
-import com.goldscale.model.CategoryType;
 import com.goldscale.repository.CategoryRepository;
 import com.goldscale.repository.TransactionRepository;
 import lombok.RequiredArgsConstructor;
@@ -21,10 +20,7 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final TransactionRepository transactionRepository;
 
-    public List<Category> findAll(CategoryType type) {
-        if (type != null) {
-            return categoryRepository.findByType(type);
-        }
+    public List<Category> findAll() {
         return categoryRepository.findAll();
     }
 
@@ -34,9 +30,9 @@ public class CategoryService {
     }
 
     public Category create(CreateCategoryRequest request) {
-        if (categoryRepository.existsByNameAndType(request.name(), request.type())) {
+        if (categoryRepository.existsByName(request.name())) {
             throw new BusinessRuleException(
-                    "Category '" + request.name() + "' of type " + request.type() + " already exists");
+                    "Category '" + request.name() + "' already exists");
         }
 
         var category = new Category();
@@ -50,12 +46,13 @@ public class CategoryService {
         var category = findById(id);
 
         if (!category.getName().equals(request.name())
-                && categoryRepository.existsByNameAndType(request.name(), category.getType())) {
+                && categoryRepository.existsByName(request.name())) {
             throw new BusinessRuleException(
-                    "Category '" + request.name() + "' of type " + category.getType() + " already exists");
+                    "Category '" + request.name() + "' already exists");
         }
 
         category.setName(request.name());
+        category.setType(request.type());
         category.setIcon(request.icon());
         return categoryRepository.save(category);
     }

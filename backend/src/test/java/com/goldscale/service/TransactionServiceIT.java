@@ -208,11 +208,25 @@ class TransactionServiceIT {
     }
 
     @Test
-    void should_rejectCategoryMismatch_when_expenseCategoryOnIncome() {
+    void should_useBothCategoryForIncomeAndExpense() {
+        var categoryId = categoryService.create(
+                new CreateCategoryRequest("Other", CategoryType.BOTH, null)).getId();
+
+        transactionService.create(new CreateIncome(
+                accountId, 100000L, categoryId, LocalDate.now(), "income"));
+        transactionService.create(new CreateExpense(
+                accountId, 50000L, categoryId, LocalDate.now(), "expense"));
+
+        var account = accountRepository.findById(accountId).orElseThrow();
+        assertThat(account.getBalance()).isEqualTo(1050000L); // 1000000 + 100000 - 50000
+    }
+
+    @Test
+    void should_rejectExpenseCategoryOnIncome() {
         assertThatThrownBy(() -> transactionService.create(
                 new CreateIncome(accountId, 1000L, expenseCategoryId, LocalDate.now(), null)))
                 .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("EXPENSE but expected INCOME");
+                .hasMessageContaining("EXPENSE");
     }
 
     @Test

@@ -64,7 +64,7 @@ These rules apply to ALL code — backend and frontend.
 - Forgetting soft-delete filter — every transaction query must exclude deleted=true.
 - Forgetting to update BOTH accounts on transfer edit/delete.
 - Editing INITIAL_BALANCE — only amount can change, type and accountId are immutable.
-- Category type mismatch — INCOME transaction must reference INCOME category.
+- Category existence — INCOME/EXPENSE transaction must reference an existing category.
 - Negative balance — allowed (overdraft). Don't block it.
 - Missing `@Transactional` on operations that modify multiple documents.
 

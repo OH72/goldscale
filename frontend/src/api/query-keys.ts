@@ -13,7 +13,6 @@ export const queryKeys = {
   },
   categories: {
     all: ['categories'] as const,
-    byType: (type: string) => ['categories', type] as const,
   },
   tags: {
     all: ['tags'] as const,

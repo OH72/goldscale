@@ -212,7 +212,7 @@ public class ImportService {
     private Map<String, String> buildCategoryCache() {
         var cache = new HashMap<String, String>();
         for (var cat : categoryRepository.findAll()) {
-            cache.put(cat.getType() + ":" + cat.getName(), cat.getId());
+            cache.put(cat.getName(), cat.getId());
         }
         return cache;
     }
@@ -222,13 +222,12 @@ public class ImportService {
             if (row.categoryName() == null || row.categoryName().isBlank()) continue;
             if (row.type() == TransactionType.TRANSFER || row.type() == TransactionType.INITIAL_BALANCE) continue;
 
-            var categoryType = row.type() == TransactionType.INCOME ? CategoryType.INCOME : CategoryType.EXPENSE;
-            var key = categoryType + ":" + row.categoryName().trim();
+            var key = row.categoryName().trim();
 
             if (!cache.containsKey(key)) {
                 var category = new Category();
-                category.setName(row.categoryName().trim());
-                category.setType(categoryType);
+                category.setName(key);
+                category.setType(CategoryType.BOTH);
                 category = categoryRepository.save(category);
                 cache.put(key, category.getId());
             }
@@ -240,9 +239,7 @@ public class ImportService {
             return row.categoryId();
         }
         if (row.categoryName() != null && !row.categoryName().isBlank()) {
-            var categoryType = row.type() == TransactionType.INCOME ? CategoryType.INCOME : CategoryType.EXPENSE;
-            var key = categoryType + ":" + row.categoryName().trim();
-            return cache.get(key);
+            return cache.get(row.categoryName().trim());
         }
         return null;
     }

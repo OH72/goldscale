@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Dialog,
   DialogContent,
@@ -41,17 +41,24 @@ import { cn } from '@/lib/utils'
 import type { CategoryResponse } from '@/types/category'
 import type { CategoryType } from '@/types/common'
 
-const createSchema = z.object({
+const categorySchema = z.object({
   name: z.string().min(1, 'Name is required'),
-  type: z.enum(['INCOME', 'EXPENSE']),
+  type: z.enum(['INCOME', 'EXPENSE', 'BOTH']),
 })
 
-const editSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-})
+type CategoryForm = z.infer<typeof categorySchema>
 
-type CreateForm = z.infer<typeof createSchema>
-type EditForm = z.infer<typeof editSchema>
+const TYPE_LABELS: Record<CategoryType, string> = {
+  INCOME: 'Income',
+  EXPENSE: 'Expense',
+  BOTH: 'Both',
+}
+
+const TYPE_COLORS: Record<CategoryType, string> = {
+  INCOME: 'border-green-500 text-green-600',
+  EXPENSE: 'border-red-500 text-red-600',
+  BOTH: 'border-blue-500 text-blue-600',
+}
 
 export function CategoriesPage() {
   const { data: categories, isLoading } = useCategories()
@@ -68,22 +75,24 @@ export function CategoriesPage() {
     useState<CategoryResponse | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [typeFilter, setTypeFilter] = useState<'ALL' | CategoryType>('ALL')
+  const [search, setSearch] = useState('')
 
-  const createForm = useForm<CreateForm>({
-    resolver: zodResolver(createSchema),
+  const createForm = useForm<CategoryForm>({
+    resolver: zodResolver(categorySchema),
     defaultValues: { name: '', type: 'EXPENSE' },
   })
 
-  const editForm = useForm<EditForm>({
-    resolver: zodResolver(editSchema),
+  const editForm = useForm<CategoryForm>({
+    resolver: zodResolver(categorySchema),
   })
 
-  const incomeCategories =
-    categories?.filter((c) => c.type === 'INCOME') ?? []
-  const expenseCategories =
-    categories?.filter((c) => c.type === 'EXPENSE') ?? []
+  const sortedCategories = [...(categories ?? [])]
+    .filter((c) => typeFilter === 'ALL' || c.type === typeFilter)
+    .filter((c) => !search || c.name.toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => a.name.localeCompare(b.name))
 
-  function handleCreate(data: CreateForm) {
+  function handleCreate(data: CategoryForm) {
     createMutation.mutate(
       { name: data.name, type: data.type as CategoryType, icon: null },
       {
@@ -95,10 +104,13 @@ export function CategoriesPage() {
     )
   }
 
-  function handleEdit(data: EditForm) {
+  function handleEdit(data: CategoryForm) {
     if (!editCategory) return
     updateMutation.mutate(
-      { id: editCategory.id, data: { name: data.name, icon: null } },
+      {
+        id: editCategory.id,
+        data: { name: data.name, type: data.type as CategoryType, icon: null },
+      },
       {
         onSuccess: () => setEditCategory(null),
       },
@@ -106,7 +118,7 @@ export function CategoriesPage() {
   }
 
   function openEdit(category: CategoryResponse) {
-    editForm.reset({ name: category.name })
+    editForm.reset({ name: category.name, type: category.type })
     setEditCategory(category)
   }
 
@@ -119,76 +131,25 @@ export function CategoriesPage() {
     })
   }
 
-  function toggleSelectAll(items: CategoryResponse[]) {
-    const allSelected = items.every((c) => selectedIds.has(c.id))
+  function toggleSelectAll() {
+    const allSelected = sortedCategories.every((c) => selectedIds.has(c.id))
     setSelectedIds((prev) => {
       const next = new Set(prev)
       if (allSelected) {
-        items.forEach((c) => next.delete(c.id))
+        sortedCategories.forEach((c) => next.delete(c.id))
       } else {
-        items.forEach((c) => next.add(c.id))
+        sortedCategories.forEach((c) => next.add(c.id))
       }
       return next
     })
   }
 
-  function renderList(items: CategoryResponse[]) {
-    if (items.length === 0) {
-      return (
-        <p className="py-8 text-center text-muted-foreground">
-          No categories yet
-        </p>
-      )
-    }
-    const allSelected = items.length > 0 && items.every((c) => selectedIds.has(c.id))
-    const someSelected = items.some((c) => selectedIds.has(c.id))
-    return (
-      <div className="space-y-1">
-        <div className="flex items-center px-4 py-2">
-          <Checkbox
-            checked={allSelected}
-            data-state={someSelected && !allSelected ? 'indeterminate' : undefined}
-            onCheckedChange={() => toggleSelectAll(items)}
-          />
-        </div>
-        {items.map((cat) => (
-          <div
-            key={cat.id}
-            className="flex items-center justify-between rounded-md border px-4 py-3"
-          >
-            <div className="flex items-center gap-3">
-              <Checkbox
-                checked={selectedIds.has(cat.id)}
-                onCheckedChange={() => toggleSelect(cat.id)}
-              />
-              <span className="font-medium">{cat.name}</span>
-              <Badge variant="secondary">{cat.type}</Badge>
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreHorizontal className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => openEdit(cat)}>
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => setDeleteCategory(cat)}
-                >
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        ))}
-      </div>
-    )
-  }
-
   if (isLoading) return <div className="p-6">Loading...</div>
+
+  const allSelected =
+    sortedCategories.length > 0 &&
+    sortedCategories.every((c) => selectedIds.has(c.id))
+  const someSelected = sortedCategories.some((c) => selectedIds.has(c.id))
 
   return (
     <div>
@@ -203,22 +164,88 @@ export function CategoriesPage() {
         </Button>
       </PageHeader>
 
-      <Tabs defaultValue="expense">
+      <Tabs
+        value={typeFilter}
+        onValueChange={(v) => {
+          setTypeFilter(v as 'ALL' | CategoryType)
+          setSelectedIds(new Set())
+        }}
+      >
         <TabsList>
-          <TabsTrigger value="expense">
-            Expense ({expenseCategories.length})
+          <TabsTrigger value="ALL">
+            All ({categories?.length ?? 0})
           </TabsTrigger>
-          <TabsTrigger value="income">
-            Income ({incomeCategories.length})
+          <TabsTrigger value="EXPENSE">
+            Expense ({categories?.filter((c) => c.type === 'EXPENSE').length ?? 0})
+          </TabsTrigger>
+          <TabsTrigger value="INCOME">
+            Income ({categories?.filter((c) => c.type === 'INCOME').length ?? 0})
+          </TabsTrigger>
+          <TabsTrigger value="BOTH">
+            Both ({categories?.filter((c) => c.type === 'BOTH').length ?? 0})
           </TabsTrigger>
         </TabsList>
-        <TabsContent value="expense" className="mt-4">
-          {renderList(expenseCategories)}
-        </TabsContent>
-        <TabsContent value="income" className="mt-4">
-          {renderList(incomeCategories)}
-        </TabsContent>
       </Tabs>
+
+      <div className="mt-4">
+        <Input
+          placeholder="Search categories..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="max-w-sm"
+        />
+      </div>
+
+      {sortedCategories.length === 0 ? (
+        <p className="py-8 text-center text-muted-foreground">
+          No categories yet
+        </p>
+      ) : (
+        <div className="space-y-1">
+          <div className="flex items-center px-4 py-2">
+            <Checkbox
+              checked={allSelected}
+              data-state={someSelected && !allSelected ? 'indeterminate' : undefined}
+              onCheckedChange={() => toggleSelectAll()}
+            />
+          </div>
+          {sortedCategories.map((cat) => (
+            <div
+              key={cat.id}
+              className="flex items-center justify-between rounded-md border px-4 py-3"
+            >
+              <div className="flex items-center gap-3">
+                <Checkbox
+                  checked={selectedIds.has(cat.id)}
+                  onCheckedChange={() => toggleSelect(cat.id)}
+                />
+                <span className="font-medium">{cat.name}</span>
+                <Badge variant="outline" className={TYPE_COLORS[cat.type]}>
+                  {TYPE_LABELS[cat.type]}
+                </Badge>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => openEdit(cat)}>
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => setDeleteCategory(cat)}
+                  >
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Create Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
@@ -257,6 +284,7 @@ export function CategoriesPage() {
                 <SelectContent>
                   <SelectItem value="INCOME">Income</SelectItem>
                   <SelectItem value="EXPENSE">Expense</SelectItem>
+                  <SelectItem value="BOTH">Both</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -296,6 +324,24 @@ export function CategoriesPage() {
                   {editForm.formState.errors.name.message}
                 </p>
               )}
+            </div>
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select
+                value={editForm.watch('type')}
+                onValueChange={(v) =>
+                  editForm.setValue('type', v as CategoryType)
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="INCOME">Income</SelectItem>
+                  <SelectItem value="EXPENSE">Expense</SelectItem>
+                  <SelectItem value="BOTH">Both</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Button
               type="submit"

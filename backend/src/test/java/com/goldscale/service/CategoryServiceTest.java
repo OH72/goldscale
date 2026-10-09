@@ -37,19 +37,20 @@ class CategoryServiceTest {
         saved.setName("Food");
         saved.setType(CategoryType.EXPENSE);
 
-        when(categoryRepository.existsByNameAndType("Food", CategoryType.EXPENSE)).thenReturn(false);
+        when(categoryRepository.existsByName("Food")).thenReturn(false);
         when(categoryRepository.save(any())).thenReturn(saved);
 
         var result = categoryService.create(request);
 
         assertThat(result.getName()).isEqualTo("Food");
+        assertThat(result.getType()).isEqualTo(CategoryType.EXPENSE);
         verify(categoryRepository).save(any());
     }
 
     @Test
-    void should_throwBusinessRule_when_duplicateNameAndType() {
+    void should_throwBusinessRule_when_duplicateName() {
         var request = new CreateCategoryRequest("Food", CategoryType.EXPENSE, null);
-        when(categoryRepository.existsByNameAndType("Food", CategoryType.EXPENSE)).thenReturn(true);
+        when(categoryRepository.existsByName("Food")).thenReturn(true);
 
         assertThatThrownBy(() -> categoryService.create(request))
                 .isInstanceOf(BusinessRuleException.class)
@@ -92,18 +93,20 @@ class CategoryServiceTest {
     }
 
     @Test
-    void should_updateName_when_noDuplicate() {
+    void should_updateNameAndType_when_noDuplicate() {
         var category = new Category();
         category.setId("cat-1");
         category.setName("Old");
         category.setType(CategoryType.EXPENSE);
 
         when(categoryRepository.findById("cat-1")).thenReturn(Optional.of(category));
-        when(categoryRepository.existsByNameAndType("New", CategoryType.EXPENSE)).thenReturn(false);
+        when(categoryRepository.existsByName("New")).thenReturn(false);
         when(categoryRepository.save(any())).thenReturn(category);
 
-        var result = categoryService.update("cat-1", new UpdateCategoryRequest("New", null));
+        var result = categoryService.update("cat-1",
+                new UpdateCategoryRequest("New", CategoryType.BOTH, null));
 
         assertThat(result.getName()).isEqualTo("New");
+        assertThat(result.getType()).isEqualTo(CategoryType.BOTH);
     }
 }

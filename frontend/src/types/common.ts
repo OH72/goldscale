@@ -2,7 +2,7 @@ export type Currency = 'UAH' | 'USD' | 'EUR' | 'PLN' | 'GBP' | 'USDT'
 
 export type TransactionType = 'INITIAL_BALANCE' | 'INCOME' | 'EXPENSE' | 'TRANSFER'
 
-export type CategoryType = 'INCOME' | 'EXPENSE'
+export type CategoryType = 'INCOME' | 'EXPENSE' | 'BOTH'
 
 export interface PageResponse<T> {
   content: T[]

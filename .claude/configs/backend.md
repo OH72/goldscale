@@ -8,7 +8,7 @@ Read `context.md` and `principles.md` before writing any code.
 ### Java 21
 - Use Records for all DTOs (request/response). Never for `@Document` entities.
 - Use sealed interfaces for command objects (TransactionCommand).
-- Use enums for fixed sets: TransactionType, CategoryType, Currency.
+- Use enums for fixed sets: TransactionType, Currency.
 - Use pattern matching with switch expressions where applicable.
 - Use `var` for local variables when the type is obvious from context.
 
@@ -183,7 +183,7 @@ public class GlobalExceptionHandler {
 
 6. **Transfer edit/delete — forgetting targetAccount.** When editing or deleting a transfer, BOTH source and target account balances must be adjusted. This is the most common balance corruption bug.
 
-7. **Category-type mismatch.** When creating INCOME transaction, validate that the referenced category has type=INCOME. Same for EXPENSE. Don't allow EXPENSE category on INCOME transaction.
+7. **Category existence.** When creating INCOME/EXPENSE transaction, validate that the referenced category exists. Categories are universal — any category can be used for both income and expense.
 
 8. **Race condition on balance.** Always use `$inc` (atomic), never read-then-write. Reading balance, adding amount, and saving back is not atomic and will corrupt on concurrent requests.
 
@@ -233,7 +233,6 @@ com.goldscale
 │   ├── ExchangeRate.java
 │   ├── Settings.java
 │   ├── TransactionType.java
-│   ├── CategoryType.java
 │   └── Currency.java
 ├── dto/
 │   ├── request/

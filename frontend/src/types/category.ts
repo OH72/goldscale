@@ -16,5 +16,6 @@ export interface CreateCategoryRequest {
 
 export interface UpdateCategoryRequest {
   name: string
+  type: CategoryType
   icon: string | null
 }

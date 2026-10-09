@@ -75,9 +75,10 @@ export function ImportPage() {
     if (type === 'TRANSFER' || type === 'INITIAL_BALANCE')
       return { categoryAutoSelected: false }
     if (!categoryHint) return { categoryAutoSelected: false }
+    const matchType = type === 'INCOME' ? 'INCOME' : 'EXPENSE'
     const match = allCategories.find(
       (c) =>
-        c.type === type &&
+        (c.type === matchType || c.type === 'BOTH') &&
         c.name.toLowerCase() === categoryHint.toLowerCase(),
     )
     if (match) return { categoryId: match.id, categoryAutoSelected: true }
@@ -439,10 +440,13 @@ function ImportTableRow({
 }: ImportTableRowProps) {
   const filteredCategories = useMemo(
     () =>
-      categories.filter(
-        (c) =>
-          c.type === (row.type === 'INCOME' ? 'INCOME' : 'EXPENSE'),
-      ),
+      categories
+        .filter((c) =>
+          row.type === 'INCOME'
+            ? c.type === 'INCOME' || c.type === 'BOTH'
+            : c.type === 'EXPENSE' || c.type === 'BOTH',
+        )
+        .sort((a, b) => a.name.localeCompare(b.name)),
     [categories, row.type],
   )
 

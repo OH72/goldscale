@@ -28,7 +28,7 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 
 ### Collections
 - `accounts` — user bank accounts with denormalized balance
-- `categories` — income/expense categories (flat, no hierarchy)
+- `categories` — universal categories (flat, no hierarchy)
 - `tags` — free-form labels; a transaction can have 0..N tags (`tags: List<String>` of tag IDs)
 - `transactions` — all financial operations
 - `exchangeRates` — daily USD-based exchange rates for currency conversion
@@ -45,8 +45,8 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 
 ### Transaction Types (enum)
 - `INITIAL_BALANCE` — created with account, editable (amount only), NOT deletable
-- `INCOME` — income, requires categoryId (type=INCOME)
-- `EXPENSE` — expense, requires categoryId (type=EXPENSE)
+- `INCOME` — income, requires categoryId
+- `EXPENSE` — expense, requires categoryId
 - `TRANSFER` — between own accounts, no category. Single document with:
   - `accountId` (source), `targetAccountId` (target)
   - `amount` (source currency), `targetAmount` (target currency)
@@ -67,9 +67,10 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 - Accounts: deleting account soft-deletes all related transactions
 
 ### Categories
-- Typed: INCOME or EXPENSE
+- Universal: any category can be used for both income and expense transactions
 - Cannot delete if transactions reference it
 - Flat structure, no subcategories
+- Unique name constraint (no duplicates)
 
 ### Timestamps
 - `LocalDate` for business date (user-selected)
