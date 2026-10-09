@@ -13,6 +13,7 @@ import com.goldscale.repository.CategoryRepository;
 import com.goldscale.repository.DebtRecordRepository;
 import com.goldscale.repository.PersonRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -46,7 +47,8 @@ public class DebtRecordService {
             criteria = criteria.and("status").is(status);
         }
 
-        var query = Query.query(criteria);
+        var query = Query.query(criteria)
+                .with(Sort.by(Sort.Order.desc("date"), Sort.Order.desc("createdAt")));
         var records = mongoTemplate.find(query, DebtRecord.class);
         return enrichWithNames(records);
     }
