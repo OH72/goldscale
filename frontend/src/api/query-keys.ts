@@ -20,6 +20,15 @@ export const queryKeys = {
   settings: {
     all: ['settings'] as const,
   },
+  people: {
+    all: ['people'] as const,
+  },
+  debtRecords: {
+    all: ['debtRecords'] as const,
+    list: (filters: unknown) => ['debtRecords', 'list', filters] as const,
+    detail: (id: string) => ['debtRecords', id] as const,
+    summary: ['debtRecords', 'summary'] as const,
+  },
   dashboard: {
     all: ['dashboard'] as const,
     expensesByCategory: (filters: unknown) => ['dashboard', 'expenses-by-category', filters] as const,

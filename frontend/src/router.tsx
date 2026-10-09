@@ -7,6 +7,8 @@ import { CategoriesPage } from '@/pages/categories'
 import { TagsPage } from '@/pages/tags'
 import { ImportPage } from '@/pages/import'
 import { SettingsPage } from '@/pages/settings'
+import { PeoplePage } from '@/pages/people'
+import { DebtsPage } from '@/pages/debts'
 
 export const router = createBrowserRouter([
   {
@@ -17,6 +19,8 @@ export const router = createBrowserRouter([
       { path: 'transactions', element: <TransactionsPage /> },
       { path: 'categories', element: <CategoriesPage /> },
       { path: 'tags', element: <TagsPage /> },
+      { path: 'people', element: <PeoplePage /> },
+      { path: 'debts', element: <DebtsPage /> },
       { path: 'import', element: <ImportPage /> },
       { path: 'settings', element: <SettingsPage /> },
     ],
