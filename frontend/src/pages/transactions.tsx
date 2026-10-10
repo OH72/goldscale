@@ -6,6 +6,7 @@ import { useCategories } from '@/api/use-categories'
 import { useTags } from '@/api/use-tags'
 import { PageHeader } from '@/components/layout/page-header'
 import { TransactionBadge } from '@/components/transaction-badge'
+import { TagChip } from '@/components/tag-chip'
 import { DateDisplay } from '@/components/date-display'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { TransactionFormDialog } from './transaction-form'
@@ -32,7 +33,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Badge } from '@/components/ui/badge'
 import { MoreHorizontal, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ArrowUp, ArrowDown, ArrowUpDown, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/currency'
@@ -128,7 +128,7 @@ export function TransactionsPage() {
       )
     }
 
-    const prefix = txn.type === 'INCOME' ? '+' : txn.type === 'EXPENSE' ? '-' : ''
+    const prefix = txn.type === 'INCOME' ? '+' : txn.type === 'EXPENSE' ? '−' : ''
     return `${prefix}${formatCurrency(txn.amount, currency)}`
   }
 
@@ -407,9 +407,9 @@ export function TransactionsPage() {
                   </TableCell>
                   <TableCell
                     className={cn(
-                      'overflow-hidden align-top text-right font-medium',
-                      txn.type === 'INCOME' && 'text-green-600',
-                      txn.type === 'EXPENSE' && 'text-red-600',
+                      'num overflow-hidden align-top text-right',
+                      txn.type === 'INCOME' && 'text-positive',
+                      txn.type === 'EXPENSE' && 'text-negative',
                     )}
                   >
                     {renderAmount(txn)}
@@ -417,9 +417,7 @@ export function TransactionsPage() {
                   <TableCell className="overflow-hidden align-top">
                     <div className="flex flex-wrap gap-1">
                       {txn.tagNames?.map((name) => (
-                        <Badge key={name} variant="outline" className="text-xs">
-                          {name}
-                        </Badge>
+                        <TagChip key={name} name={name} />
                       ))}
                     </div>
                   </TableCell>

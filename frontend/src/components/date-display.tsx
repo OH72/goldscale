@@ -5,5 +5,5 @@ interface DateDisplayProps {
 }
 
 export function DateDisplay({ date }: DateDisplayProps) {
-  return <span>{formatDate(date)}</span>
+  return <span className="num">{formatDate(date)}</span>
 }

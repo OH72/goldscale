@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, type UseFormReturn } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
@@ -10,6 +10,7 @@ import {
   useAddPayment,
   useRemovePayment,
   useToggleDebtStatus,
+  useDebtSummary,
 } from '@/api/use-debt-records'
 import { usePeople } from '@/api/use-people'
 import { useCategories } from '@/api/use-categories'
@@ -18,6 +19,8 @@ import { CategorySelect } from '@/components/category-select'
 import { TagMultiSelect } from '@/components/tag-multi-select'
 import { useFilterStore } from '@/stores/filter-store'
 import { PageHeader } from '@/components/layout/page-header'
+import { TagChip } from '@/components/tag-chip'
+import { FigureStrip } from '@/components/figure-strip'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -46,7 +49,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
 import {
-  ChevronDown,
   ChevronRight,
   MoreHorizontal,
   Plus,
@@ -54,7 +56,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency, toSubunits, fromSubunits } from '@/lib/currency'
+import { formatCurrency, formatSigned, toSubunits, fromSubunits } from '@/lib/currency'
 import { formatDate } from '@/lib/date'
 import type { Currency } from '@/types/common'
 import type {
@@ -62,7 +64,10 @@ import type {
   DebtType,
   DebtStatus,
   PaymentResponse,
+  PersonResponse,
 } from '@/types/debt'
+import type { CategoryResponse } from '@/types/category'
+import type { TagResponse } from '@/api/use-tags'
 
 const CURRENCIES: Currency[] = ['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'USDT']
 
@@ -124,30 +129,44 @@ interface PaymentRowProps {
 
 function PaymentRow({ payment, currency, recordId, onRemove, removeLoading }: PaymentRowProps) {
   return (
-    <div className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm">
-      <div className="flex items-center gap-4">
-        <span className="font-medium">
-          {formatCurrency(payment.amount, currency)}
-        </span>
-        <span className="text-muted-foreground">{formatDate(payment.date)}</span>
-        {payment.description && (
-          <span className="text-muted-foreground">{payment.description}</span>
-        )}
-      </div>
+    <li className="grid grid-cols-[5.25rem_minmax(0,1fr)_auto_2rem] items-center gap-x-4 py-1.5 text-sm">
+      <span className="num text-xs text-muted-foreground">{formatDate(payment.date)}</span>
+      <span className="truncate text-muted-foreground">{payment.description || 'Payment'}</span>
+      <span className="num">{formatCurrency(payment.amount, currency)}</span>
       <Button
         variant="ghost"
-        size="icon"
-        className="h-7 w-7 text-destructive hover:text-destructive"
+        size="icon-sm"
+        className="text-muted-foreground hover:text-destructive"
         onClick={() => onRemove(recordId, payment.id)}
         disabled={removeLoading}
+        aria-label="Remove payment"
       >
-        <Trash2 className="h-3.5 w-3.5" />
+        <Trash2 className="size-3.5" />
       </Button>
-    </div>
+    </li>
   )
 }
 
 // --- Record Row ---
+
+/** Column template shared by the list header and each record row */
+const RECORD_GRID =
+  'grid grid-cols-[1rem_minmax(0,1fr)_auto_2.25rem] items-center gap-x-4 md:grid-cols-[1rem_5.25rem_minmax(0,1fr)_3.75rem_minmax(8rem,auto)_9.5rem_4.25rem_2.25rem]'
+
+function RecordListHeader() {
+  return (
+    <div className={cn(RECORD_GRID, 'eyebrow hidden border-b border-foreground/60 px-4 py-2.5 md:grid')}>
+      <span />
+      <span>Date</span>
+      <span>Person · note</span>
+      <span>Kind</span>
+      <span className="text-right">Amount</span>
+      <span>Repaid</span>
+      <span>Status</span>
+      <span />
+    </div>
+  )
+}
 
 interface RecordRowProps {
   record: DebtRecordResponse
@@ -178,70 +197,59 @@ function RecordRow({
     record.amount > 0
       ? Math.round((record.coveredAmount / record.amount) * 100)
       : 0
+  const remaining = record.amount - record.coveredAmount
+  const isDebt = record.type === 'DEBT'
+  const closed = record.status === 'CLOSED'
 
   return (
-    <div className="rounded-md border">
+    <div className={cn('border-b border-border/80 last:border-0', expanded && 'bg-gold/[0.04]')}>
       <div
-        className="flex cursor-pointer items-center gap-3 px-4 py-3"
+        className={cn(RECORD_GRID, 'cursor-pointer px-4 py-3 transition-colors hover:bg-gold/[0.05]')}
         onClick={onToggleExpand}
       >
-        <button type="button" className="shrink-0">
-          {expanded ? (
-            <ChevronDown className="h-4 w-4" />
-          ) : (
-            <ChevronRight className="h-4 w-4" />
-          )}
-        </button>
+        <ChevronRight
+          className={cn('size-4 text-muted-foreground transition-transform', expanded && 'rotate-90')}
+        />
+        <span className="num hidden text-xs text-muted-foreground md:block">
+          {formatDate(record.date)}
+        </span>
 
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="font-medium">{record.personName}</span>
-          <Badge
-            variant="outline"
-            className={cn(
-              record.type === 'DEBT'
-                ? 'border-red-500 text-red-600'
-                : 'border-green-500 text-green-600',
-            )}
-          >
-            {TYPE_LABELS[record.type]}
-          </Badge>
-          <span className="font-medium">
+        <div className={cn('min-w-0', closed && 'opacity-60')}>
+          <div className="truncate font-medium">{record.personName}</div>
+          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="num md:hidden">{formatDate(record.date)}</span>
+            {record.description && <span className="truncate">{record.description}</span>}
+            {record.categoryName && <Badge variant="secondary">{record.categoryName}</Badge>}
+            {record.tagNames?.map((name) => <TagChip key={name} name={name} />)}
+          </div>
+        </div>
+
+        <Badge variant={isDebt ? 'negative' : 'positive'} className="hidden md:inline-flex">
+          {TYPE_LABELS[record.type]}
+        </Badge>
+
+        <div className={cn('text-right', closed && 'opacity-60')}>
+          <div className={cn('num', isDebt ? 'text-negative' : 'text-positive')}>
             {formatCurrency(record.amount, record.currency)}
-          </span>
-          <div className="flex items-center gap-2">
-            <Progress value={coveragePercent} className="h-2 w-24" />
-            <span className="text-xs text-muted-foreground">
-              {formatCurrency(record.coveredAmount, record.currency)} /{' '}
-              {formatCurrency(record.amount, record.currency)} ({coveragePercent}%)
+          </div>
+          <div className="eyebrow mt-0.5 md:hidden">
+            {TYPE_LABELS[record.type]} · {STATUS_LABELS[record.status]}
+          </div>
+        </div>
+
+        <div className="hidden md:block">
+          <Progress value={coveragePercent} className="w-full gap-0" />
+          <div className="num mt-1.5 flex justify-between gap-2 text-[10.5px] text-muted-foreground">
+            <span>{coveragePercent}%</span>
+            <span className="truncate">
+              {remaining > 0 ? `${formatCurrency(remaining, record.currency)} left` : 'settled'}
             </span>
           </div>
-          <Badge
-            variant="outline"
-            className={cn(
-              record.status === 'OPEN'
-                ? 'border-amber-500 text-amber-600'
-                : 'border-green-500 text-green-600',
-            )}
-          >
-            {STATUS_LABELS[record.status]}
-          </Badge>
-          <span className="text-sm text-muted-foreground">
-            {formatDate(record.date)}
-          </span>
-          {record.categoryName && (
-            <Badge variant="secondary">{record.categoryName}</Badge>
-          )}
-          {record.tagNames?.map((name) => (
-            <Badge key={name} variant="outline" className="text-xs">
-              {name}
-            </Badge>
-          ))}
-          {record.description && (
-            <span className="truncate text-sm text-muted-foreground">
-              {record.description}
-            </span>
-          )}
         </div>
+
+        <Badge variant={closed ? 'secondary' : 'gold'} className="hidden md:inline-flex">
+          {STATUS_LABELS[record.status]}
+        </Badge>
 
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -250,6 +258,7 @@ function RecordRow({
                 variant="ghost"
                 size="icon"
                 onClick={(e) => e.stopPropagation()}
+                aria-label="Record actions"
               />
             }
           >
@@ -295,29 +304,182 @@ function RecordRow({
         </DropdownMenu>
       </div>
 
-      {expanded && record.payments.length > 0 && (
-        <div className="space-y-1 border-t px-4 py-3 pl-11">
-          <p className="mb-2 text-xs font-medium text-muted-foreground">
-            Payments ({record.payments.length})
-          </p>
-          {record.payments.map((payment) => (
-            <PaymentRow
-              key={payment.id}
-              payment={payment}
-              currency={record.currency}
-              recordId={record.id}
-              onRemove={onRemovePayment}
-              removeLoading={removePaymentLoading}
-            />
+      {expanded && (
+        <div className="px-4 pb-4 pl-12 md:pl-[8.5rem]">
+          <div className="border-l-2 border-gold/50 pl-4">
+            <div className="eyebrow mb-1">
+              Payments · {record.payments.length}
+            </div>
+            {record.payments.length === 0 ? (
+              <p className="py-1.5 font-display text-base text-muted-foreground italic">
+                No payments yet.
+              </p>
+            ) : (
+              <ul className="max-w-2xl divide-y divide-border/70">
+                {record.payments.map((payment) => (
+                  <PaymentRow
+                    key={payment.id}
+                    payment={payment}
+                    currency={record.currency}
+                    recordId={record.id}
+                    onRemove={onRemovePayment}
+                    removeLoading={removePaymentLoading}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- Record form fields (shared by create and edit) ---
+
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null
+  return <p className="text-xs text-destructive">{message}</p>
+}
+
+interface RecordFieldsProps {
+  form: UseFormReturn<CreateRecordForm>
+  people: PersonResponse[] | undefined
+  categories: CategoryResponse[] | undefined
+  tags: TagResponse[] | undefined
+}
+
+function RecordFields({ form, people, categories, tags }: RecordFieldsProps) {
+  const errors = form.formState.errors
+  const type = form.watch('type')
+
+  return (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-4">
+      {/* Kind: two-way toggle in the ledger's red/green inks */}
+      <div className="col-span-2 space-y-2">
+        <Label>Kind</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {(['DEBT', 'LOAN'] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => form.setValue('type', t)}
+              className={cn(
+                'rounded-md px-3 py-2.5 text-left ring-1 transition-colors',
+                type === t
+                  ? t === 'DEBT'
+                    ? 'bg-negative/10 ring-negative/50'
+                    : 'bg-positive/10 ring-positive/50'
+                  : 'bg-card/60 ring-border hover:ring-foreground/30',
+              )}
+            >
+              <span
+                className={cn(
+                  'block text-sm font-medium',
+                  type === t && (t === 'DEBT' ? 'text-negative' : 'text-positive'),
+                )}
+              >
+                {t === 'DEBT' ? 'Debt' : 'Loan'}
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                {t === 'DEBT' ? 'I owe them' : 'They owe me'}
+              </span>
+            </button>
           ))}
         </div>
-      )}
+      </div>
 
-      {expanded && record.payments.length === 0 && (
-        <div className="border-t px-4 py-3 pl-11">
-          <p className="text-sm text-muted-foreground">No payments yet</p>
+      <div className="col-span-2 space-y-2">
+        <Label>Person</Label>
+        <Select
+          value={form.watch('personId')}
+          onValueChange={(v) => form.setValue('personId', v ?? '', { shouldValidate: true })}
+        >
+          <SelectTrigger aria-invalid={!!errors.personId}>
+            <SelectValue>
+              {(v: string) =>
+                people?.find((p) => p.id === v)?.name ?? (
+                  <span className="text-muted-foreground">Select a person</span>
+                )
+              }
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            {people
+              ?.slice()
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+        <FieldError message={errors.personId?.message} />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Amount</Label>
+        <div className="flex gap-2">
+          <Input
+            type="number"
+            step="0.01"
+            {...form.register('amount')}
+            aria-invalid={!!errors.amount}
+            className="num min-w-0 flex-1"
+          />
+          <Select
+            value={form.watch('currency')}
+            onValueChange={(v) => v && form.setValue('currency', v as Currency)}
+          >
+            <SelectTrigger className="num w-[5.5rem] shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CURRENCIES.map((c) => (
+                <SelectItem key={c} value={c}>
+                  {c}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      )}
+        <FieldError message={errors.amount?.message} />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Date</Label>
+        <Input
+          type="date"
+          {...form.register('date')}
+          aria-invalid={!!errors.date}
+          className="num"
+        />
+        <FieldError message={errors.date?.message} />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Category</Label>
+        <CategorySelect
+          categories={categories}
+          value={form.watch('categoryId') ?? ''}
+          onChange={(id) => form.setValue('categoryId', id)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label>Tags</Label>
+        <TagMultiSelect
+          tags={tags}
+          value={form.watch('tagIds') ?? []}
+          onChange={(ids) => form.setValue('tagIds', ids)}
+        />
+      </div>
+
+      <div className="col-span-2 space-y-2">
+        <Label>Note</Label>
+        <Input {...form.register('description')} placeholder="What was it for?" />
+      </div>
     </div>
   )
 }
@@ -325,6 +487,7 @@ function RecordRow({
 // --- Main Page ---
 
 export function DebtsPage() {
+  const { data: debtSummary } = useDebtSummary()
   const { data: people } = usePeople()
   const { data: categories } = useCategories()
   const { data: tags } = useTags()
@@ -506,8 +669,28 @@ export function DebtsPage() {
         </Button>
       </PageHeader>
 
+      {/* Totals, converted to the display currency */}
+      {debtSummary && (() => {
+        const entries = Array.isArray(debtSummary.entries) ? debtSummary.entries : []
+        const owedToYou = entries.reduce((sum, e) => sum + e.totalLoan, 0)
+        const youOwe = entries.reduce((sum, e) => sum + e.totalDebt, 0)
+        const net = owedToYou - youOwe
+        const cur = debtSummary.displayCurrency
+        return (
+          <FigureStrip
+            className="mb-6"
+            figures={[
+              { label: 'Owed to you', value: formatCurrency(owedToYou, cur), tone: 'positive' },
+              { label: 'You owe', value: formatCurrency(youOwe, cur), tone: 'negative' },
+              { label: 'Net', value: formatSigned(net, cur), tone: net > 0 ? 'positive' : net < 0 ? 'negative' : undefined },
+              { label: 'Counterparties', value: String(entries.length), note: 'with open balances' },
+            ]}
+          />
+        )
+      })()}
+
       {/* Filter Bar */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
         <Select
           value={personId || 'ALL'}
           onValueChange={(v) => setDebts({ personId: !v || v === 'ALL' ? '' : v })}
@@ -568,11 +751,12 @@ export function DebtsPage() {
 
       {/* Records List */}
       {filteredRecords.length === 0 ? (
-        <p className="py-8 text-center text-muted-foreground">
-          No records found
+        <p className="py-16 text-center font-display text-xl text-muted-foreground italic">
+          No records found.
         </p>
       ) : (
-        <div className="space-y-1">
+        <div className="overflow-hidden rounded-md bg-card/85 shadow-paper ring-1 ring-border">
+          <RecordListHeader />
           {filteredRecords.map((record) => (
             <RecordRow
               key={record.id}
@@ -593,149 +777,23 @@ export function DebtsPage() {
 
       {/* Create Record Dialog */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>New Record</DialogTitle>
+            <div className="eyebrow">Debts & loans</div>
+            <DialogTitle>New record</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={createForm.handleSubmit(handleCreate)}
-            className="space-y-4"
+            className="space-y-6"
           >
-            <div className="space-y-2">
-              <Label>Person</Label>
-              <Select
-                value={createForm.watch('personId')}
-                onValueChange={(v) => createForm.setValue('personId', v ?? '')}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select person">
-                    {(v: string) => people?.find((p) => p.id === v)?.name ?? v}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {people
-                    ?.slice()
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              {createForm.formState.errors.personId && (
-                <p className="text-sm text-destructive">
-                  {createForm.formState.errors.personId.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Select
-                value={createForm.watch('type')}
-                onValueChange={(v) =>
-                  createForm.setValue('type', v as DebtType)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue>
-                    {(v: string) => v === 'DEBT' ? 'Debt (I owe)' : 'Loan (They owe me)'}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DEBT">Debt (I owe)</SelectItem>
-                  <SelectItem value="LOAN">Loan (They owe me)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Amount</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  {...createForm.register('amount')}
-                  aria-invalid={!!createForm.formState.errors.amount}
-                  className={cn(
-                    createForm.formState.errors.amount && 'border-destructive',
-                  )}
-                />
-                {createForm.formState.errors.amount && (
-                  <p className="text-sm text-destructive">
-                    {createForm.formState.errors.amount.message}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Currency</Label>
-                <Select
-                  value={createForm.watch('currency')}
-                  onValueChange={(v) =>
-                    createForm.setValue('currency', v as Currency)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CURRENCIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Category (optional)</Label>
-              <CategorySelect
-                categories={categories}
-                value={createForm.watch('categoryId') ?? ''}
-                onChange={(id) => createForm.setValue('categoryId', id)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Tags (optional)</Label>
-              <TagMultiSelect
-                tags={tags}
-                value={createForm.watch('tagIds') ?? []}
-                onChange={(ids) => createForm.setValue('tagIds', ids)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Description (optional)</Label>
-              <Input {...createForm.register('description')} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Date</Label>
-              <Input
-                type="date"
-                {...createForm.register('date')}
-                aria-invalid={!!createForm.formState.errors.date}
-                className={cn(
-                  createForm.formState.errors.date && 'border-destructive',
-                )}
-              />
-              {createForm.formState.errors.date && (
-                <p className="text-sm text-destructive">
-                  {createForm.formState.errors.date.message}
-                </p>
-              )}
-            </div>
-
+            <RecordFields form={createForm} people={people} categories={categories} tags={tags} />
             <Button
               type="submit"
+              size="lg"
               className="w-full"
               disabled={createMutation.isPending}
             >
-              {createMutation.isPending ? 'Creating...' : 'Create'}
+              {createMutation.isPending ? 'Recording…' : 'Record it'}
             </Button>
           </form>
         </DialogContent>
@@ -746,149 +804,23 @@ export function DebtsPage() {
         open={!!editRecord}
         onOpenChange={(open) => !open && setEditRecord(null)}
       >
-        <DialogContent className="max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Edit Record</DialogTitle>
+            <div className="eyebrow">Debts & loans</div>
+            <DialogTitle>Edit record</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={editForm.handleSubmit(handleEdit)}
-            className="space-y-4"
+            className="space-y-6"
           >
-            <div className="space-y-2">
-              <Label>Person</Label>
-              <Select
-                value={editForm.watch('personId')}
-                onValueChange={(v) => editForm.setValue('personId', v ?? '')}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select person">
-                    {(v: string) => people?.find((p) => p.id === v)?.name ?? v}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {people
-                    ?.slice()
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              {editForm.formState.errors.personId && (
-                <p className="text-sm text-destructive">
-                  {editForm.formState.errors.personId.message}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label>Type</Label>
-              <Select
-                value={editForm.watch('type')}
-                onValueChange={(v) =>
-                  editForm.setValue('type', v as DebtType)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue>
-                    {(v: string) => v === 'DEBT' ? 'Debt (I owe)' : 'Loan (They owe me)'}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DEBT">Debt (I owe)</SelectItem>
-                  <SelectItem value="LOAN">Loan (They owe me)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Amount</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  {...editForm.register('amount')}
-                  aria-invalid={!!editForm.formState.errors.amount}
-                  className={cn(
-                    editForm.formState.errors.amount && 'border-destructive',
-                  )}
-                />
-                {editForm.formState.errors.amount && (
-                  <p className="text-sm text-destructive">
-                    {editForm.formState.errors.amount.message}
-                  </p>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label>Currency</Label>
-                <Select
-                  value={editForm.watch('currency')}
-                  onValueChange={(v) =>
-                    editForm.setValue('currency', v as Currency)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CURRENCIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Category (optional)</Label>
-              <CategorySelect
-                categories={categories}
-                value={editForm.watch('categoryId') ?? ''}
-                onChange={(id) => editForm.setValue('categoryId', id)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Tags (optional)</Label>
-              <TagMultiSelect
-                tags={tags}
-                value={editForm.watch('tagIds') ?? []}
-                onChange={(ids) => editForm.setValue('tagIds', ids)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Description (optional)</Label>
-              <Input {...editForm.register('description')} />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Date</Label>
-              <Input
-                type="date"
-                {...editForm.register('date')}
-                aria-invalid={!!editForm.formState.errors.date}
-                className={cn(
-                  editForm.formState.errors.date && 'border-destructive',
-                )}
-              />
-              {editForm.formState.errors.date && (
-                <p className="text-sm text-destructive">
-                  {editForm.formState.errors.date.message}
-                </p>
-              )}
-            </div>
-
+            <RecordFields form={editForm} people={people} categories={categories} tags={tags} />
             <Button
               type="submit"
+              size="lg"
               className="w-full"
               disabled={updateMutation.isPending}
             >
-              {updateMutation.isPending ? 'Saving...' : 'Save'}
+              {updateMutation.isPending ? 'Saving…' : 'Save changes'}
             </Button>
           </form>
         </DialogContent>

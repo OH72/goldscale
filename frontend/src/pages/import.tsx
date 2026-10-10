@@ -493,22 +493,22 @@ function ImportTableRow({
 
   const typeBadgeColor =
     row.type === 'INCOME'
-      ? 'border-green-500 text-green-600'
+      ? 'border-positive/50 text-positive'
       : row.type === 'EXPENSE'
-        ? 'border-red-500 text-red-600'
+        ? 'border-negative/50 text-negative'
         : row.type === 'TRANSFER'
-          ? 'border-blue-500 text-blue-600'
-          : 'border-gray-500 text-gray-600'
+          ? 'border-gold/50 text-gold'
+          : 'border-foreground/25 text-muted-foreground'
 
   return (
     <TableRow>
       <TableCell>
         <Checkbox checked={isSelected} onCheckedChange={onToggleSelect} />
       </TableCell>
-      <TableCell className="whitespace-nowrap">{row.date}</TableCell>
+      <TableCell className="num whitespace-nowrap">{row.date}</TableCell>
       <TableCell>
         {row.type === 'INITIAL_BALANCE' ? (
-          <Badge variant="outline" className="border-gray-500 text-gray-600">
+          <Badge variant="secondary">
             INIT BAL
           </Badge>
         ) : (
@@ -580,8 +580,8 @@ function ImportTableRow({
                   className={cn(
                     'rounded px-1.5 py-0.5 text-xs font-medium',
                     (row.transferDirection ?? 'out') === 'out'
-                      ? 'bg-orange-100 text-orange-700'
-                      : 'bg-green-100 text-green-700',
+                      ? 'bg-negative/10 text-negative'
+                      : 'bg-positive/10 text-positive',
                   )}
                   onClick={() =>
                     onUpdate({
@@ -651,7 +651,7 @@ function ImportTableRow({
             className={cn(
               'text-sm',
               row.categoryAutoSelected
-                ? 'text-blue-600'
+                ? 'text-gold'
                 : 'text-muted-foreground',
             )}
           >
@@ -665,7 +665,7 @@ function ImportTableRow({
             <SelectTrigger
               className={cn(
                 'h-8 w-44',
-                row.categoryAutoSelected && 'border-blue-400',
+                row.categoryAutoSelected && 'border-gold/60',
               )}
             >
               <SelectValue>

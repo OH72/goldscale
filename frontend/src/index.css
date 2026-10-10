@@ -125,6 +125,7 @@
 
 /* Dark — the ledger by lamplight */
 .dark {
+    color-scheme: dark;
     --paper: #121210;
     --background: #121210;
     --foreground: #ece5d6;

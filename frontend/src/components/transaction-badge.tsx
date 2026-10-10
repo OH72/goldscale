@@ -1,9 +1,9 @@
 import { Badge } from '@/components/ui/badge'
 import type { TransactionType } from '@/types/common'
 
-const typeConfig: Record<TransactionType, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  INCOME: { label: 'Income', variant: 'default' },
-  EXPENSE: { label: 'Expense', variant: 'destructive' },
+const typeConfig: Record<TransactionType, { label: string; variant: 'positive' | 'negative' | 'secondary' | 'outline' }> = {
+  INCOME: { label: 'Income', variant: 'positive' },
+  EXPENSE: { label: 'Expense', variant: 'negative' },
   TRANSFER: { label: 'Transfer', variant: 'secondary' },
   INITIAL_BALANCE: { label: 'Initial', variant: 'outline' },
 }

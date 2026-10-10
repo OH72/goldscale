@@ -55,10 +55,10 @@ const TYPE_LABELS: Record<CategoryType, string> = {
   BOTH: 'Both',
 }
 
-const TYPE_COLORS: Record<CategoryType, string> = {
-  INCOME: 'border-green-500 text-green-600',
-  EXPENSE: 'border-red-500 text-red-600',
-  BOTH: 'border-blue-500 text-blue-600',
+const TYPE_VARIANTS: Record<CategoryType, 'positive' | 'negative' | 'gold'> = {
+  INCOME: 'positive',
+  EXPENSE: 'negative',
+  BOTH: 'gold',
 }
 
 export function CategoriesPage() {
@@ -205,22 +205,28 @@ export function CategoriesPage() {
       </div>
 
       {sortedCategories.length === 0 ? (
-        <p className="py-8 text-center text-muted-foreground">
-          No categories yet
+        <p className="py-16 text-center font-display text-xl text-muted-foreground italic">
+          No categories yet.
         </p>
       ) : (
-        <div className="space-y-1">
-          <div className="flex items-center px-4 py-2">
+        <div className="overflow-hidden rounded-md bg-card/85 shadow-paper ring-1 ring-border">
+          <div className="flex items-center gap-3 border-b border-foreground/60 px-5 py-3">
             <Checkbox
               checked={allSelected}
               data-state={someSelected && !allSelected ? 'indeterminate' : undefined}
               onCheckedChange={() => toggleSelectAll()}
             />
+            <span className="eyebrow">
+              {selectedIds.size > 0
+                ? `${selectedIds.size} selected`
+                : `${sortedCategories.length} categories`}
+            </span>
           </div>
+          <ul className="-mb-px grid lg:grid-cols-2">
           {sortedCategories.map((cat) => (
-            <div
+            <li
               key={cat.id}
-              className="flex items-center justify-between rounded-md border px-4 py-3"
+              className="flex items-center justify-between border-b border-border/80 py-1.5 pr-3 pl-5 transition-colors hover:bg-gold/[0.05] lg:odd:border-r"
             >
               <div className="flex items-center gap-3">
                 <Checkbox
@@ -228,7 +234,7 @@ export function CategoriesPage() {
                   onCheckedChange={() => toggleSelect(cat.id)}
                 />
                 <span className="font-medium">{cat.name}</span>
-                <Badge variant="outline" className={TYPE_COLORS[cat.type]}>
+                <Badge variant={TYPE_VARIANTS[cat.type]}>
                   {TYPE_LABELS[cat.type]}
                 </Badge>
               </div>
@@ -250,8 +256,9 @@ export function CategoriesPage() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </div>
+            </li>
           ))}
+          </ul>
         </div>
       )}
 

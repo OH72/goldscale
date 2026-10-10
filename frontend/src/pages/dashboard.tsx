@@ -612,7 +612,7 @@ export function DashboardPage() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={barData} barGap={3} barCategoryGap="28%">
                 <CartesianGrid {...gridProps(theme)} />
-                <XAxis dataKey="period" tick={axisTick(theme)} tickLine={false} axisLine={{ stroke: theme.ink, strokeOpacity: 0.5 }} />
+                <XAxis dataKey="period" tick={axisTick(theme)} tickLine={false} interval="preserveStartEnd" minTickGap={12} axisLine={{ stroke: theme.ink, strokeOpacity: 0.5 }} />
                 <YAxis tick={axisTick(theme)} tickFormatter={compactNumber} width={48} tickLine={false} axisLine={false} />
                 <Tooltip
                   cursor={{ fill: theme.cursor }}
@@ -687,7 +687,7 @@ export function DashboardPage() {
             <ResponsiveContainer width="100%" height={280}>
               <ComposedChart data={netTrendData}>
                 <CartesianGrid {...gridProps(theme)} />
-                <XAxis dataKey="period" tick={axisTick(theme)} tickLine={false} axisLine={{ stroke: theme.ink, strokeOpacity: 0.5 }} />
+                <XAxis dataKey="period" tick={axisTick(theme)} tickLine={false} interval="preserveStartEnd" minTickGap={12} axisLine={{ stroke: theme.ink, strokeOpacity: 0.5 }} />
                 <YAxis tick={axisTick(theme)} tickFormatter={compactNumber} width={48} tickLine={false} axisLine={false} />
                 <Tooltip
                   cursor={{ fill: theme.cursor }}
@@ -780,7 +780,7 @@ export function DashboardPage() {
               <ResponsiveContainer width="100%" height={320}>
                 <BarChart data={trendChartData} barCategoryGap="30%">
                   <CartesianGrid {...gridProps(theme)} />
-                  <XAxis dataKey="period" tick={axisTick(theme)} tickLine={false} axisLine={{ stroke: theme.ink, strokeOpacity: 0.5 }} />
+                  <XAxis dataKey="period" tick={axisTick(theme)} tickLine={false} interval="preserveStartEnd" minTickGap={12} axisLine={{ stroke: theme.ink, strokeOpacity: 0.5 }} />
                   <YAxis tick={axisTick(theme)} tickFormatter={compactNumber} width={48} tickLine={false} axisLine={false} />
                   <Tooltip
                     cursor={{ fill: theme.cursor }}

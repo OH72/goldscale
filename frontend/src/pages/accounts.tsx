@@ -9,6 +9,9 @@ import {
   useDeleteAccount,
 } from '@/api/use-accounts'
 import { PageHeader } from '@/components/layout/page-header'
+import { FigureStrip } from '@/components/figure-strip'
+import { AllocationBar } from '@/components/allocation-bar'
+import { useChartTheme } from '@/lib/chart-theme'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -104,6 +107,58 @@ function SortableHead({ field, label, className, sortField, sortDir, onSort }: S
         )}
       </button>
     </TableHead>
+  )
+}
+
+/** Headline figures and the split of holdings across active accounts. */
+function AccountsOverview({
+  accounts,
+  displayCurrency,
+}: {
+  accounts: AccountResponse[]
+  displayCurrency: string
+}) {
+  const theme = useChartTheme()
+  const active = accounts.filter((a) => a.active)
+  const total = active.reduce((sum, a) => sum + (a.balanceInDisplayCurrency ?? 0), 0)
+  const currencies = new Set(active.map((a) => a.currency)).size
+  const holdings = active
+    .filter((a) => (a.balanceInDisplayCurrency ?? 0) > 0)
+    .sort((a, b) => (b.balanceInDisplayCurrency ?? 0) - (a.balanceInDisplayCurrency ?? 0))
+  const largest = holdings[0]
+
+  return (
+    <div className="mb-8">
+      <FigureStrip
+        figures={[
+          { label: `Total held · ${displayCurrency}`, value: formatCurrency(total, displayCurrency) },
+          { label: 'Active accounts', value: String(active.length), note: `of ${accounts.length} in total` },
+          { label: 'Currencies', value: String(currencies) },
+          {
+            label: 'Largest holding',
+            value: largest?.name ?? '—',
+            text: true,
+            note: largest && total > 0
+              ? `${(((largest.balanceInDisplayCurrency ?? 0) / total) * 100).toFixed(0)}% of the total`
+              : undefined,
+          },
+        ]}
+      />
+      {holdings.length > 1 && (
+        <div className="mt-6">
+          <div className="eyebrow mb-3">Allocation</div>
+          <AllocationBar
+            currency={displayCurrency}
+            items={holdings.map((a, i) => ({
+              id: a.id,
+              name: a.name,
+              value: a.balanceInDisplayCurrency ?? 0,
+              color: a.color ?? theme.palette[i % theme.palette.length] ?? theme.ink,
+            }))}
+          />
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -208,9 +263,13 @@ export function AccountsPage() {
         </Button>
       </PageHeader>
 
+      {accounts && displayCurrency && (
+        <AccountsOverview accounts={accounts} displayCurrency={displayCurrency} />
+      )}
+
       <div className="mb-4 flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <Label className="text-sm text-muted-foreground">Currency</Label>
+          <span className="eyebrow">Currency</span>
           <Select
             value={currencyFilter || 'ALL'}
             onValueChange={(v) => setAccounts({ currencyFilter: v === 'ALL' ? '' : (v as Currency) })}
@@ -278,11 +337,11 @@ export function AccountsPage() {
                   }}
                 />
               </TableCell>
-              <TableCell>{account.currency}</TableCell>
-              <TableCell className="text-right">
+              <TableCell className="num text-muted-foreground">{account.currency}</TableCell>
+              <TableCell className="num text-right">
                 {formatCurrency(account.balance, account.currency)}
               </TableCell>
-              <TableCell className="text-right">
+              <TableCell className="num text-right">
                 {displayCurrency && account.balanceInDisplayCurrency !== null ? (
                   formatCurrency(account.balanceInDisplayCurrency, displayCurrency)
                 ) : (

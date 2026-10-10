@@ -30,7 +30,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { ArrowDown, ArrowUp, ArrowLeftRight, MoreHorizontal, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency } from '@/lib/currency'
+import { formatCurrency, formatSigned } from '@/lib/currency'
 import { formatDate } from '@/lib/date'
 import type {
   OffsetAllocation,
@@ -59,13 +59,22 @@ function SortHeader({ label, field, sortBy, direction, onSort, className }: Sort
   return (
     <button
       type="button"
-      className={cn('flex items-center gap-1 hover:text-foreground', active && 'text-foreground', className)}
+      className={cn('flex items-center gap-1 font-mono text-[10.5px] tracking-[0.14em] uppercase hover:text-foreground', active && 'text-foreground', className)}
       onClick={() => onSort(field)}
     >
       {label}
       {active && (direction === 'ASC' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />)}
     </button>
   )
+}
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join('')
 }
 
 function AllocationList({
@@ -79,20 +88,20 @@ function AllocationList({
 }) {
   return (
     <div>
-      <p className="mb-1 text-xs font-medium text-muted-foreground">{title}</p>
+      <p className="eyebrow mb-1.5">{title}</p>
       <div className="space-y-1">
         {allocations.map((a) => (
           <div
             key={a.recordId}
-            className="flex items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-1.5 text-sm"
+            className="flex items-center justify-between gap-3 rounded-[4px] bg-card/80 px-3 py-1.5 text-sm ring-1 ring-border/70"
           >
             <span className="min-w-0 truncate">
               {formatDate(a.date)}
               {a.description ? ` · ${a.description}` : ''}
             </span>
             <span className="shrink-0 text-right">
-              <span className="font-medium">−{formatCurrency(a.amount, currency)}</span>
-              <span className="ml-2 text-xs text-muted-foreground">
+              <span className="num">−{formatCurrency(a.amount, currency)}</span>
+              <span className="num ml-2 text-xs text-muted-foreground">
                 {formatCurrency(a.remainingBefore, currency)} →{' '}
                 {a.remainingAfter === 0 ? 'closed' : formatCurrency(a.remainingAfter, currency)}
               </span>
@@ -180,10 +189,10 @@ export function PeoplePage() {
       </PageHeader>
 
       {sorted.length === 0 ? (
-        <p className="py-8 text-center text-muted-foreground">No people yet</p>
+        <p className="py-16 text-center font-display text-xl text-muted-foreground italic">No people yet.</p>
       ) : (
-        <div className="space-y-1">
-          <div className="hidden grid-cols-[1fr_8rem_8rem_8rem_9rem] gap-4 px-4 text-xs font-medium text-muted-foreground sm:grid">
+        <div className="overflow-hidden rounded-md bg-card/85 shadow-paper ring-1 ring-border">
+          <div className="hidden grid-cols-[1fr_8rem_8rem_8rem_9rem] gap-4 border-b border-foreground/60 px-5 py-3 text-muted-foreground sm:grid">
             <SortHeader label="Name" field="NAME" sortBy={sortBy} direction={direction} onSort={toggleSort} />
             <SortHeader label="I owe" field="TOTAL_DEBT" sortBy={sortBy} direction={direction} onSort={toggleSort} className="justify-end" />
             <SortHeader label="They owe" field="TOTAL_LOAN" sortBy={sortBy} direction={direction} onSort={toggleSort} className="justify-end" />
@@ -195,42 +204,44 @@ export function PeoplePage() {
             return (
               <div
                 key={person.id}
-                className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 rounded-md border px-4 py-3 sm:grid-cols-[1fr_8rem_8rem_8rem_9rem]"
+                className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 border-b border-border/80 px-5 py-3 transition-colors last:border-0 hover:bg-gold/[0.05] sm:grid-cols-[1fr_8rem_8rem_8rem_9rem]"
               >
-                <span className="font-medium">{person.name}</span>
+                <span className="flex min-w-0 items-center gap-3">
+                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground/[0.06] font-display text-base text-foreground/80 ring-1 ring-border">
+                    {initials(person.name)}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate font-medium">{person.name}</span>
+                    {net !== 0 && (
+                      <span className={cn('num block text-xs sm:hidden', net > 0 ? 'text-positive' : 'text-negative')}>
+                        {formatSigned(net, displayCurrency)}
+                      </span>
+                    )}
+                  </span>
+                </span>
                 <span
                   className={cn(
-                    'hidden text-right text-sm sm:block',
-                    totalDebt > 0
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-muted-foreground',
+                    'num hidden text-right text-sm sm:block',
+                    totalDebt > 0 ? 'text-negative' : 'text-muted-foreground',
                   )}
                 >
                   {totalDebt > 0 ? formatCurrency(totalDebt, displayCurrency) : '—'}
                 </span>
                 <span
                   className={cn(
-                    'hidden text-right text-sm sm:block',
-                    totalLoan > 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-muted-foreground',
+                    'num hidden text-right text-sm sm:block',
+                    totalLoan > 0 ? 'text-positive' : 'text-muted-foreground',
                   )}
                 >
                   {totalLoan > 0 ? formatCurrency(totalLoan, displayCurrency) : '—'}
                 </span>
                 <span
                   className={cn(
-                    'hidden text-right text-sm font-medium sm:block',
-                    net > 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : net < 0
-                        ? 'text-red-600 dark:text-red-400'
-                        : 'text-muted-foreground',
+                    'num hidden text-right text-sm font-medium sm:block',
+                    net > 0 ? 'text-positive' : net < 0 ? 'text-negative' : 'text-muted-foreground',
                   )}
                 >
-                  {net === 0
-                    ? '—'
-                    : `${net > 0 ? '+' : ''}${formatCurrency(net, displayCurrency)}`}
+                  {net === 0 ? '—' : formatSigned(net, displayCurrency)}
                 </span>
                 <div className="flex items-center justify-end gap-1">
                 {person.canOffset && (
@@ -345,17 +356,19 @@ export function PeoplePage() {
       >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Offset debts and loans: {offsetPersonTarget?.name}</DialogTitle>
+            <div className="eyebrow">Offset · {offsetPersonTarget?.name}</div>
+            <DialogTitle>Square debts against loans</DialogTitle>
           </DialogHeader>
           {offsetPreview.isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
           {offsetPreview.data && offsetPreview.data.currencies.length === 0 && (
             <p className="text-sm text-muted-foreground">Nothing to offset anymore.</p>
           )}
           {offsetPreview.data?.currencies.map((entry) => (
-            <div key={entry.currency} className="space-y-3 rounded-md border p-3">
-              <p className="text-sm font-medium">
-                {formatCurrency(entry.amount, entry.currency)} will be offset
-              </p>
+            <div key={entry.currency} className="space-y-4 rounded-md bg-muted/40 p-4 ring-1 ring-border">
+              <div className="flex items-baseline justify-between gap-3 border-b border-border pb-3">
+                <span className="eyebrow">Will be offset</span>
+                <span className="num text-xl text-gold">{formatCurrency(entry.amount, entry.currency)}</span>
+              </div>
               <AllocationList
                 title="I owe (debts)"
                 allocations={entry.debts}
