@@ -20,7 +20,7 @@ The project owner is a backend developer with no React experience — write clea
 
 ### React Query (TanStack Query)
 - ALL server data goes through React Query. Never fetch in useEffect + useState.
-- Default config: `staleTime: 5min`, `gcTime: 10min`, `retry: 1`, `refetchOnWindowFocus: false`.
+- Default config: `staleTime: 0`, `gcTime: 1min`, `retry: 1`, `refetchOnMount: 'always'`, `refetchOnWindowFocus: true` — server data is never served from cache; only filter/sort choices persist (Zustand).
 - Query keys: use the factory pattern from `src/api/query-keys.ts`.
 - After mutations: invalidate related queries (e.g., creating transaction invalidates both transactions AND accounts).
 
@@ -156,20 +156,54 @@ export function formatCurrency(amountInSubunits: number, currency: string): stri
 | Hovered table row | `useState` | No other component cares |
 | Auth credentials | Zustand with persist | Survives page refresh (localStorage) |
 
+## Design System — "assay ledger"
+
+Warm paper and ink, brass (`gold`) as the single sharp accent, accounting green/vermilion for money in/out. Tokens live in `src/index.css`; never hard-code Tailwind palette colours (`text-red-600`, `bg-green-100`, …) in pages.
+
+### Tokens
+| Token | Use |
+|-------|-----|
+| `background` / `card` / `popover` | paper surfaces (light) / lamplit charcoal (dark) |
+| `foreground` / `muted-foreground` | ink / secondary ink |
+| `gold` | the accent: active nav, section numbers, focus rings, highlights |
+| `positive` / `negative` | income, money owed to you / expenses, money you owe |
+| `spine` / `spine-foreground` / `spine-muted` | the dark sidebar, in both themes |
+
+Badge variants: `positive`, `negative`, `gold`, `secondary`, `outline`. Button adds a `gold` variant; the default (ink) button carries a brass underline.
+
+### Typography
+- `font-display` (Instrument Serif) — page titles, panel titles, hero figures, empty states (italic).
+- `font-sans` (Schibsted Grotesk) — UI and body text.
+- `num` utility (IBM Plex Mono, tabular) — EVERY amount, date and count. Right-align numeric columns.
+- `eyebrow` utility — small mono uppercase labels (kickers, table heads, form labels).
+- `leader` utility — dotted leader between a label and a figure (statement lines, ranked lists).
+
+### Layout building blocks
+- `PageHeader` — section number and group come from `components/layout/nav.ts`, plus title, italic standfirst and a double rule. Add new routes to `navGroups` (sidebar and header both read it).
+- `Panel` (`components/panel.tsx`) — a "figure": `Fig. n — kicker`, serif title, optional `meta` (use `PanelStat`), body. Use `PanelEmpty` for loading/empty states.
+- `FigureStrip` — a row of headline figures separated by hairlines (`text: true` for names).
+- `AllocationBar`, `TagChip`, `MultiSelectFilter`, `ChartTooltip` — reuse rather than re-implementing.
+- Lists: one panel (`rounded-md bg-card/85 shadow-paper ring-1 ring-border`), ink-ruled header row, hairline rows, `hover:bg-gold/[0.05]`. Avoid stacks of individually bordered cards.
+
+### Charts
+- Get colours from `useChartTheme()` (`lib/chart-theme.ts`) — Recharts needs literal colours. Categorical palette is inks/pigments (petrol, brass, vermilion, forest, …), not UI blues.
+- Axis ticks: `tick={axisTick(theme)}`, `tickLine={false}`, horizontal dashed grid only (`vertical={false}`).
+- Tooltips: `content={<ChartTooltip formatValue=… formatName=… />}`.
+- Keep one colour per category across charts on a page (see `groupColor` in the dashboard).
+
 ## Dark Theme (next-themes)
 - `ThemeProvider` wraps the app in `app.tsx` with `attribute="class"`
 - Use `resolvedTheme` from `useTheme()` for runtime theme detection (e.g. chart color palette selection)
-- Theme toggle button in root layout header (sun/moon icons)
-- Recharts tooltips use CSS custom properties for theme-aware styling: `backgroundColor: 'var(--card)'`, `borderColor: 'var(--border)'`, `color: 'var(--card-foreground)'`
-- Two chart color palettes: `CHART_COLORS_LIGHT` (vibrant Tailwind) and `CHART_COLORS_DARK` (desaturated)
-- Bar chart hover cursor: `cursor={{ fill: cursorFill }}` where `cursorFill` is theme-dependent rgba
+- Theme switch (Light / Dark / System) lives at the foot of the sidebar spine (`components/layout/theme-switch.tsx`)
+- Two chart palettes in `lib/chart-theme.ts` (light inks, brighter dark variants), selected by `useChartTheme()`
+- Bar chart hover cursor: `cursor={{ fill: theme.cursor }}`
 
 ## Dashboard Charts & Filters
 - Filter panel: Period (preset select), From/To (date inputs), Accounts/Categories/Tags (multiselect popovers with search), Type (multiselect), Group by (category/tag toggle)
 - All filter popovers: search input at top, items sorted alphabetically, checkbox per item, Clear button
 - `ChartFilters` interface in `use-dashboard.ts` holds all filter state including `groupBy`
 - `buildChartParams()` serializes filters to URL search params (multi-value via `append`)
-- Charts: Expenses by Category/Tag (donut), Income vs Expenses (bar), Net Trend (composed bar+line), Exchange Rates (line), Expense Trend by Category/Tag (stacked bar)
+- Dashboard: hero net-worth figure with a running-net sparkline and a 'statement' (dotted-leader lines), then Fig. 1 Income vs Expenses (bar), Fig. 2 Where it went (ranked list), Fig. 3 Net position (bar + line), Fig. 4 Exchange rates (line), Fig. 5 Expense trend (stacked bar), Fig. 6 Latest entries
 - Frontend types: `GroupExpenseResponse(id, name, amount)` — generic for both groupings; `ExpenseTrendResponse(period, groups)`
 - Y-axis uses `compactNumber` formatter (K/M abbreviations) with `width={55}` to prevent overflow
 - Exchange rate chart downsampled to ~60 points for tooltip/marker alignment
@@ -217,6 +251,8 @@ export function formatCurrency(amountInSubunits: number, currency: string): stri
 14. **Never convert currency client-side.** Display-currency amounts come from the backend (e.g. `balanceInDisplayCurrency: number | null`). Render `null` as a placeholder, sort nulls last, and invalidate `queryKeys.accounts.all` when settings (display currency) change.
 
 15. **Components defined inside components.** Do not declare a component inside another component's body (it remounts every render). Hoist to module level and pass props.
+
+16. **Base UI, not Radix.** `components/ui` is built on `@base-ui/react`. There is no `asChild`, `onOpenAutoFocus` or `--radix-*` variable. Compose triggers with `render`: `<PopoverTrigger render={<Button variant="outline" />}>…</PopoverTrigger>`; use `initialFocus={false}` on `PopoverContent`; size popups to the trigger with `w-(--anchor-width)`. Select `onValueChange` passes `string | null` — handle `null`.
 
 ## Project Structure
 ```

@@ -12,7 +12,8 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 
 ### Frontend
 - React 19, TypeScript, Vite
-- Tailwind CSS, Shadcn/ui
+- Tailwind CSS v4, Shadcn/ui (base-nova style, built on Base UI — not Radix)
+- Fonts via Fontsource: Instrument Serif (display), Schibsted Grotesk (UI/body), IBM Plex Mono (figures)
 - TanStack Query (React Query) — server state
 - Zustand — client-only UI state
 - React Router v7
