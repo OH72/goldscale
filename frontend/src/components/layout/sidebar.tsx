@@ -1,143 +1,76 @@
 import { NavLink } from 'react-router-dom'
-import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
+import {
+  LayoutDashboard,
+  Wallet,
+  ArrowLeftRight,
+  Tag,
+  Tags,
+  Users,
+  HandCoins,
+  Upload,
+  Settings,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUiStore } from '@/stores/ui-store'
-import { useSettings } from '@/api/use-settings'
-import { LogoMark } from '@/components/brand/logo-mark'
-import { navGroups, navItems } from './nav'
-import { ThemeSwitch } from './theme-switch'
 
-interface SidebarProps {
-  /** Rendered inside the mobile drawer: always expanded, with a close button */
-  mobile?: boolean
-}
+const navItems = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/accounts', label: 'Accounts', icon: Wallet },
+  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { to: '/categories', label: 'Categories', icon: Tag },
+  { to: '/tags', label: 'Tags', icon: Tags },
+  { to: '/people', label: 'People', icon: Users },
+  { to: '/debts', label: 'Debts & Loans', icon: HandCoins },
+  { to: '/import', label: 'Import', icon: Upload },
+  { to: '/settings', label: 'Settings', icon: Settings },
+]
 
-export function Sidebar({ mobile }: SidebarProps) {
+export function Sidebar() {
   const sidebarOpen = useUiStore((s) => s.sidebarOpen)
-  const toggleSidebar = useUiStore((s) => s.toggleSidebar)
-  const setMobileNavOpen = useUiStore((s) => s.setMobileNavOpen)
-  const expanded = mobile || sidebarOpen
-  const { data: settings } = useSettings()
 
   return (
     <aside
       className={cn(
-        'relative flex h-full flex-col bg-spine text-spine-foreground transition-[width] duration-200',
-        expanded ? 'w-64' : 'w-[4.25rem]',
+        'relative shrink-0 bg-spine text-spine-foreground transition-all duration-200',
+        sidebarOpen ? 'w-56' : 'w-14',
       )}
     >
       {/* Brass hairline down the spine's edge */}
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-gold/0 via-gold/45 to-gold/0" />
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-gold/0 via-gold/40 to-gold/0" />
 
-      {/* Masthead */}
-      <div className={cn('flex items-start gap-3 pt-6 pb-7', expanded ? 'px-6' : 'flex-col items-center px-0')}>
-        <LogoMark className="size-8 shrink-0" />
-        {expanded && (
-          <div className="min-w-0 flex-1">
-            <div className="font-display text-[1.65rem] leading-none tracking-tight">GoldScale</div>
-            <div className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.18em] text-spine-muted">
-              Personal ledger
-            </div>
-          </div>
-        )}
-        {mobile ? (
-          <button
-            type="button"
-            onClick={() => setMobileNavOpen(false)}
-            className="flex size-8 items-center justify-center rounded-md text-spine-muted hover:bg-sidebar-accent hover:text-spine-foreground"
-            aria-label="Close navigation"
-          >
-            <X className="size-4" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="flex size-8 items-center justify-center rounded-md text-spine-muted transition-colors hover:bg-sidebar-accent hover:text-spine-foreground"
-            aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
-          >
-            {expanded ? <PanelLeftClose className="size-4" /> : <PanelLeftOpen className="size-4" />}
-          </button>
+      <div className="flex h-14 items-center border-b border-sidebar-border px-4">
+        {sidebarOpen && (
+          <span className="font-display text-[1.6rem] leading-none tracking-tight">
+            Gold<span className="text-gold italic">Scale</span>
+          </span>
         )}
       </div>
-
-      {/* Contents */}
-      <nav className={cn('flex-1 overflow-y-auto pb-6', expanded ? 'px-3' : 'px-2.5')}>
-        {navGroups.map((group) => (
-          <div key={group.label} className="mb-5">
-            {expanded ? (
-              <div className="mb-1.5 px-3 font-mono text-[10px] uppercase tracking-[0.18em] text-spine-muted/80">
-                {group.label}
-              </div>
-            ) : (
-              <div className="mx-auto mb-2 h-px w-6 bg-sidebar-border" />
+      <nav className="flex flex-col gap-0.5 p-2">
+        {navItems.map(({ to, label, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === '/'}
+            title={sidebarOpen ? undefined : label}
+            className={({ isActive }) =>
+              cn(
+                'relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors',
+                'hover:bg-sidebar-accent hover:text-spine-foreground',
+                isActive
+                  ? 'bg-sidebar-accent text-spine-foreground before:absolute before:top-1/2 before:left-0 before:h-4 before:w-[2px] before:-translate-y-1/2 before:rounded-full before:bg-gold'
+                  : 'text-spine-foreground/70',
+              )
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <Icon className={cn('h-4 w-4 shrink-0', isActive && 'text-gold')} />
+                {sidebarOpen && <span>{label}</span>}
+              </>
             )}
-            <ul className="space-y-0.5">
-              {group.items.map((item) => {
-                const numbered = navItems.find((n) => n.to === item.to)
-                const Icon = item.icon
-                return (
-                  <li key={item.to}>
-                    <NavLink
-                      to={item.to}
-                      end={item.to === '/'}
-                      title={expanded ? undefined : item.label}
-                      onClick={() => mobile && setMobileNavOpen(false)}
-                      className={({ isActive }) =>
-                        cn(
-                          'group relative flex items-center rounded-md text-[0.9rem] transition-colors',
-                          expanded ? 'gap-3 px-3 py-[0.45rem]' : 'justify-center py-2.5',
-                          isActive
-                            ? 'bg-sidebar-accent text-spine-foreground'
-                            : 'text-spine-foreground/70 hover:bg-sidebar-accent/60 hover:text-spine-foreground',
-                        )
-                      }
-                    >
-                      {({ isActive }) => (
-                        <>
-                          <span
-                            className={cn(
-                              'absolute top-1/2 left-0 h-4 w-[2px] -translate-y-1/2 rounded-full bg-gold transition-opacity',
-                              isActive ? 'opacity-100' : 'opacity-0',
-                            )}
-                          />
-                          {expanded ? (
-                            <span
-                              className={cn(
-                                'w-5 font-mono text-[10.5px] tabular-nums',
-                                isActive ? 'text-gold' : 'text-spine-muted group-hover:text-spine-foreground/70',
-                              )}
-                            >
-                              {numbered?.number}
-                            </span>
-                          ) : (
-                            <Icon className={cn('size-[1.1rem]', isActive && 'text-gold')} />
-                          )}
-                          {expanded && <span className="truncate">{item.label}</span>}
-                        </>
-                      )}
-                    </NavLink>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
+          </NavLink>
         ))}
       </nav>
-
-      {/* Colophon */}
-      <div className={cn('border-t border-sidebar-border', expanded ? 'space-y-3 px-6 py-5' : 'flex justify-center py-4')}>
-        {expanded ? (
-          <>
-            <ThemeSwitch />
-            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-spine-muted/70">
-              Kept in {settings?.displayCurrency ?? '—'}
-            </div>
-          </>
-        ) : (
-          <ThemeSwitch compact />
-        )}
-      </div>
     </aside>
   )
 }

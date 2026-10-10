@@ -39,12 +39,7 @@ export function MultiSelectFilter({
   const visible = (keepOrder ? options : options.slice().sort((a, b) => a.name.localeCompare(b.name)))
     .filter((o) => o.name.toLowerCase().includes(q))
 
-  const label =
-    selected.length === 0
-      ? allLabel
-      : selected.length === 1
-        ? (options.find((o) => o.id === selected[0])?.name ?? '1 selected')
-        : `${selected.length} selected`
+  const label = selected.length === 0 ? allLabel : `${selected.length} selected`
 
   return (
     <Popover>
@@ -59,7 +54,7 @@ export function MultiSelectFilter({
         <span className="truncate">{label}</span>
         <ChevronsUpDown className="ml-2 size-3.5 shrink-0 opacity-50" />
       </PopoverTrigger>
-      <PopoverContent className="w-60 gap-0 p-2" initialFocus={false}>
+      <PopoverContent className="w-56 gap-0 p-2" initialFocus={false}>
         {searchable && (
           <div className="relative mb-2">
             <Search className="absolute top-2.5 left-2.5 size-3.5 text-muted-foreground" />

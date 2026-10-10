@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/layout/page-header'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -68,20 +69,17 @@ export function TagsPage() {
       </PageHeader>
 
       {sorted.length === 0 ? (
-        <p className="py-16 text-center font-display text-xl text-muted-foreground italic">No tags yet.</p>
+        <p className="py-8 text-center font-display text-lg text-muted-foreground italic">No tags yet</p>
       ) : (
-        <div className="overflow-hidden rounded-md bg-card/85 shadow-paper ring-1 ring-border">
-          <div className="eyebrow border-b border-foreground/60 px-5 py-3">{sorted.length} tags</div>
-          <ul className="-mb-px grid sm:grid-cols-2 lg:grid-cols-3">
+        <div className="space-y-1">
           {sorted.map((tag) => (
-            <li
+            <div
               key={tag.id}
-              className="flex items-center justify-between border-b border-border/80 py-1.5 pr-3 pl-5 transition-colors hover:bg-gold/[0.05] sm:border-r"
+              className="flex items-center justify-between rounded-md border bg-card/85 px-4 py-2.5 shadow-paper"
             >
-              <span className="min-w-0 truncate font-mono text-sm">
-                <span className="mr-0.5 text-gold">#</span>
-                {tag.name}
-              </span>
+              <div className="flex items-center gap-3">
+                <Badge variant="outline">{tag.name}</Badge>
+              </div>
               <DropdownMenu>
                 <DropdownMenuTrigger
                   render={<Button variant="ghost" size="icon" />}
@@ -97,9 +95,8 @@ export function TagsPage() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </li>
+            </div>
           ))}
-          </ul>
         </div>
       )}
 

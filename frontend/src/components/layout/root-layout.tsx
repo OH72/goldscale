@@ -1,74 +1,33 @@
-import { useEffect } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
-import { Menu } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { useUiStore } from '@/stores/ui-store'
-import { LogoMark } from '@/components/brand/logo-mark'
+import { Outlet } from 'react-router-dom'
+import { useTheme } from 'next-themes'
 import { Sidebar } from './sidebar'
+import { Menu, Moon, Sun } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { useUiStore } from '@/stores/ui-store'
 
 export function RootLayout() {
-  const mobileNavOpen = useUiStore((s) => s.mobileNavOpen)
-  const setMobileNavOpen = useUiStore((s) => s.setMobileNavOpen)
-  const { pathname } = useLocation()
-
-  // Close the drawer and return to the top on navigation
-  useEffect(() => {
-    setMobileNavOpen(false)
-    window.scrollTo({ top: 0 })
-  }, [pathname, setMobileNavOpen])
+  const toggleSidebar = useUiStore((s) => s.toggleSidebar)
+  const { resolvedTheme, setTheme } = useTheme()
 
   return (
-    <div className="flex min-h-dvh">
-      {/* Desktop spine */}
-      <div className="hidden shrink-0 bg-spine md:block">
-        <div className="sticky top-0 h-dvh">
-          <Sidebar />
-        </div>
-      </div>
-
-      {/* Mobile drawer */}
-      <div
-        className={cn(
-          'fixed inset-0 z-40 md:hidden',
-          mobileNavOpen ? 'pointer-events-auto' : 'pointer-events-none',
-        )}
-        aria-hidden={!mobileNavOpen}
-      >
-        <div
-          className={cn(
-            'absolute inset-0 bg-spine/50 backdrop-blur-[2px] transition-opacity',
-            mobileNavOpen ? 'opacity-100' : 'opacity-0',
-          )}
-          onClick={() => setMobileNavOpen(false)}
-        />
-        <div
-          className={cn(
-            'absolute inset-y-0 left-0 transition-transform duration-200',
-            mobileNavOpen ? 'translate-x-0' : '-translate-x-full',
-          )}
-        >
-          <Sidebar mobile />
-        </div>
-      </div>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile masthead */}
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/85 px-4 backdrop-blur md:hidden">
-          <div className="flex items-center gap-2.5">
-            <LogoMark className="size-6" />
-            <span className="font-display text-xl leading-none">GoldScale</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setMobileNavOpen(true)}
-            className="flex size-9 items-center justify-center rounded-md hover:bg-muted"
-            aria-label="Open navigation"
+    <div className="flex h-screen overflow-hidden">
+      <Sidebar />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <header className="flex h-14 items-center justify-between border-b border-border bg-background/60 px-4 backdrop-blur-sm">
+          <Button variant="ghost" size="icon" onClick={toggleSidebar} aria-label="Toggle sidebar">
+            <Menu className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            aria-label="Toggle theme"
           >
-            <Menu className="size-5" />
-          </button>
+            <Sun className="h-4 w-4 scale-100 dark:scale-0" />
+            <Moon className="absolute h-4 w-4 scale-0 dark:scale-100" />
+          </Button>
         </header>
-
-        <main className="mx-auto w-full max-w-[1380px] flex-1 px-4 pt-6 pb-16 sm:px-8 md:pt-10 lg:px-12">
+        <main className="flex-1 overflow-auto p-6 lg:p-8">
           <Outlet />
         </main>
       </div>

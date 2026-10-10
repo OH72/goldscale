@@ -205,28 +205,22 @@ export function CategoriesPage() {
       </div>
 
       {sortedCategories.length === 0 ? (
-        <p className="py-16 text-center font-display text-xl text-muted-foreground italic">
-          No categories yet.
+        <p className="py-8 text-center font-display text-lg text-muted-foreground italic">
+          No categories yet
         </p>
       ) : (
-        <div className="overflow-hidden rounded-md bg-card/85 shadow-paper ring-1 ring-border">
-          <div className="flex items-center gap-3 border-b border-foreground/60 px-5 py-3">
+        <div className="space-y-1">
+          <div className="flex items-center px-4 py-2">
             <Checkbox
               checked={allSelected}
               data-state={someSelected && !allSelected ? 'indeterminate' : undefined}
               onCheckedChange={() => toggleSelectAll()}
             />
-            <span className="eyebrow">
-              {selectedIds.size > 0
-                ? `${selectedIds.size} selected`
-                : `${sortedCategories.length} categories`}
-            </span>
           </div>
-          <ul className="-mb-px grid lg:grid-cols-2">
           {sortedCategories.map((cat) => (
-            <li
+            <div
               key={cat.id}
-              className="flex items-center justify-between border-b border-border/80 py-1.5 pr-3 pl-5 transition-colors hover:bg-gold/[0.05] lg:odd:border-r"
+              className="flex items-center justify-between rounded-md border bg-card/85 px-4 py-2.5 shadow-paper"
             >
               <div className="flex items-center gap-3">
                 <Checkbox
@@ -256,9 +250,8 @@ export function CategoriesPage() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </li>
+            </div>
           ))}
-          </ul>
         </div>
       )}
 

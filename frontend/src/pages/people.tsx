@@ -30,7 +30,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { ArrowDown, ArrowUp, ArrowLeftRight, MoreHorizontal, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCurrency, formatSigned } from '@/lib/currency'
+import { formatCurrency } from '@/lib/currency'
 import { formatDate } from '@/lib/date'
 import type {
   OffsetAllocation,
@@ -68,15 +68,6 @@ function SortHeader({ label, field, sortBy, direction, onSort, className }: Sort
   )
 }
 
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('')
-}
-
 function AllocationList({
   title,
   allocations,
@@ -93,7 +84,7 @@ function AllocationList({
         {allocations.map((a) => (
           <div
             key={a.recordId}
-            className="flex items-center justify-between gap-3 rounded-[4px] bg-card/80 px-3 py-1.5 text-sm ring-1 ring-border/70"
+            className="flex items-center justify-between gap-3 rounded-md bg-muted/50 px-3 py-1.5 text-sm"
           >
             <span className="min-w-0 truncate">
               {formatDate(a.date)}
@@ -189,10 +180,10 @@ export function PeoplePage() {
       </PageHeader>
 
       {sorted.length === 0 ? (
-        <p className="py-16 text-center font-display text-xl text-muted-foreground italic">No people yet.</p>
+        <p className="py-8 text-center font-display text-lg text-muted-foreground italic">No people yet</p>
       ) : (
-        <div className="overflow-hidden rounded-md bg-card/85 shadow-paper ring-1 ring-border">
-          <div className="hidden grid-cols-[1fr_8rem_8rem_8rem_9rem] gap-4 border-b border-foreground/60 px-5 py-3 text-muted-foreground sm:grid">
+        <div className="space-y-1">
+          <div className="hidden grid-cols-[1fr_8rem_8rem_8rem_9rem] gap-4 px-4 pb-1 text-muted-foreground sm:grid">
             <SortHeader label="Name" field="NAME" sortBy={sortBy} direction={direction} onSort={toggleSort} />
             <SortHeader label="I owe" field="TOTAL_DEBT" sortBy={sortBy} direction={direction} onSort={toggleSort} className="justify-end" />
             <SortHeader label="They owe" field="TOTAL_LOAN" sortBy={sortBy} direction={direction} onSort={toggleSort} className="justify-end" />
@@ -204,21 +195,9 @@ export function PeoplePage() {
             return (
               <div
                 key={person.id}
-                className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 border-b border-border/80 px-5 py-3 transition-colors last:border-0 hover:bg-gold/[0.05] sm:grid-cols-[1fr_8rem_8rem_8rem_9rem]"
+                className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-1 rounded-md border bg-card/85 px-4 py-3 shadow-paper sm:grid-cols-[1fr_8rem_8rem_8rem_9rem]"
               >
-                <span className="flex min-w-0 items-center gap-3">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-foreground/[0.06] font-display text-base text-foreground/80 ring-1 ring-border">
-                    {initials(person.name)}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">{person.name}</span>
-                    {net !== 0 && (
-                      <span className={cn('num block text-xs sm:hidden', net > 0 ? 'text-positive' : 'text-negative')}>
-                        {formatSigned(net, displayCurrency)}
-                      </span>
-                    )}
-                  </span>
-                </span>
+                <span className="font-medium">{person.name}</span>
                 <span
                   className={cn(
                     'num hidden text-right text-sm sm:block',
@@ -237,11 +216,13 @@ export function PeoplePage() {
                 </span>
                 <span
                   className={cn(
-                    'num hidden text-right text-sm font-medium sm:block',
+                    'num hidden text-right text-sm sm:block',
                     net > 0 ? 'text-positive' : net < 0 ? 'text-negative' : 'text-muted-foreground',
                   )}
                 >
-                  {net === 0 ? '—' : formatSigned(net, displayCurrency)}
+                  {net === 0
+                    ? '—'
+                    : `${net > 0 ? '+' : ''}${formatCurrency(net, displayCurrency)}`}
                 </span>
                 <div className="flex items-center justify-end gap-1">
                 {person.canOffset && (
@@ -356,19 +337,17 @@ export function PeoplePage() {
       >
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
-            <div className="eyebrow">Offset · {offsetPersonTarget?.name}</div>
-            <DialogTitle>Square debts against loans</DialogTitle>
+            <DialogTitle>Offset debts and loans: {offsetPersonTarget?.name}</DialogTitle>
           </DialogHeader>
           {offsetPreview.isLoading && <p className="text-sm text-muted-foreground">Loading...</p>}
           {offsetPreview.data && offsetPreview.data.currencies.length === 0 && (
             <p className="text-sm text-muted-foreground">Nothing to offset anymore.</p>
           )}
           {offsetPreview.data?.currencies.map((entry) => (
-            <div key={entry.currency} className="space-y-4 rounded-md bg-muted/40 p-4 ring-1 ring-border">
-              <div className="flex items-baseline justify-between gap-3 border-b border-border pb-3">
-                <span className="eyebrow">Will be offset</span>
-                <span className="num text-xl text-gold">{formatCurrency(entry.amount, entry.currency)}</span>
-              </div>
+            <div key={entry.currency} className="space-y-3 rounded-md border p-3">
+              <p className="text-sm">
+                <span className="num text-gold">{formatCurrency(entry.amount, entry.currency)}</span> will be offset
+              </p>
               <AllocationList
                 title="I owe (debts)"
                 allocations={entry.debts}

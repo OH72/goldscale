@@ -175,26 +175,23 @@ Badge variants: `positive`, `negative`, `gold`, `secondary`, `outline`. Button a
 - `font-display` (Instrument Serif) — page titles, panel titles, hero figures, empty states (italic).
 - `font-sans` (Schibsted Grotesk) — UI and body text.
 - `num` utility (IBM Plex Mono, tabular) — EVERY amount, date and count. Right-align numeric columns.
-- `eyebrow` utility — small mono uppercase labels (kickers, table heads, form labels).
-- `leader` utility — dotted leader between a label and a figure (statement lines, ranked lists).
+- `eyebrow` utility — small mono uppercase labels (net-worth labels, payment headings). `Label`, `TableHead` and `CardTitle` are already styled (mono caps / serif) — don't override their size classes.
 
 ### Layout building blocks
-- `PageHeader` — section number and group come from `components/layout/nav.ts`, plus title, italic standfirst and a double rule. Add new routes to `navGroups` (sidebar and header both read it).
-- `Panel` (`components/panel.tsx`) — a "figure": `Fig. n — kicker`, serif title, optional `meta` (use `PanelStat`), body. Use `PanelEmpty` for loading/empty states.
-- `FigureStrip` — a row of headline figures separated by hairlines (`text: true` for names).
-- `AllocationBar`, `TagChip`, `MultiSelectFilter`, `ChartTooltip` — reuse rather than re-implementing.
-- Lists: one panel (`rounded-md bg-card/85 shadow-paper ring-1 ring-border`), ink-ruled header row, hairline rows, `hover:bg-gold/[0.05]`. Avoid stacks of individually bordered cards.
+- The visual layer must not change page structure: same elements, charts, order and labels. Restyle via tokens and primitives, not by adding sections.
+- `PageHeader` — serif title over an ink rule; an `&` in the title is set in italic brass.
+- Surfaces: cards and list rows use `bg-card/85 shadow-paper` with a hairline border/ring.
+- `TagChip`, `MultiSelectFilter`, `ChartTooltip` — reuse rather than re-implementing.
 
 ### Charts
 - Get colours from `useChartTheme()` (`lib/chart-theme.ts`) — Recharts needs literal colours. Categorical palette is inks/pigments (petrol, brass, vermilion, forest, …), not UI blues.
 - Axis ticks: `tick={axisTick(theme)}`, `tickLine={false}`, horizontal dashed grid only (`vertical={false}`).
 - Tooltips: `content={<ChartTooltip formatValue=… formatName=… />}`.
-- Keep one colour per category across charts on a page (see `groupColor` in the dashboard).
 
 ## Dark Theme (next-themes)
 - `ThemeProvider` wraps the app in `app.tsx` with `attribute="class"`
 - Use `resolvedTheme` from `useTheme()` for runtime theme detection (e.g. chart color palette selection)
-- Theme switch (Light / Dark / System) lives at the foot of the sidebar spine (`components/layout/theme-switch.tsx`)
+- Theme toggle button (sun/moon) in the root layout header
 - Two chart palettes in `lib/chart-theme.ts` (light inks, brighter dark variants), selected by `useChartTheme()`
 - Bar chart hover cursor: `cursor={{ fill: theme.cursor }}`
 
@@ -203,7 +200,7 @@ Badge variants: `positive`, `negative`, `gold`, `secondary`, `outline`. Button a
 - All filter popovers: search input at top, items sorted alphabetically, checkbox per item, Clear button
 - `ChartFilters` interface in `use-dashboard.ts` holds all filter state including `groupBy`
 - `buildChartParams()` serializes filters to URL search params (multi-value via `append`)
-- Dashboard: hero net-worth figure with a running-net sparkline and a 'statement' (dotted-leader lines), then Fig. 1 Income vs Expenses (bar), Fig. 2 Where it went (ranked list), Fig. 3 Net position (bar + line), Fig. 4 Exchange rates (line), Fig. 5 Expense trend (stacked bar), Fig. 6 Latest entries
+- Charts: Expenses by Category/Tag (donut), Income vs Expenses (bar), Net Trend (composed bar+line), Exchange Rates (line), Expense Trend by Category/Tag (stacked bar). Shared axis/grid/legend styling comes from `chartStyle(theme)` in the dashboard
 - Frontend types: `GroupExpenseResponse(id, name, amount)` — generic for both groupings; `ExpenseTrendResponse(period, groups)`
 - Y-axis uses `compactNumber` formatter (K/M abbreviations) with `width={55}` to prevent overflow
 - Exchange rate chart downsampled to ~60 points for tooltip/marker alignment

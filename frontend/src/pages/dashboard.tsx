@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
 import { useFilterStore } from '@/stores/filter-store'
 import {
   useDashboard,
@@ -15,9 +14,7 @@ import { useDebtSummary } from '@/api/use-debt-records'
 import { useSettings } from '@/api/use-settings'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/layout/page-header'
-import { Panel, PanelEmpty, PanelStat } from '@/components/panel'
-import { ChartTooltip } from '@/components/charts/chart-tooltip'
-import { MultiSelectFilter } from '@/components/multi-select-filter'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -25,30 +22,112 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { ArrowUpRight, RotateCcw } from 'lucide-react'
+import { MultiSelectFilter } from '@/components/multi-select-filter'
+import { ChartTooltip } from '@/components/charts/chart-tooltip'
+import { RotateCcw } from 'lucide-react'
 import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
-  CartesianGrid,
+  PieChart,
+  Pie,
   Cell,
-  ComposedChart,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
   Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
+  CartesianGrid,
+  Legend,
+  LineChart,
+  Line,
+  ComposedChart,
+  ReferenceLine,
 } from 'recharts'
+import { formatCurrency, fromSubunits } from '@/lib/currency'
 import { axisTick, compactNumber, useChartTheme, type ChartTheme } from '@/lib/chart-theme'
-import { formatCurrency, formatSigned, fromSubunits, splitAmount } from '@/lib/currency'
-import { formatDate } from '@/lib/date'
-import type { TransactionResponse } from '@/types/transaction'
-import type { AccountResponse } from '@/types/account'
+
+const TYPE_OPTIONS = [
+  { id: 'INCOME', name: 'Income' },
+  { id: 'EXPENSE', name: 'Expense' },
+  { id: 'TRANSFER', name: 'Transfer' },
+]
+
+/** Shared Recharts styling: hairline horizontal grid, mono ticks, quiet legend */
+function chartStyle(theme: ChartTheme) {
+  return {
+    grid: { vertical: false, stroke: theme.grid, strokeDasharray: '2 4' },
+    xAxis: { tick: axisTick(theme), tickLine: false, axisLine: { stroke: theme.ink, strokeOpacity: 0.45 } },
+    yAxis: { tick: axisTick(theme), tickLine: false, axisLine: false },
+    legend: {
+      iconType: 'square' as const,
+      iconSize: 9,
+      wrapperStyle: { fontSize: 12, paddingTop: 8 },
+    },
+    legendText: (label: string) => <span style={{ color: theme.muted }}>{label}</span>,
+  }
+}
+
+function NetWorthCard({
+  totalNetWorth,
+  displayCurrency,
+  showRatesHint,
+}: {
+  totalNetWorth: number
+  displayCurrency: string
+  showRatesHint: boolean
+}) {
+  const { data: debtSummary } = useDebtSummary()
+  const debtEntries = Array.isArray(debtSummary?.entries)
+    ? debtSummary.entries
+    : []
+  const debtNet = debtEntries.reduce((sum, e) => sum + e.net, 0)
+  const hasDebts = debtEntries.length > 0
+
+  return (
+    <Card className="mb-6">
+      <CardContent className="grid gap-6 sm:grid-cols-2 sm:divide-x sm:divide-border">
+        <div>
+          <p className="eyebrow">
+            Total Net Worth
+          </p>
+          <p className="mt-2 font-display text-5xl leading-none tracking-[-0.02em] sm:text-6xl">
+            {formatCurrency(totalNetWorth, displayCurrency)}
+          </p>
+          {showRatesHint && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Set exchange rates in Settings for multi-currency totals
+            </p>
+          )}
+        </div>
+        <div className="sm:pl-6">
+          <p className="eyebrow">
+            Net Worth incl. Debts &amp; Loans
+          </p>
+          <p className="mt-2 font-display text-5xl leading-none tracking-[-0.02em] text-gold sm:text-6xl">
+            {formatCurrency(totalNetWorth + debtNet, displayCurrency)}
+          </p>
+          {hasDebts && (
+            <p
+              className={cn(
+                'num mt-1 text-xs',
+                debtNet > 0
+                  ? 'text-positive'
+                  : debtNet < 0
+                    ? 'text-negative'
+                    : 'text-muted-foreground',
+              )}
+            >
+              {debtNet > 0 ? '+' : ''}
+              {formatCurrency(debtNet, displayCurrency)} from open debts &amp; loans
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
 
 type DatePreset = 'this-month' | 'last-month' | 'last-3' | 'last-6' | 'this-year' | 'all-time' | 'custom'
 
@@ -61,12 +140,6 @@ const PRESET_LABELS: Record<DatePreset, string> = {
   'all-time': 'All Time',
   'custom': 'Custom Range',
 }
-
-const TYPE_OPTIONS = [
-  { id: 'INCOME', name: 'Income' },
-  { id: 'EXPENSE', name: 'Expense' },
-  { id: 'TRANSFER', name: 'Transfer' },
-]
 
 function getPresetRange(preset: DatePreset, initialDate = '2022-01-01'): { from: string; to: string } {
   const now = new Date()
@@ -114,113 +187,16 @@ function getPresetRange(preset: DatePreset, initialDate = '2022-01-01'): { from:
   }
 }
 
-/** "2026-10" -> "Oct ’26" */
-function shortPeriod(period: string): string {
-  const [year, month] = period.split('-')
-  const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  return `${names[Number(month) - 1] ?? month} ’${year?.slice(2)}`
-}
-
-// --- Hero ---
-
-function HeroFigure({ amount, currency }: { amount: number; currency: string }) {
-  const { sign, whole, fraction } = splitAmount(amount)
-  return (
-    <div className="flex flex-wrap items-baseline gap-x-4">
-      <span className="font-display text-[clamp(3.5rem,9vw,7.25rem)] leading-[0.85] tracking-[-0.04em]">
-        {sign}
-        {whole}
-        <span className="text-[0.42em] tracking-[-0.01em] text-muted-foreground">{fraction}</span>
-      </span>
-      <span className="num text-sm tracking-[0.14em] text-gold">{currency}</span>
-    </div>
-  )
-}
-
-interface StatementLineProps {
-  label: string
-  value: string
-  tone?: 'positive' | 'negative'
-  strong?: boolean
-}
-
-function StatementLine({ label, value, tone, strong }: StatementLineProps) {
-  return (
-    <div className={cn('flex items-baseline gap-3 py-2', strong ? 'text-base' : 'text-sm')}>
-      <span className={cn(strong ? 'font-medium' : 'text-muted-foreground')}>{label}</span>
-      <span className="leader" />
-      <span
-        className={cn(
-          'num whitespace-nowrap',
-          strong && 'font-medium',
-          tone === 'positive' && 'text-positive',
-          tone === 'negative' && 'text-negative',
-        )}
-      >
-        {value}
-      </span>
-    </div>
-  )
-}
-
-// --- Latest entries ---
-
-function LatestEntry({ txn, accounts }: { txn: TransactionResponse; accounts: AccountResponse[] }) {
-  const currency = accounts.find((a) => a.id === txn.accountId)?.currency ?? ''
-  const signed =
-    txn.type === 'INCOME' ? txn.amount : txn.type === 'EXPENSE' ? -txn.amount : 0
-  const title =
-    txn.description ||
-    txn.categoryName ||
-    (txn.type === 'TRANSFER' ? `${txn.accountName} → ${txn.targetAccountName}` : 'Untitled')
-  const subtitle =
-    txn.type === 'TRANSFER'
-      ? 'Transfer'
-      : [txn.categoryName, txn.accountName].filter(Boolean).join(' · ')
-
-  return (
-    <li className="grid grid-cols-[3.25rem_1fr_auto] items-baseline gap-x-3 border-b border-border/70 py-2.5 last:border-0">
-      <span className="num text-[11px] text-muted-foreground">{formatDate(txn.date).slice(0, 5)}</span>
-      <span className="min-w-0">
-        <span className="block truncate text-sm">{title}</span>
-        <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>
-      </span>
-      <span
-        className={cn(
-          'num text-sm whitespace-nowrap',
-          signed > 0 && 'text-positive',
-          signed < 0 && 'text-negative',
-        )}
-      >
-        {signed === 0 ? formatCurrency(txn.amount, currency) : formatSigned(signed, currency)}
-      </span>
-    </li>
-  )
-}
-
-// --- Filter field ---
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-1.5">
-      <div className="eyebrow">{label}</div>
-      {children}
-    </div>
-  )
-}
-
-function gridProps(theme: ChartTheme) {
-  return { vertical: false, stroke: theme.grid, strokeDasharray: '2 4' }
-}
-
 export function DashboardPage() {
   const theme = useChartTheme()
+  const chartColors = theme.palette
+  const cursorFill = theme.cursor
+  const cs = chartStyle(theme)
   const { data, isLoading, error } = useDashboard()
   const { data: accounts = [] } = useAccounts()
   const { data: categories = [] } = useCategories()
   const { data: tags = [] } = useTags()
   const { data: settings } = useSettings()
-  const { data: debtSummary } = useDebtSummary()
   const initialDate = settings?.initialDate ?? '2022-01-01'
 
   const {
@@ -267,41 +243,36 @@ export function DashboardPage() {
     }
   }
 
-  // One colour per group, shared by "Where it went" and the trend chart
-  const groupColor = useMemo(() => {
-    const map = new Map<string, string>()
-    expenseData?.forEach((g, i) => {
-      if (i < 8) map.set(g.id, theme.palette[i % theme.palette.length] ?? theme.ink)
-    })
-    return (id: string, fallbackIndex: number) =>
-      id === 'other' ? theme.muted : (map.get(id) ?? theme.palette[fallbackIndex % theme.palette.length] ?? theme.ink)
-  }, [expenseData, theme])
-
-  // Ranked expenses: top 8 + Other
-  const ranked = useMemo(() => {
+  // Donut data: top 8 + Other
+  const donutData = useMemo(() => {
     if (!expenseData || expenseData.length === 0) return []
-    const top = expenseData.slice(0, 8).map((d) => ({ id: d.id, name: d.name, value: d.amount }))
+    const top = expenseData.slice(0, 8)
     const rest = expenseData.slice(8)
+    const result = top.map((d) => ({
+      name: d.name,
+      value: d.amount,
+    }))
     if (rest.length > 0) {
-      top.push({ id: 'other', name: 'Other', value: rest.reduce((sum, d) => sum + d.amount, 0) })
+      result.push({
+        name: 'Other',
+        value: rest.reduce((sum, d) => sum + d.amount, 0),
+      })
     }
-    return top
+    return result
   }, [expenseData])
-  const rankedTotal = useMemo(() => ranked.reduce((sum, d) => sum + d.value, 0), [ranked])
-  const rankedMax = useMemo(() => Math.max(1, ...ranked.map((d) => d.value)), [ranked])
 
-  const { totalIncome, totalExpense } = useMemo(() => {
-    const months = incomeVsExpenseData?.months ?? []
-    return {
-      totalIncome: months.reduce((sum, d) => sum + d.income, 0),
-      totalExpense: months.reduce((sum, d) => sum + d.expense, 0),
-    }
+  const donutTotal = useMemo(() => donutData.reduce((sum, d) => sum + d.value, 0), [donutData])
+
+  const totalIncome = useMemo(() => {
+    if (!incomeVsExpenseData) return 0
+    return incomeVsExpenseData.months.reduce((sum, d) => sum + d.income, 0)
   }, [incomeVsExpenseData])
 
+  // Income vs Expense bar data
   const barData = useMemo(() => {
     if (!incomeVsExpenseData) return []
     return incomeVsExpenseData.months.map((d) => ({
-      period: shortPeriod(d.period),
+      period: d.period.slice(2).replace('-', '/'), // "2026-10" -> "26/10"
       income: fromSubunits(d.income),
       expense: fromSubunits(d.expense),
     }))
@@ -316,17 +287,18 @@ export function DashboardPage() {
       const prev = cumulative
       cumulative += monthNet
       return {
-        period: shortPeriod(d.period),
+        period: d.period.slice(2).replace('-', '/'),
         net: cumulative,
         delta: cumulative - prev,
       }
     })
   }, [incomeVsExpenseData])
 
-  // Expense trend: top 6 groups + Other, stacked per month
+  // Expense trend: top 6 categories + Other, stacked per month
   const { trendChartData, trendGroupKeys } = useMemo(() => {
     if (!trendData || trendData.length === 0) return { trendChartData: [], trendGroupKeys: [] }
 
+    // Find top 6 groups by total across all months
     const totalByGroup = new Map<string, { name: string; total: number }>()
     for (const month of trendData) {
       for (const g of month.groups) {
@@ -344,9 +316,10 @@ export function DashboardPage() {
     const groupKeys = sorted.slice(0, 6).map(([id, { name }]) => ({ id, name }))
     const hasOther = sorted.length > 6
 
+    // Build chart data
     const chartData = trendData.map((month) => {
       const row: Record<string, number | string> = {
-        period: shortPeriod(month.period),
+        period: month.period.slice(2).replace('-', '/'),
       }
       for (const { id } of groupKeys) {
         row[id] = 0
@@ -370,137 +343,48 @@ export function DashboardPage() {
   }, [trendData])
 
   const rateChartData = useMemo(() => {
-    const first = rateHistory?.[0]
-    if (!rateHistory || !first) return { data: [], currencies: [] as string[], latest: {} as Record<string, number> }
-    const currencies = Object.keys(first.rates)
+    if (!rateHistory || rateHistory.length === 0) return { data: [], currencies: [] }
+    const currencies = Object.keys(rateHistory[0]?.rates ?? {})
     // Downsample to ~60 points max so tooltip markers align with visible ticks
     const maxPoints = 60
     const step = rateHistory.length > maxPoints ? Math.ceil(rateHistory.length / maxPoints) : 1
     const sampled = rateHistory.filter((_, i) => i % step === 0 || i === rateHistory.length - 1)
     const chartData = sampled.map((entry) => {
       const row: Record<string, number | string> = {
-        date: formatDate(entry.date).slice(0, 5),
+        date: entry.date.slice(5),
       }
       for (const [currency, subunits] of Object.entries(entry.rates)) {
         row[currency] = subunits / 100
       }
       return row
     })
-    const last = rateHistory[rateHistory.length - 1]
-    const latest = Object.fromEntries(
-      Object.entries(last?.rates ?? {}).map(([c, v]) => [c, v / 100]),
-    )
-    return { data: chartData, currencies, latest }
+    return { data: chartData, currencies }
   }, [rateHistory])
 
-  if (isLoading) return <PanelEmpty>Opening the ledger…</PanelEmpty>
+  if (isLoading) return <div className="p-6 text-muted-foreground">Loading...</div>
   if (error) return <div className="p-6 text-destructive">Failed to load dashboard: {error.message}</div>
   if (!data) return null
 
   const activeAccounts = accounts.filter((a) => a.active)
   const displayCurrency = data.displayCurrency
   const hasRates = data.totalNetWorth !== 0 || activeAccounts.length === 0
-  const showRatesHint = !hasRates && activeAccounts.length > 0
-
-  const debtEntries = Array.isArray(debtSummary?.entries) ? debtSummary.entries : []
-  const debtNet = debtEntries.reduce((sum, e) => sum + e.net, 0)
-  const saved = totalIncome - totalExpense
-  const savingsRate = totalIncome > 0 ? Math.round((saved / totalIncome) * 100) : null
-  const periodLabel = preset === 'custom'
-    ? `${formatDate(customFrom)} – ${formatDate(customTo)}`
-    : PRESET_LABELS[preset] ?? ''
-
-  const money = (v: number) => formatCurrency(Math.round(v * 100), displayCurrency)
 
   return (
     <div>
       <PageHeader title="Dashboard" />
 
-      {/* Hero: net worth and the statement beside it */}
-      <section className="mb-10 grid gap-x-12 gap-y-8 lg:grid-cols-12">
-        <div className="lg:col-span-7">
-          <div className="eyebrow">Net worth · all active accounts</div>
-          <div className="mt-4">
-            <HeroFigure amount={data.totalNetWorth} currency={displayCurrency} />
-          </div>
-          {showRatesHint && (
-            <p className="mt-3 text-sm text-muted-foreground">
-              Set exchange rates in Settings for multi-currency totals.
-            </p>
-          )}
-          {netTrendData.length > 1 && (
-            <div className="mt-6">
-              <div className="h-20">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={netTrendData} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
-                    <defs>
-                      <linearGradient id="spark" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={theme.gold} stopOpacity={0.28} />
-                        <stop offset="100%" stopColor={theme.gold} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <YAxis hide domain={['dataMin', 'dataMax']} />
-                    <Area
-                      type="monotone"
-                      dataKey="net"
-                      stroke={theme.gold}
-                      strokeWidth={1.5}
-                      fill="url(#spark)"
-                      isAnimationActive={false}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="eyebrow mt-2 flex justify-between">
-                <span>{netTrendData[0]?.period}</span>
-                <span>Running net, {periodLabel.toLowerCase()}</span>
-                <span>{netTrendData[netTrendData.length - 1]?.period}</span>
-              </div>
-            </div>
-          )}
-        </div>
+      {/* Net Worth */}
+      <NetWorthCard
+        totalNetWorth={data.totalNetWorth}
+        displayCurrency={displayCurrency}
+        showRatesHint={!hasRates && activeAccounts.length > 0}
+      />
 
-        <div className="lg:col-span-5">
-          <div className="border-t-2 border-foreground pt-3">
-            <div className="flex items-baseline justify-between">
-              <h2 className="font-display text-2xl">The statement</h2>
-              <span className="eyebrow">{periodLabel}</span>
-            </div>
-            <div className="mt-2 divide-y divide-border/70">
-              <StatementLine
-                label="Net worth incl. debts & loans"
-                value={formatCurrency(data.totalNetWorth + debtNet, displayCurrency)}
-                strong
-              />
-              <StatementLine
-                label="Open debts & loans"
-                value={debtEntries.length > 0 ? formatSigned(debtNet, displayCurrency) : '—'}
-                tone={debtNet > 0 ? 'positive' : debtNet < 0 ? 'negative' : undefined}
-              />
-              <StatementLine
-                label="Income"
-                value={formatCurrency(totalIncome, displayCurrency)}
-                tone="positive"
-              />
-              <StatementLine
-                label="Expenses"
-                value={formatCurrency(totalExpense, displayCurrency)}
-                tone="negative"
-              />
-              <StatementLine
-                label={savingsRate !== null ? `Kept · ${savingsRate}% of income` : 'Kept'}
-                value={formatSigned(saved, displayCurrency)}
-                tone={saved > 0 ? 'positive' : saved < 0 ? 'negative' : undefined}
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Parameters */}
-      <section className="mb-8 border-y border-foreground/15 py-4">
-        <div className="flex flex-wrap items-end gap-x-5 gap-y-4">
-          <Field label="Period">
+      {/* Filter Panel */}
+      <Card className="mb-6">
+        <CardContent className="flex flex-wrap items-end gap-4 pt-6">
+          <div className="space-y-1">
+            <Label>Period</Label>
             <Select value={preset} onValueChange={(v) => v && handlePresetChange(v)}>
               <SelectTrigger className="w-40">
                 <SelectValue>{(v: string) => PRESET_LABELS[v as DatePreset] ?? v}</SelectValue>
@@ -511,48 +395,58 @@ export function DashboardPage() {
                 ))}
               </SelectContent>
             </Select>
-          </Field>
-          <Field label="From">
+          </div>
+          <div className="space-y-1">
+            <Label>From</Label>
             <Input
               type="date"
-              className="num w-40"
+              className="num w-38"
               value={customFrom}
-              onChange={(e) => setDashboard({ customFrom: e.target.value, preset: 'custom' })}
+              onChange={(e) => {
+                setDashboard({ customFrom: e.target.value, preset: 'custom' })
+              }}
             />
-          </Field>
-          <Field label="To">
+          </div>
+          <div className="space-y-1">
+            <Label>To</Label>
             <Input
               type="date"
-              className="num w-40"
+              className="num w-38"
               value={customTo}
-              onChange={(e) => setDashboard({ customTo: e.target.value, preset: 'custom' })}
+              onChange={(e) => {
+                setDashboard({ customTo: e.target.value, preset: 'custom' })
+              }}
             />
-          </Field>
-          <Field label="Accounts">
+          </div>
+          <div className="space-y-1">
+            <Label>Accounts</Label>
             <MultiSelectFilter
               options={activeAccounts}
               selected={selectedAccountIds}
               onChange={(ids) => setDashboard({ selectedAccountIds: ids })}
               allLabel="All accounts"
             />
-          </Field>
-          <Field label="Categories">
+          </div>
+          <div className="space-y-1">
+            <Label>Categories</Label>
             <MultiSelectFilter
               options={categories}
               selected={selectedCategoryIds}
               onChange={(ids) => setDashboard({ selectedCategoryIds: ids })}
               allLabel="All categories"
             />
-          </Field>
-          <Field label="Tags">
+          </div>
+          <div className="space-y-1">
+            <Label>Tags</Label>
             <MultiSelectFilter
               options={tags}
               selected={selectedTagIds}
               onChange={(ids) => setDashboard({ selectedTagIds: ids })}
               allLabel="All tags"
             />
-          </Field>
-          <Field label="Type">
+          </div>
+          <div className="space-y-1">
+            <Label>Type</Label>
             <MultiSelectFilter
               options={TYPE_OPTIONS}
               selected={selectedTypes}
@@ -560,187 +454,195 @@ export function DashboardPage() {
               allLabel="All types"
               searchable={false}
               keepOrder
-              className="w-36"
             />
-          </Field>
-          <Field label="Group by">
-            <div className="flex h-9 items-center rounded-md bg-muted/80 p-[3px] ring-1 ring-border">
-              {(['category', 'tag'] as const).map((g) => (
-                <button
-                  key={g}
-                  type="button"
-                  onClick={() => setDashboard({ groupBy: g })}
-                  className={cn(
-                    'h-full rounded-[4px] px-3 text-sm capitalize transition-colors',
-                    groupBy === g ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  {g}
-                </button>
-              ))}
+          </div>
+          <div className="space-y-1">
+            <Label>Group by</Label>
+            <div className="flex h-9 items-center gap-1 rounded-md bg-muted/80 p-0.5 ring-1 ring-border">
+              <Button
+                variant={groupBy === 'category' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2.5 text-xs"
+                onClick={() => setDashboard({ groupBy: 'category' })}
+              >
+                Category
+              </Button>
+              <Button
+                variant={groupBy === 'tag' ? 'secondary' : 'ghost'}
+                size="sm"
+                className="h-7 px-2.5 text-xs"
+                onClick={() => setDashboard({ groupBy: 'tag' })}
+              >
+                Tag
+              </Button>
             </div>
-          </Field>
+          </div>
           {hasActiveFilters && (
-            <Button variant="ghost" size="sm" onClick={resetDashboard} className="mb-0.5">
-              <RotateCcw className="size-3.5" /> Reset
+            <Button variant="ghost" size="sm" onClick={resetDashboard} className="self-end">
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reset
             </Button>
           )}
-        </div>
-      </section>
+        </CardContent>
+      </Card>
 
-      {/* Figures */}
-      <div className="grid gap-6 lg:grid-cols-12">
-        <Panel
-          figure="1"
-          kicker="Monthly flow"
-          title="Income against expenses"
-          className="lg:col-span-8"
-          bodyClassName="flex flex-col"
-          meta={
-            <>
-              <PanelStat label="In" value={formatCurrency(totalIncome, displayCurrency)} tone="positive" />
-              <PanelStat label="Out" value={formatCurrency(totalExpense, displayCurrency)} tone="negative" />
-            </>
-          }
-        >
-          {iveLoading ? (
-            <PanelEmpty>Loading…</PanelEmpty>
-          ) : barData.length === 0 ? (
-            <PanelEmpty>No movement in this period</PanelEmpty>
-          ) : (
-            <div className="min-h-[300px] flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={barData} barGap={3} barCategoryGap="28%">
-                <CartesianGrid {...gridProps(theme)} />
-                <XAxis dataKey="period" tick={axisTick(theme)} tickLine={false} interval="preserveStartEnd" minTickGap={12} axisLine={{ stroke: theme.ink, strokeOpacity: 0.5 }} />
-                <YAxis tick={axisTick(theme)} tickFormatter={compactNumber} width={48} tickLine={false} axisLine={false} />
-                <Tooltip
-                  cursor={{ fill: theme.cursor }}
-                  content={<ChartTooltip formatValue={money} formatName={(r) => (r.dataKey === 'income' ? 'Income' : 'Expenses')} />}
-                />
-                <Bar dataKey="income" fill={theme.positive} maxBarSize={28} />
-                <Bar dataKey="expense" fill={theme.negative} maxBarSize={28} />
-              </BarChart>
-            </ResponsiveContainer>
-            </div>
-          )}
-        </Panel>
-
-        <Panel
-          figure="2"
-          kicker={`By ${groupBy}`}
-          title="Where it went"
-          className="lg:col-span-4"
-        >
-          {expenseLoading ? (
-            <PanelEmpty>Loading…</PanelEmpty>
-          ) : ranked.length === 0 ? (
-            <PanelEmpty>No expenses in this period</PanelEmpty>
-          ) : (
-            <ol className="space-y-3">
-              {ranked.map((d, i) => (
-                <li key={d.id}>
-                  <div className="flex items-baseline gap-2 text-sm">
-                    <span className="num w-5 shrink-0 text-[10.5px] text-muted-foreground">
-                      {String(i + 1).padStart(2, '0')}
-                    </span>
-                    <span className="min-w-0 truncate">{d.name}</span>
-                    <span className="leader" />
-                    <span className="num whitespace-nowrap">{formatCurrency(d.value, displayCurrency)}</span>
-                  </div>
-                  <div className="mt-1.5 ml-7 flex items-center gap-2">
-                    <div className="h-[5px] flex-1 overflow-hidden rounded-full bg-foreground/[0.06]">
-                      <div
-                        className="h-full rounded-full"
-                        style={{ width: `${(d.value / rankedMax) * 100}%`, backgroundColor: groupColor(d.id, i) }}
+      {/* Charts */}
+      <div className="grid gap-6 lg:grid-cols-2 mb-6">
+        {/* Expenses by Category Donut */}
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              Expenses by {groupBy === 'category' ? 'Category' : 'Tag'}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {expenseLoading ? (
+              <p className="py-12 text-center font-display text-lg text-muted-foreground italic">Loading...</p>
+            ) : donutData.length === 0 ? (
+              <p className="py-12 text-center font-display text-lg text-muted-foreground italic">No expenses in this period</p>
+            ) : (
+              <div className="flex flex-col items-center">
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={donutData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={70}
+                      outerRadius={120}
+                      paddingAngle={2}
+                      dataKey="value"
+                      nameKey="name"
+                    >
+                      {donutData.map((_, i) => (
+                        <Cell key={i} fill={chartColors[i % chartColors.length]} stroke={theme.isDark ? '#1a1a16' : '#faf7f1'} strokeWidth={2} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      content={<ChartTooltip formatValue={(v) => formatCurrency(v, displayCurrency)} />}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex gap-6 text-sm">
+                  <p>
+                    <span className="text-muted-foreground">Expense: </span>
+                    <span className="num text-negative">{formatCurrency(donutTotal, displayCurrency)}</span>
+                  </p>
+                  <p>
+                    <span className="text-muted-foreground">Income: </span>
+                    <span className="num text-positive">{formatCurrency(totalIncome, displayCurrency)}</span>
+                  </p>
+                </div>
+                <div className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1">
+                  {donutData.map((d, i) => (
+                    <span key={d.name} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span
+                        className="inline-block h-2.5 w-2.5 rounded-[2px]"
+                        style={{ backgroundColor: chartColors[i % chartColors.length] }}
                       />
-                    </div>
-                    <span className="num w-9 text-right text-[10.5px] text-muted-foreground">
-                      {((d.value / rankedTotal) * 100).toFixed(0)}%
+                      {d.name} ({((d.value / donutTotal) * 100).toFixed(0)}%)
                     </span>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
-        </Panel>
-
-        <Panel
-          figure="3"
-          kicker="Cumulative"
-          title="Net position"
-          className="lg:col-span-7"
-          meta={
-            netTrendData.length > 0 && (
-              <PanelStat
-                label="Now"
-                value={money(netTrendData[netTrendData.length - 1]?.net ?? 0)}
-              />
-            )
-          }
-        >
-          {iveLoading ? (
-            <PanelEmpty>Loading…</PanelEmpty>
-          ) : netTrendData.length === 0 ? (
-            <PanelEmpty>No movement in this period</PanelEmpty>
-          ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <ComposedChart data={netTrendData}>
-                <CartesianGrid {...gridProps(theme)} />
-                <XAxis dataKey="period" tick={axisTick(theme)} tickLine={false} interval="preserveStartEnd" minTickGap={12} axisLine={{ stroke: theme.ink, strokeOpacity: 0.5 }} />
-                <YAxis tick={axisTick(theme)} tickFormatter={compactNumber} width={48} tickLine={false} axisLine={false} />
-                <Tooltip
-                  cursor={{ fill: theme.cursor }}
-                  content={<ChartTooltip formatValue={money} formatName={(r) => (r.dataKey === 'net' ? 'Net position' : 'Change')} />}
-                />
-                <ReferenceLine y={0} stroke={theme.ink} strokeOpacity={0.35} />
-                <Bar dataKey="delta" maxBarSize={22}>
-                  {netTrendData.map((d, i) => (
-                    <Cell key={i} fill={d.delta >= 0 ? theme.positive : theme.negative} fillOpacity={0.35} />
                   ))}
-                </Bar>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Income vs Expenses */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Income vs Expenses</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {iveLoading ? (
+              <p className="py-12 text-center font-display text-lg text-muted-foreground italic">Loading...</p>
+            ) : barData.length === 0 ? (
+              <p className="py-12 text-center font-display text-lg text-muted-foreground italic">No data in this period</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={barData}>
+                  <CartesianGrid {...cs.grid} />
+                  <XAxis dataKey="period" {...cs.xAxis} />
+                  <YAxis {...cs.yAxis} tickFormatter={compactNumber} width={55} />
+                  <Tooltip
+                    cursor={{ fill: cursorFill }}
+                    content={<ChartTooltip formatValue={(v) => formatCurrency(Math.round(v * 100), displayCurrency)} />}
+                  />
+                  <Legend {...cs.legend} formatter={cs.legendText} />
+                  <Bar dataKey="income" fill={theme.positive} name="Income" />
+                  <Bar dataKey="expense" fill={theme.negative} name="Expense" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Net Trend */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Net Trend</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {iveLoading ? (
+            <p className="py-12 text-center font-display text-lg text-muted-foreground italic">Loading...</p>
+          ) : netTrendData.length === 0 ? (
+            <p className="py-12 text-center font-display text-lg text-muted-foreground italic">No data in this period</p>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <ComposedChart data={netTrendData}>
+                <CartesianGrid {...cs.grid} />
+                <XAxis dataKey="period" {...cs.xAxis} />
+                <YAxis {...cs.yAxis} tickFormatter={compactNumber} width={55} />
+                <Tooltip
+                  cursor={{ fill: cursorFill }}
+                  content={
+                    <ChartTooltip
+                      formatValue={(v) => formatCurrency(Math.round(v * 100), displayCurrency)}
+                      formatName={(r) => (r.dataKey === 'net' ? 'Net' : 'Change')}
+                    />
+                  }
+                />
+                <Legend {...cs.legend} formatter={(v: string) => cs.legendText(v === 'net' ? 'Net' : 'Change')} />
+                <ReferenceLine y={0} stroke={theme.muted} strokeDasharray="3 3" />
+                <Bar
+                  dataKey="delta"
+                  name="delta"
+                  fill={theme.gold}
+                  opacity={0.45}
+                />
                 <Line
                   type="monotone"
                   dataKey="net"
-                  stroke={theme.gold}
+                  name="net"
+                  stroke={chartColors[0]}
                   strokeWidth={2}
-                  dot={{ r: 3, fill: theme.gold, strokeWidth: 0 }}
-                  activeDot={{ r: 4.5, fill: theme.gold, stroke: theme.ink, strokeWidth: 1 }}
+                  dot={{ r: 3, fill: chartColors[0], strokeWidth: 0 }}
                 />
               </ComposedChart>
             </ResponsiveContainer>
           )}
-        </Panel>
+        </CardContent>
+      </Card>
 
-        <Panel
-          figure="4"
-          kicker={`1 unit in ${displayCurrency}`}
-          title="Exchange rates"
-          className="lg:col-span-5"
-          meta={
-            rateChartData.currencies.length > 0 && (
-              <div className="flex flex-wrap gap-x-3 gap-y-1">
-                {rateChartData.currencies.map((c, i) => (
-                  <span key={c} className="num inline-flex items-center gap-1.5 text-xs">
-                    <span className="size-2 rounded-[2px]" style={{ backgroundColor: theme.palette[i % theme.palette.length] }} />
-                    {c}
-                    <span className="text-muted-foreground">{rateChartData.latest[c]?.toFixed(2)}</span>
-                  </span>
-                ))}
-              </div>
-            )
-          }
-        >
+      {/* Exchange Rates */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>
+            Exchange Rates (1 unit → {displayCurrency})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           {rateHistoryLoading ? (
-            <PanelEmpty>Loading…</PanelEmpty>
+            <p className="py-12 text-center font-display text-lg text-muted-foreground italic">Loading...</p>
           ) : rateChartData.data.length === 0 ? (
-            <PanelEmpty>No rate data</PanelEmpty>
+            <p className="py-12 text-center font-display text-lg text-muted-foreground italic">No rate data</p>
           ) : (
-            <ResponsiveContainer width="100%" height={280}>
-              <LineChart data={rateChartData.data} margin={{ top: 5, right: 16, bottom: 0, left: 0 }}>
-                <CartesianGrid {...gridProps(theme)} />
-                <XAxis dataKey="date" tick={axisTick(theme)} tickLine={false} axisLine={{ stroke: theme.ink, strokeOpacity: 0.5 }} minTickGap={24} />
-                <YAxis tick={axisTick(theme)} width={40} tickLine={false} axisLine={false} domain={['auto', 'auto']} />
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={rateChartData.data}>
+                <CartesianGrid {...cs.grid} />
+                <XAxis dataKey="date" {...cs.xAxis} minTickGap={24} />
+                <YAxis {...cs.yAxis} />
                 <Tooltip
                   content={
                     <ChartTooltip
@@ -749,12 +651,14 @@ export function DashboardPage() {
                     />
                   }
                 />
+                <Legend {...cs.legend} formatter={(value: string) => cs.legendText(`1 ${value}`)} />
+                <ReferenceLine y={1} stroke={theme.muted} strokeDasharray="3 3" label={{ value: `1 ${displayCurrency}`, position: 'right', ...axisTick(theme) }} />
                 {rateChartData.currencies.map((currency, i) => (
                   <Line
                     key={currency}
                     type="monotone"
                     dataKey={currency}
-                    stroke={theme.palette[i % theme.palette.length]}
+                    stroke={chartColors[i % chartColors.length]}
                     strokeWidth={1.75}
                     dot={false}
                     name={currency}
@@ -763,87 +667,62 @@ export function DashboardPage() {
               </LineChart>
             </ResponsiveContainer>
           )}
-        </Panel>
+        </CardContent>
+      </Card>
 
-        <Panel
-          figure="5"
-          kicker={`Top ${groupBy === 'category' ? 'categories' : 'tags'} per month`}
-          title="Expense trend"
-          className="lg:col-span-8"
-        >
+      {/* Expense Trend */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>
+            Expense Trend by {groupBy === 'category' ? 'Category' : 'Tag'}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           {trendLoading ? (
-            <PanelEmpty>Loading…</PanelEmpty>
+            <p className="py-12 text-center font-display text-lg text-muted-foreground italic">Loading...</p>
           ) : trendChartData.length === 0 ? (
-            <PanelEmpty>No expenses in this period</PanelEmpty>
+            <p className="py-12 text-center font-display text-lg text-muted-foreground italic">No expenses in this period</p>
           ) : (
-            <>
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={trendChartData} barCategoryGap="30%">
-                  <CartesianGrid {...gridProps(theme)} />
-                  <XAxis dataKey="period" tick={axisTick(theme)} tickLine={false} interval="preserveStartEnd" minTickGap={12} axisLine={{ stroke: theme.ink, strokeOpacity: 0.5 }} />
-                  <YAxis tick={axisTick(theme)} tickFormatter={compactNumber} width={48} tickLine={false} axisLine={false} />
+            <div>
+              <ResponsiveContainer width="100%" height={350}>
+                <BarChart data={trendChartData}>
+                  <CartesianGrid {...cs.grid} />
+                  <XAxis dataKey="period" {...cs.xAxis} />
+                  <YAxis {...cs.yAxis} tickFormatter={compactNumber} width={55} />
                   <Tooltip
-                    cursor={{ fill: theme.cursor }}
+                    cursor={{ fill: cursorFill }}
                     content={
                       <ChartTooltip
                         hideZero
-                        formatValue={money}
+                        formatValue={(v) => formatCurrency(Math.round(v * 100), displayCurrency)}
                         formatName={(r) => trendGroupKeys.find((c) => c.id === r.dataKey)?.name ?? String(r.name)}
                       />
                     }
+                  />
+                  <Legend
+                    {...cs.legend}
+                    formatter={(value: string) => {
+                      const cat = trendGroupKeys.find((c) => c.id === value)
+                      return cs.legendText(cat?.name ?? value)
+                    }}
                   />
                   {trendGroupKeys.map((cat, i) => (
                     <Bar
                       key={cat.id}
                       dataKey={cat.id}
                       stackId="expenses"
-                      fill={groupColor(cat.id, i)}
+                      fill={chartColors[i % chartColors.length]}
                       stroke={theme.isDark ? '#1a1a16' : '#faf7f1'}
                       strokeWidth={1}
-                      maxBarSize={44}
                       name={cat.id}
                     />
                   ))}
                 </BarChart>
               </ResponsiveContainer>
-              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 border-t border-border pt-3">
-                {trendGroupKeys.map((cat, i) => (
-                  <span key={cat.id} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <span className="size-2 rounded-[2px]" style={{ backgroundColor: groupColor(cat.id, i) }} />
-                    {cat.name}
-                  </span>
-                ))}
-              </div>
-            </>
+            </div>
           )}
-        </Panel>
-
-        <Panel
-          figure="6"
-          kicker="Most recent"
-          title="Latest entries"
-          className="lg:col-span-4"
-          meta={
-            <Link
-              to="/transactions"
-              className="eyebrow inline-flex items-center gap-1 text-foreground hover:text-gold"
-            >
-              All <ArrowUpRight className="size-3" />
-            </Link>
-          }
-          bodyClassName="pt-1"
-        >
-          {data.recentTransactions.length === 0 ? (
-            <PanelEmpty>Nothing recorded yet</PanelEmpty>
-          ) : (
-            <ul>
-              {data.recentTransactions.map((txn) => (
-                <LatestEntry key={txn.id} txn={txn} accounts={accounts} />
-              ))}
-            </ul>
-          )}
-        </Panel>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
