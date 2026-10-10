@@ -319,7 +319,7 @@ export function AccountsPage() {
                 <span className="inline-flex items-center gap-2">
                   {account.color && (
                     <span
-                      className="inline-block h-3 w-3 rounded-full shrink-0"
+                      className="inline-block h-3 w-3 shrink-0 rounded-full ring-1 ring-foreground/25"
                       style={{ backgroundColor: account.color }}
                     />
                   )}

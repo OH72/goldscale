@@ -87,7 +87,7 @@ export function MultiSelectFilter({
                 }
               />
               {o.color && (
-                <span className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: o.color }} />
+                <span className="size-2.5 shrink-0 rounded-full ring-1 ring-foreground/25" style={{ backgroundColor: o.color }} />
               )}
               <span className="truncate">{o.name}</span>
             </label>

@@ -27,7 +27,7 @@ export function AllocationBar({ items, currency }: { items: AllocationItem[]; cu
       <ul className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((item) => (
           <li key={item.id} className="flex items-baseline gap-2 text-sm">
-            <span className="size-2 shrink-0 translate-y-[-1px] rounded-[2px]" style={{ backgroundColor: item.color }} />
+            <span className="size-2 shrink-0 translate-y-[-1px] rounded-[2px] ring-1 ring-foreground/20" style={{ backgroundColor: item.color }} />
             <span className="min-w-0 truncate">{item.name}</span>
             <span className="leader" />
             <span className="num text-xs text-muted-foreground">{((item.value / total) * 100).toFixed(1)}%</span>

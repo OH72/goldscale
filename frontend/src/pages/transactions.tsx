@@ -220,7 +220,7 @@ export function TransactionsPage() {
               .map((a) => (
               <SelectItem key={a.id} value={a.id} className={!a.active ? 'text-muted-foreground' : ''}>
                 <span className="inline-flex items-center gap-2">
-                  {a.color && <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} />}
+                  {a.color && <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0 ring-1 ring-foreground/25" style={{ backgroundColor: a.color }} />}
                   {a.name}{!a.active ? ' (inactive)' : ''}
                 </span>
               </SelectItem>
@@ -390,13 +390,13 @@ export function TransactionsPage() {
                   </TableCell>
                   <TableCell className="overflow-hidden align-top">
                     <span className="inline-flex items-center gap-1.5">
-                      {(() => { const a = accounts?.find((acc) => acc.id === txn.accountId); return a?.color ? <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: a.color }} /> : null })()}
+                      {(() => { const a = accounts?.find((acc) => acc.id === txn.accountId); return a?.color ? <span className="inline-block h-2.5 w-2.5 rounded-full shrink-0 ring-1 ring-foreground/25" style={{ backgroundColor: a.color }} /> : null })()}
                       {txn.accountName}
                     </span>
                     {txn.type === 'TRANSFER' && txn.targetAccountName && (
                       <div className="text-xs text-muted-foreground inline-flex items-center gap-1.5 ml-0">
                         <span className="inline-flex items-center gap-1.5">
-                          → {(() => { const a = accounts?.find((acc) => acc.id === txn.targetAccountId); return a?.color ? <><span className="inline-block h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: a.color }} /></> : null })()}
+                          → {(() => { const a = accounts?.find((acc) => acc.id === txn.targetAccountId); return a?.color ? <><span className="inline-block h-2 w-2 rounded-full shrink-0 ring-1 ring-foreground/25" style={{ backgroundColor: a.color }} /></> : null })()}
                           {txn.targetAccountName}
                         </span>
                       </div>
@@ -424,7 +424,7 @@ export function TransactionsPage() {
                   <TableCell className="align-top whitespace-normal text-muted-foreground" title={txn.description ?? ''}>
                     <p className="line-clamp-2 break-words text-xs">{txn.description ?? ''}</p>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-1.5 align-top">
                     <DropdownMenu>
                       <DropdownMenuTrigger
                         render={<Button variant="ghost" size="icon" />}
