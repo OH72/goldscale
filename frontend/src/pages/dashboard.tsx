@@ -243,7 +243,8 @@ export function DashboardPage() {
   const { data: trendData, isLoading: trendLoading } = useExpenseTrend(chartFilters)
   const { data: rateHistory, isLoading: rateHistoryLoading } = useExchangeRateHistory(dateRange)
 
-  function handlePresetChange(value: string) {
+  function handlePresetChange(value: string | null) {
+    if (!value) return
     const p = value as DatePreset
     if (p !== 'custom') {
       const range = getPresetRange(p, initialDate)
@@ -354,7 +355,7 @@ export function DashboardPage() {
 
   const rateChartData = useMemo(() => {
     if (!rateHistory || rateHistory.length === 0) return { data: [], currencies: [] }
-    const currencies = Object.keys(rateHistory[0].rates)
+    const currencies = Object.keys(rateHistory[0]!.rates)
     // Downsample to ~60 points max so tooltip markers align with visible ticks
     const maxPoints = 60
     const step = rateHistory.length > maxPoints ? Math.ceil(rateHistory.length / maxPoints) : 1

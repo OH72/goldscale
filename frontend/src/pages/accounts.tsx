@@ -65,7 +65,6 @@ const ACCOUNT_COLORS = [
 ]
 
 type SortField = 'name' | 'balance' | 'converted'
-type SortDir = 'asc' | 'desc'
 
 const createSchema = z.object({
   name: z.string().min(1, 'Name is required'),
