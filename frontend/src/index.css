@@ -1,13 +1,36 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
+@import "@fontsource/instrument-serif/400.css";
+@import "@fontsource/instrument-serif/400-italic.css";
+@import "@fontsource-variable/schibsted-grotesk";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+ * GoldScale design language — "assay ledger".
+ * Warm paper and ink, brass as the single sharp accent, accounting
+ * green/vermilion for money in/out. Serif for display, grotesk for UI,
+ * mono for every figure.
+ */
+
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-heading: 'Instrument Serif', 'Times New Roman', serif;
+    --font-display: 'Instrument Serif', 'Times New Roman', serif;
+    --font-sans: 'Schibsted Grotesk Variable', 'Helvetica Neue', sans-serif;
+    --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+
+    --color-gold: var(--gold);
+    --color-gold-foreground: var(--gold-foreground);
+    --color-positive: var(--positive);
+    --color-negative: var(--negative);
+    --color-paper: var(--paper);
+    --color-spine: var(--spine);
+    --color-spine-foreground: var(--spine-foreground);
+    --color-spine-muted: var(--spine-muted);
+
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,83 +71,189 @@
     --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* Light — paper & ink */
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --paper: #f2ede3;
+    --background: #f2ede3;
+    --foreground: #1c1b17;
+    --card: #faf7f1;
+    --card-foreground: #1c1b17;
+    --popover: #fbf9f4;
+    --popover-foreground: #1c1b17;
+    --primary: #1c1b17;
+    --primary-foreground: #f7f3ea;
+    --secondary: #e8e1d3;
+    --secondary-foreground: #1c1b17;
+    --muted: #ebe5d8;
+    --muted-foreground: #6b6558;
+    --accent: #e9e1cf;
+    --accent-foreground: #1c1b17;
+    --destructive: #b83a26;
+    --border: #d9d0bf;
+    --input: #cfc5b2;
+    --ring: #a97c22;
+
+    --gold: #a97c22;
+    --gold-foreground: #fbf6ea;
+    --positive: #2e6b4a;
+    --negative: #b83a26;
+
+    --spine: #1c1b17;
+    --spine-foreground: #ece5d6;
+    --spine-muted: #8f887a;
+
+    --chart-1: #24576b;
+    --chart-2: #a97c22;
+    --chart-3: #b83a26;
+    --chart-4: #2e6b4a;
+    --chart-5: #7a4a2b;
+    --radius: 0.375rem;
+
+    --sidebar: var(--spine);
+    --sidebar-foreground: var(--spine-foreground);
+    --sidebar-primary: var(--gold);
+    --sidebar-primary-foreground: var(--gold-foreground);
+    --sidebar-accent: #2a2924;
+    --sidebar-accent-foreground: #f7f3ea;
+    --sidebar-border: #2f2e28;
+    --sidebar-ring: var(--gold);
+
+    --grid-line: rgb(28 27 23 / 0.04);
+    --glow: rgb(201 154 59 / 0.16);
+    --shadow-color: 40 30 10;
 }
 
+/* Dark — the ledger by lamplight */
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --paper: #121210;
+    --background: #121210;
+    --foreground: #ece5d6;
+    --card: #1a1a16;
+    --card-foreground: #ece5d6;
+    --popover: #1e1e1a;
+    --popover-foreground: #ece5d6;
+    --primary: #ece5d6;
+    --primary-foreground: #151512;
+    --secondary: #26261f;
+    --secondary-foreground: #ece5d6;
+    --muted: #22221c;
+    --muted-foreground: #9a9383;
+    --accent: #2a2922;
+    --accent-foreground: #f4eee1;
+    --destructive: #e06e55;
+    --border: #2e2d26;
+    --input: #3a3930;
+    --ring: #d6aa4e;
+
+    --gold: #d6aa4e;
+    --gold-foreground: #151512;
+    --positive: #7fb58f;
+    --negative: #e06e55;
+
+    --spine: #0b0b09;
+    --spine-foreground: #e4dccb;
+    --spine-muted: #7c7668;
+
+    --chart-1: #5e9db3;
+    --chart-2: #d6aa4e;
+    --chart-3: #e06e55;
+    --chart-4: #7fb58f;
+    --chart-5: #b98663;
+
+    --sidebar-accent: #1c1c18;
+    --sidebar-border: #22211c;
+
+    --grid-line: rgb(236 229 214 / 0.035);
+    --glow: rgb(214 170 78 / 0.10);
+    --shadow-color: 0 0 0;
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
+    * {
+        @apply border-border outline-ring/50;
     }
-  body {
-    @apply bg-background text-foreground;
+    html {
+        @apply font-sans;
+        font-feature-settings: "ss01", "cv11";
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
     }
-  html {
-    @apply font-sans;
+    body {
+        @apply bg-background text-foreground;
+        min-height: 100dvh;
+        /* Lamp-light glow from the top right */
+        background-image: radial-gradient(1200px 560px at 82% -10%, var(--glow), transparent 70%);
+        background-attachment: fixed;
     }
+    /* Faint ledger grid, fading out towards the bottom */
+    body::after {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background-image:
+            linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+            linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+        background-size: 32px 32px;
+        mask-image: linear-gradient(to bottom, black 0%, rgb(0 0 0 / 0.45) 45%, transparent 85%);
+    }
+    /* Paper grain */
+    body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        opacity: 0.35;
+        mix-blend-mode: multiply;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.45  0 0 0 0 0.38  0 0 0 0 0.25  0 0 0 0.10 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    }
+    .dark body::before {
+        mix-blend-mode: screen;
+        opacity: 0.25;
+    }
+    #root {
+        position: relative;
+        z-index: 1;
+    }
+    ::selection {
+        background: color-mix(in oklab, var(--gold) 35%, transparent);
+    }
+    h1, h2, h3 {
+        font-family: var(--font-display);
+        font-weight: 400;
+        letter-spacing: -0.01em;
+    }
+}
+
+/* Figures: mono, tabular, slightly tightened */
+@utility num {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+
+/* Small editorial label: mono, uppercase, tracked */
+@utility eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted-foreground);
+}
+
+/* Dotted leader between a label and a figure */
+@utility leader {
+    flex: 1;
+    min-width: 1.5rem;
+    border-bottom: 1px dotted color-mix(in oklab, var(--foreground) 28%, transparent);
+    transform: translateY(-0.3em);
+}
+
+@utility shadow-paper {
+    box-shadow:
+        0 1px 0 rgb(var(--shadow-color) / 0.04),
+        0 18px 40px -24px rgb(var(--shadow-color) / 0.35);
 }
