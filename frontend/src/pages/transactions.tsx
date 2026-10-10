@@ -200,7 +200,7 @@ export function TransactionsPage() {
         <Select
           value={filters.accountId ?? ALL_VALUE}
           onValueChange={(v) =>
-            setFilter('accountId', v === ALL_VALUE ? undefined : v)
+            setFilter('accountId', !v || v === ALL_VALUE ? undefined : v)
           }
         >
           <SelectTrigger className="w-48">
@@ -231,7 +231,7 @@ export function TransactionsPage() {
         <Select
           value={filters.type ?? ALL_VALUE}
           onValueChange={(v) =>
-            setFilter('type', v === ALL_VALUE ? undefined : v)
+            setFilter('type', !v || v === ALL_VALUE ? undefined : v)
           }
         >
           <SelectTrigger className="w-40">
@@ -250,7 +250,7 @@ export function TransactionsPage() {
         <Select
           value={filters.categoryId ?? ALL_VALUE}
           onValueChange={(v) =>
-            setFilter('categoryId', v === ALL_VALUE ? undefined : v)
+            setFilter('categoryId', !v || v === ALL_VALUE ? undefined : v)
           }
         >
           <SelectTrigger className="w-48">
@@ -275,7 +275,7 @@ export function TransactionsPage() {
         <Select
           value={filters.tagId ?? ALL_VALUE}
           onValueChange={(v) =>
-            setFilter('tagId', v === ALL_VALUE ? undefined : v)
+            setFilter('tagId', !v || v === ALL_VALUE ? undefined : v)
           }
         >
           <SelectTrigger className="w-40">

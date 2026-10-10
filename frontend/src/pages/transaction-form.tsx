@@ -265,7 +265,7 @@ export function TransactionFormDialog({
               </Label>
               <Select
                 value={form.watch('accountId')}
-                onValueChange={(v) => form.setValue('accountId', v)}
+                onValueChange={(v) => form.setValue('accountId', v ?? '')}
               >
                 <SelectTrigger aria-invalid={!!form.formState.errors.accountId}>
                   <SelectValue placeholder="Select account">
@@ -303,7 +303,7 @@ export function TransactionFormDialog({
               <Label>Target Account</Label>
               <Select
                 value={form.watch('targetAccountId') ?? ''}
-                onValueChange={(v) => form.setValue('targetAccountId', v)}
+                onValueChange={(v) => form.setValue('targetAccountId', v ?? undefined)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select target">

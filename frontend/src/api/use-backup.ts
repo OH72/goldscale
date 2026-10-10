@@ -51,7 +51,7 @@ export function useBackupRestore() {
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.categories.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.tags.all })
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all })
       toast.success(data.message)
     },
     onError: (error: Error) =>

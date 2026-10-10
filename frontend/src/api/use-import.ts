@@ -28,7 +28,7 @@ export function useImportConfirm() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all })
-      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.dashboard.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.tags.all })
       const msg =
         data.skipped > 0

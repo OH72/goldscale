@@ -43,10 +43,6 @@ const NONE_VALUE = '__none__'
 
 const BANK_TYPES = Object.entries(BANK_TYPE_LABELS) as [BankType, string][]
 
-function isMoneyManager(bankType: BankType) {
-  return bankType === 'MONEYMANAGER'
-}
-
 export function ImportPage() {
   const navigate = useNavigate()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -260,7 +256,7 @@ export function ImportPage() {
             {bankType && !isMM && (
               <div className="space-y-2">
                 <Label>Account</Label>
-                <Select value={accountId} onValueChange={setAccountId}>
+                <Select value={accountId} onValueChange={(v) => setAccountId(v ?? '')}>
                   <SelectTrigger className="w-56">
                     <SelectValue placeholder="Select account">
                       {(v: string) => {
@@ -516,7 +512,7 @@ function ImportTableRow({
             INIT BAL
           </Badge>
         ) : (
-          <Select value={row.type} onValueChange={handleTypeChange}>
+          <Select value={row.type} onValueChange={(v) => v && handleTypeChange(v)}>
             <SelectTrigger
               className={cn('h-7 w-28 text-xs font-medium', typeBadgeColor)}
             >
@@ -599,7 +595,7 @@ function ImportTableRow({
               </div>
               <Select
                 value={row.targetAccountId ?? NONE_VALUE}
-                onValueChange={handleTargetAccountChange}
+                onValueChange={(v) => v && handleTargetAccountChange(v)}
               >
                 <SelectTrigger className="h-8 w-44">
                   <SelectValue>
@@ -664,7 +660,7 @@ function ImportTableRow({
         ) : (
           <Select
             value={row.categoryId ?? NONE_VALUE}
-            onValueChange={handleCategoryChange}
+            onValueChange={(v) => v && handleCategoryChange(v)}
           >
             <SelectTrigger
               className={cn(

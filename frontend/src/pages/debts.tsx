@@ -510,7 +510,7 @@ export function DebtsPage() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Select
           value={personId || 'ALL'}
-          onValueChange={(v) => setDebts({ personId: v === 'ALL' ? '' : v })}
+          onValueChange={(v) => setDebts({ personId: !v || v === 'ALL' ? '' : v })}
         >
           <SelectTrigger className="w-44">
             <SelectValue placeholder="All people">
@@ -605,7 +605,7 @@ export function DebtsPage() {
               <Label>Person</Label>
               <Select
                 value={createForm.watch('personId')}
-                onValueChange={(v) => createForm.setValue('personId', v)}
+                onValueChange={(v) => createForm.setValue('personId', v ?? '')}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select person">
@@ -758,7 +758,7 @@ export function DebtsPage() {
               <Label>Person</Label>
               <Select
                 value={editForm.watch('personId')}
-                onValueChange={(v) => editForm.setValue('personId', v)}
+                onValueChange={(v) => editForm.setValue('personId', v ?? '')}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select person">
