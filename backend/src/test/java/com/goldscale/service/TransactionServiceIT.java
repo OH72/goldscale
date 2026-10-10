@@ -154,7 +154,7 @@ class TransactionServiceIT {
                 accountId, 50000L, expenseCategoryId, LocalDate.now(), "will be deleted"));
         transactionService.delete(toDelete.id());
 
-        var page = transactionService.findAll(accountId, null, null, null, null, null, PageRequest.of(0, 50));
+        var page = transactionService.findAll(accountId, null, null, null, null, null, null, PageRequest.of(0, 50));
 
         assertThat(page.getContent()).noneMatch(t -> t.description() != null && t.description().equals("will be deleted"));
         // INITIAL_BALANCE + income = 2 active
@@ -169,11 +169,11 @@ class TransactionServiceIT {
                 accountId, 50000L, expenseCategoryId, LocalDate.now(), null));
 
         var incomePage = transactionService.findAll(
-                null, TransactionType.INCOME, null, null, null, null, PageRequest.of(0, 50));
+                null, TransactionType.INCOME, null, null, null, null, null, PageRequest.of(0, 50));
         assertThat(incomePage.getContent()).allMatch(t -> t.type() == TransactionType.INCOME);
 
         var expensePage = transactionService.findAll(
-                null, TransactionType.EXPENSE, null, null, null, null, PageRequest.of(0, 50));
+                null, TransactionType.EXPENSE, null, null, null, null, null, PageRequest.of(0, 50));
         assertThat(expensePage.getContent()).allMatch(t -> t.type() == TransactionType.EXPENSE);
     }
 
@@ -187,7 +187,7 @@ class TransactionServiceIT {
         var page = transactionService.findAll(
                 null, null, null, null,
                 LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31),
-                PageRequest.of(0, 50));
+                null, PageRequest.of(0, 50));
 
         assertThat(page.getContent()).allMatch(t -> !t.date().isBefore(LocalDate.of(2026, 10, 1)));
     }
@@ -202,7 +202,7 @@ class TransactionServiceIT {
         var page = transactionService.findAll(
                 null, null, null, null,
                 null, LocalDate.of(2026, 10, 1),
-                PageRequest.of(0, 50));
+                null, PageRequest.of(0, 50));
 
         assertThat(page.getContent()).allMatch(t -> !t.date().isAfter(LocalDate.of(2026, 10, 1)));
     }
@@ -301,11 +301,11 @@ class TransactionServiceIT {
                 LocalDate.of(2026, 10, 3), "cross"));
 
         var sourcePage = transactionService.findAll(
-                accountId, TransactionType.TRANSFER, null, null, null, null, PageRequest.of(0, 50));
+                accountId, TransactionType.TRANSFER, null, null, null, null, null, PageRequest.of(0, 50));
         assertThat(sourcePage.getContent()).hasSize(1);
 
         var targetPage = transactionService.findAll(
-                targetAccountId, TransactionType.TRANSFER, null, null, null, null, PageRequest.of(0, 50));
+                targetAccountId, TransactionType.TRANSFER, null, null, null, null, null, PageRequest.of(0, 50));
         assertThat(targetPage.getContent()).hasSize(1);
     }
 

@@ -38,7 +38,7 @@ public class TransactionService {
 
     public Page<TransactionResponse> findAll(
             String accountId, TransactionType type, String categoryId, String tagId,
-            LocalDate startDate, LocalDate endDate, Pageable pageable) {
+            LocalDate startDate, LocalDate endDate, String search, Pageable pageable) {
 
         var criteria = Criteria.where("deleted").ne(true);
 
@@ -58,6 +58,9 @@ public class TransactionService {
         }
         if (tagId != null) {
             criteria = criteria.and("tags").is(tagId);
+        }
+        if (search != null && !search.isBlank()) {
+            criteria = criteria.and("description").regex(search.trim(), "i");
         }
         if (startDate != null && endDate != null) {
             criteria = criteria.and("date").gte(startDate).lte(endDate);

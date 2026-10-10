@@ -18,6 +18,7 @@ function buildParams(filters: TransactionFilters): string {
   if (filters.tagId) params.set('tagId', filters.tagId)
   if (filters.startDate) params.set('startDate', filters.startDate)
   if (filters.endDate) params.set('endDate', filters.endDate)
+  if (filters.search) params.set('search', filters.search)
   if (filters.sort) params.set('sort', filters.sort)
   params.set('page', String(filters.page))
   params.set('size', String(filters.size))

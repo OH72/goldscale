@@ -33,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
-import { MoreHorizontal, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ArrowUp, ArrowDown, ArrowUpDown, X } from 'lucide-react'
+import { MoreHorizontal, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ArrowUp, ArrowDown, ArrowUpDown, X, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/currency'
 import type { TransactionResponse, TransactionFilters } from '@/types/transaction'
@@ -66,6 +66,7 @@ export function TransactionsPage() {
     tagId: searchParams.get('tagId') ?? undefined,
     startDate: searchParams.get('startDate') ?? undefined,
     endDate: searchParams.get('endDate') ?? undefined,
+    search: searchParams.get('search') ?? undefined,
     sort: searchParams.get('sort') ?? undefined,
     page: Number(searchParams.get('page') ?? 0),
     size: 20,
@@ -196,14 +197,23 @@ export function TransactionsPage() {
       </PageHeader>
 
       {/* Filters */}
-      <div className="mb-4 flex flex-wrap gap-3">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <Search className="absolute left-2 top-2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search..."
+            className="h-8 w-44 pl-7 text-sm"
+            value={filters.search ?? ''}
+            onChange={(e) => setFilter('search', e.target.value || undefined)}
+          />
+        </div>
         <Select
           value={filters.accountId ?? ALL_VALUE}
           onValueChange={(v) =>
             setFilter('accountId', v === ALL_VALUE ? undefined : v)
           }
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="h-8 w-40 text-sm">
             <SelectValue>
               {(v: string) =>
                 v === ALL_VALUE
@@ -234,7 +244,7 @@ export function TransactionsPage() {
             setFilter('type', v === ALL_VALUE ? undefined : v)
           }
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="h-8 w-32 text-sm">
             <SelectValue>
               {(v: string) => TYPE_LABELS[v] ?? v}
             </SelectValue>
@@ -253,7 +263,7 @@ export function TransactionsPage() {
             setFilter('categoryId', v === ALL_VALUE ? undefined : v)
           }
         >
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="h-8 w-40 text-sm">
             <SelectValue>
               {(v: string) =>
                 v === ALL_VALUE
@@ -278,7 +288,7 @@ export function TransactionsPage() {
             setFilter('tagId', v === ALL_VALUE ? undefined : v)
           }
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="h-8 w-32 text-sm">
             <SelectValue>
               {(v: string) =>
                 v === ALL_VALUE
@@ -302,14 +312,14 @@ export function TransactionsPage() {
 
         <Input
           type="date"
-          className="w-38"
+          className="h-8 w-34 text-sm"
           placeholder="From"
           value={filters.startDate ?? ''}
           onChange={(e) => setFilter('startDate', e.target.value || undefined)}
         />
         <Input
           type="date"
-          className="w-38"
+          className="h-8 w-34 text-sm"
           placeholder="To"
           value={filters.endDate ?? ''}
           onChange={(e) => setFilter('endDate', e.target.value || undefined)}
@@ -318,7 +328,7 @@ export function TransactionsPage() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9"
+            className="h-7 w-7"
             onClick={() => {
               const next = new URLSearchParams(searchParams)
               next.delete('startDate')

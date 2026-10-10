@@ -73,6 +73,7 @@ export interface TransactionFilters {
   tagId?: string
   startDate?: string
   endDate?: string
+  search?: string
   sort?: string
   page: number
   size: number
