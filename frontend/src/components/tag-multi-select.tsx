@@ -60,7 +60,7 @@ export function TagMultiSelect({ tags, value, onChange }: TagMultiSelectProps) {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </PopoverTrigger>
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0"
+        className="w-(--anchor-width) p-0"
         initialFocus={false}
       >
         <div className="border-b p-2">

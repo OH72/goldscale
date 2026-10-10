@@ -374,19 +374,21 @@ export function TransactionFormDialog({
             <div className="space-y-2">
               <Label>Category</Label>
               <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    type="button"
-                    className="w-full justify-between font-normal"
-                  >
-                    {form.watch('categoryId')
-                      ? (filteredCategories?.find((c) => c.id === form.watch('categoryId'))?.name ?? 'Select category')
-                      : <span className="text-muted-foreground">Select category</span>}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      type="button"
+                      className="w-full justify-between font-normal"
+                    />
+                  }
+                >
+                  {form.watch('categoryId')
+                    ? (filteredCategories?.find((c) => c.id === form.watch('categoryId'))?.name ?? 'Select category')
+                    : <span className="text-muted-foreground">Select category</span>}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <PopoverContent className="w-(--anchor-width) p-0" initialFocus={false}>
                   <div className="p-2 border-b">
                     <Input
                       placeholder="Search categories..."
@@ -456,19 +458,21 @@ export function TransactionFormDialog({
           <div className="space-y-2">
             <Label>Date</Label>
             <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    'w-full justify-start text-left font-normal',
-                    !form.watch('date') && 'text-muted-foreground',
-                  )}
-                >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {form.watch('date')
-                    ? format(form.watch('date'), 'dd.MM.yyyy')
-                    : 'Pick a date'}
-                </Button>
+              <PopoverTrigger
+                render={
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      'w-full justify-start text-left font-normal',
+                      !form.watch('date') && 'text-muted-foreground',
+                    )}
+                  />
+                }
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {form.watch('date')
+                  ? format(form.watch('date'), 'dd.MM.yyyy')
+                  : 'Pick a date'}
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0">
                 <Calendar
@@ -490,40 +494,42 @@ export function TransactionFormDialog({
             <div className="space-y-2">
               <Label>Tags</Label>
               <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    type="button"
-                    className="w-full justify-between font-normal"
-                  >
-                    {selectedTagIds.length === 0 ? (
-                      <span className="text-muted-foreground">Select tags</span>
-                    ) : (
-                      <div className="flex flex-wrap gap-1">
-                        {selectedTagIds.map((id) => {
-                          const tag = tags.find((t) => t.id === id)
-                          return tag ? (
-                            <Badge key={id} variant="secondary" className="text-xs">
-                              {tag.name}
-                              <button
-                                type="button"
-                                className="ml-1"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  setSelectedTagIds((prev) => prev.filter((t) => t !== id))
-                                }}
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </Badge>
-                          ) : null
-                        })}
-                      </div>
-                    )}
-                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                  </Button>
+                <PopoverTrigger
+                  render={
+                    <Button
+                      variant="outline"
+                      type="button"
+                      className="w-full justify-between font-normal"
+                    />
+                  }
+                >
+                  {selectedTagIds.length === 0 ? (
+                    <span className="text-muted-foreground">Select tags</span>
+                  ) : (
+                    <div className="flex flex-wrap gap-1">
+                      {selectedTagIds.map((id) => {
+                        const tag = tags.find((t) => t.id === id)
+                        return tag ? (
+                          <Badge key={id} variant="secondary" className="text-xs">
+                            {tag.name}
+                            <button
+                              type="button"
+                              className="ml-1"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setSelectedTagIds((prev) => prev.filter((t) => t !== id))
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ) : null
+                      })}
+                    </div>
+                  )}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" onOpenAutoFocus={(e) => e.preventDefault()}>
+                <PopoverContent className="w-(--anchor-width) p-0" initialFocus={false}>
                   <div className="p-2 border-b">
                     <Input
                       placeholder="Search tags..."

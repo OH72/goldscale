@@ -62,7 +62,7 @@ export function CategorySelect({ categories, value, onChange }: CategorySelectPr
           </span>
         </PopoverTrigger>
       <PopoverContent
-        className="w-[--radix-popover-trigger-width] p-0"
+        className="w-(--anchor-width) p-0"
         initialFocus={false}
       >
         <div className="border-b p-2">
