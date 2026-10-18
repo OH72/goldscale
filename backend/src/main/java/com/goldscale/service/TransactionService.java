@@ -343,18 +343,32 @@ public class TransactionService {
 
         // Edit cascade: update linked debt payments or debt amounts
         if (txn.getDebtLinks() != null) {
+            var amountOverrides = request.debtLinkAmounts();
+            boolean linksChanged = false;
+
             for (var link : txn.getDebtLinks()) {
+                // Apply amount override if provided
+                long linkAmount = link.getAmount();
+                if (amountOverrides != null && amountOverrides.containsKey(link.getDebtRecordId())) {
+                    linkAmount = amountOverrides.get(link.getDebtRecordId());
+                    link.setAmount(linkAmount);
+                    linksChanged = true;
+                }
+
                 if (link.getPaymentId() != null) {
-                    // UC1: linked payment — update date and description only
-                    // (amount stays as originally specified in the link)
+                    // UC1: linked payment — update amount, date, description
                     debtRecordService.updatePaymentFromTransaction(
                             link.getDebtRecordId(), link.getPaymentId(),
-                            link.getAmount(), request.date(), request.description());
+                            linkAmount, request.date(), request.description());
                 } else {
                     // UC2/UC3: originating debt — update the debt amount
                     debtRecordService.updateDebtAmountFromTransaction(
-                            link.getDebtRecordId(), link.getAmount());
+                            link.getDebtRecordId(), linkAmount);
                 }
+            }
+
+            if (linksChanged) {
+                transactionRepository.save(txn);
             }
         }
 

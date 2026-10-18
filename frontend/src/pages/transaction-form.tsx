@@ -105,6 +105,8 @@ export function TransactionFormDialog({
   const [debtLinkRows, setDebtLinkRows] = useState<DebtLinkRow[]>([])
   const [newDebtRows, setNewDebtRows] = useState<NewDebtRow[]>([])
   const [debtSearch, setDebtSearch] = useState('')
+  // Editable link amounts for edit mode (debtRecordId -> display amount string)
+  const [editLinkAmounts, setEditLinkAmounts] = useState<Record<string, string>>({})
 
   // Fetch open debts/loans for linking (UC1)
   const debtTypeForLink = txnType === 'EXPENSE' ? 'DEBT' : 'LOAN'
@@ -169,6 +171,16 @@ export function TransactionFormDialog({
       setSelectedTagIds(editTransaction.tagIds ?? [])
       setTagSearch('')
       setCategorySearch('')
+      // Initialize editable link amounts from existing debt links
+      if (editTransaction.debtLinks?.length) {
+        const amounts: Record<string, string> = {}
+        for (const link of editTransaction.debtLinks) {
+          amounts[link.debtRecordId] = String(fromSubunits(link.amount))
+        }
+        setEditLinkAmounts(amounts)
+      } else {
+        setEditLinkAmounts({})
+      }
       form.reset({
         amount: fromSubunits(editTransaction.amount),
         targetAmount: editTransaction.targetAmount
@@ -224,6 +236,14 @@ export function TransactionFormDialog({
             accountId: values.accountId,
             targetAccountId: values.targetAccountId ?? null,
             tagIds,
+            debtLinkAmounts: editTransaction.debtLinks?.length
+              ? Object.fromEntries(
+                  editTransaction.debtLinks.map((link) => [
+                    link.debtRecordId,
+                    toSubunits(Number(editLinkAmounts[link.debtRecordId] || fromSubunits(link.amount))),
+                  ]),
+                )
+              : null,
           },
         },
         { onSuccess: () => onOpenChange(false) },
@@ -659,24 +679,37 @@ export function TransactionFormDialog({
                   <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                     Linked Debts / Loans
                   </Label>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {editTransaction.debtLinks.map((link) => (
                       <div
                         key={link.debtRecordId}
-                        className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm"
+                        className="rounded-md border p-2 space-y-1.5"
                       >
-                        <Link className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                        <span className="font-medium">{link.personName}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {link.debtType}
-                        </Badge>
-                        <span>{formatCurrency(link.amount, 'UAH')}</span>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Link className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                          <span className="font-medium">{link.personName}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {link.debtType}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-xs shrink-0">Amount:</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            className="h-7 text-sm"
+                            value={editLinkAmounts[link.debtRecordId] ?? String(fromSubunits(link.amount))}
+                            onChange={(e) =>
+                              setEditLinkAmounts((prev) => ({
+                                ...prev,
+                                [link.debtRecordId]: e.target.value,
+                              }))
+                            }
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Editing will update the linked debt/loan records.
-                  </p>
                 </div>
               </>
             )}

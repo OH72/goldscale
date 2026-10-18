@@ -266,14 +266,16 @@ function RecordRow({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation()
-                onAddPayment(record)
-              }}
-            >
-              Add Payment
-            </DropdownMenuItem>
+            {!record.sourceTransactionId && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onAddPayment(record)
+                }}
+              >
+                Add Payment
+              </DropdownMenuItem>
+            )}
             {record.sourceTransactionId ? (
               <DropdownMenuItem disabled className="text-muted-foreground text-xs">
                 Edit via transaction

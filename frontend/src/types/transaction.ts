@@ -89,6 +89,7 @@ export interface UpdateTransactionRequest {
   accountId: string | null
   targetAccountId: string | null
   tagIds: string[] | null
+  debtLinkAmounts?: Record<string, number> | null
 }
 
 export interface TransactionFilters {
