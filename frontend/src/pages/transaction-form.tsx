@@ -900,7 +900,10 @@ export function TransactionFormDialog({
                         variant="outline"
                         size="sm"
                         className="w-full"
-                        onClick={() => setNewDebtRows((prev) => [...prev, { personId: '', amount: '' }])}
+                        onClick={() => {
+                          const txnAmount = form.getValues('amount')
+                          setNewDebtRows((prev) => [...prev, { personId: '', amount: txnAmount ? String(txnAmount) : '' }])
+                        }}
                       >
                         <Plus className="h-3.5 w-3.5 mr-1" />
                         Add person
