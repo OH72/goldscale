@@ -760,6 +760,11 @@ export function DebtsPage() {
           <DialogHeader>
             <DialogTitle>Edit Record</DialogTitle>
           </DialogHeader>
+          {editRecord?.sourceTransactionId && (
+            <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+              This record was created from a transaction. Changes here won't update the linked transaction.
+            </div>
+          )}
           <form
             onSubmit={editForm.handleSubmit(handleEdit)}
             className="space-y-4"

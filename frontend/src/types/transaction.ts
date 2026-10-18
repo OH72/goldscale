@@ -1,4 +1,24 @@
 import type { TransactionType, Currency } from './common'
+import type { DebtType } from './debt'
+
+export interface DebtLinkResponse {
+  debtRecordId: string
+  paymentId: string | null
+  amount: number
+  personName: string
+  debtType: DebtType
+  debtDescription: string | null
+}
+
+export interface DebtLinkInput {
+  debtRecordId: string
+  amount: number
+}
+
+export interface NewDebtInput {
+  personId: string
+  amount?: number | null
+}
 
 export interface TransactionResponse {
   id: string
@@ -16,8 +36,7 @@ export interface TransactionResponse {
   date: string
   tagIds: string[] | null
   tagNames: string[] | null
-  debtRecordId: string | null
-  paymentId: string | null
+  debtLinks: DebtLinkResponse[] | null
   createdAt: string
 }
 
@@ -29,9 +48,8 @@ export interface CreateIncomeRequest {
   date: string
   description: string | null
   tagIds: string[] | null
-  debtRecordId?: string | null
-  personId?: string | null
-  debtAmount?: number | null
+  debtLinks?: DebtLinkInput[] | null
+  newDebts?: NewDebtInput[] | null
 }
 
 export interface CreateExpenseRequest {
@@ -42,9 +60,8 @@ export interface CreateExpenseRequest {
   date: string
   description: string | null
   tagIds: string[] | null
-  debtRecordId?: string | null
-  personId?: string | null
-  debtAmount?: number | null
+  debtLinks?: DebtLinkInput[] | null
+  newDebts?: NewDebtInput[] | null
 }
 
 export interface CreateTransferRequest {

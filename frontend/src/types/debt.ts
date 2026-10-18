@@ -64,6 +64,7 @@ export interface DebtRecordResponse {
   date: string
   status: DebtStatus
   payments: PaymentResponse[]
+  sourceTransactionId: string | null
   createdAt: string
   updatedAt: string
 }

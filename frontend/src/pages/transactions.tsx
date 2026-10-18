@@ -34,6 +34,12 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
 import { MoreHorizontal, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ArrowUp, ArrowDown, ArrowUpDown, X, Search, Link } from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/currency'
 import type { TransactionResponse, TransactionFilters } from '@/types/transaction'
@@ -435,8 +441,22 @@ export function TransactionsPage() {
                   </TableCell>
                   <TableCell className="align-top whitespace-normal text-muted-foreground" title={txn.description ?? ''}>
                     <div className="flex items-start gap-1">
-                      {txn.debtRecordId && (
-                        <Link className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-500" />
+                      {txn.debtLinks && txn.debtLinks.length > 0 && (
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Link className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-500 cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                              <p className="font-medium text-xs mb-1">Linked debts/loans:</p>
+                              {txn.debtLinks.map((link) => (
+                                <p key={link.debtRecordId} className="text-xs">
+                                  {link.personName} ({link.debtType}) — {formatCurrency(link.amount, 'UAH')}
+                                </p>
+                              ))}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                       <p className="line-clamp-2 break-words text-xs">{txn.description ?? ''}</p>
                     </div>
@@ -501,8 +521,8 @@ export function TransactionsPage() {
         onOpenChange={(open) => !open && setDeleteTxn(null)}
         title="Delete Transaction"
         description={
-          deleteTxn?.debtRecordId
-            ? 'Delete this transaction? The account balance will be adjusted and the linked debt/loan payment will also be removed.'
+          deleteTxn?.debtLinks && deleteTxn.debtLinks.length > 0
+            ? 'Delete this transaction? The account balance will be adjusted and the linked debt/loan payment(s) will also be removed.'
             : 'Delete this transaction? The account balance will be adjusted.'
         }
         loading={deleteMutation.isPending}
