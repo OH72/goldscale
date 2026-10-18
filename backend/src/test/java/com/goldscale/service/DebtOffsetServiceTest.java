@@ -36,6 +36,7 @@ class DebtOffsetServiceTest {
     @Mock private DebtRecordRepository debtRecordRepository;
     @Mock private PersonRepository personRepository;
     @Mock private DebtRecordService debtRecordService;
+    @Mock private EventLogService eventLogService;
 
     @InjectMocks private DebtOffsetService debtOffsetService;
 

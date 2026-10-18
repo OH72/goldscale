@@ -37,6 +37,7 @@ class DebtRecordServiceTest {
     @Mock private ExchangeRateService exchangeRateService;
     @Mock private SettingsService settingsService;
     @Mock private TagService tagService;
+    @Mock private EventLogService eventLogService;
 
     @InjectMocks private DebtRecordService debtRecordService;
 

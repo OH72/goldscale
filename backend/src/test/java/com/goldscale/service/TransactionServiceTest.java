@@ -34,6 +34,7 @@ class TransactionServiceTest {
     @Mock private BalanceService balanceService;
     @Mock private TagService tagService;
     @Mock private MongoTemplate mongoTemplate;
+    @Mock private EventLogService eventLogService;
 
     @InjectMocks private TransactionService transactionService;
 

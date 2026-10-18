@@ -41,6 +41,7 @@ public class TransactionService {
     private final DebtRecordService debtRecordService;
     private final TagService tagService;
     private final MongoTemplate mongoTemplate;
+    private final EventLogService eventLogService;
 
     public Page<TransactionResponse> findAll(
             String accountId, TransactionType type, String categoryId, String tagId,
@@ -112,6 +113,9 @@ public class TransactionService {
                     cmd.date(), cmd.description(), cmd.tagIds());
         };
 
+        eventLogService.log("CREATE", "TRANSACTION", txn.getId(),
+                "Created " + txn.getType() + " transaction" +
+                (txn.getDescription() != null ? " '" + txn.getDescription() + "'" : ""));
         return enrichWithNames(List.of(txn)).getFirst();
     }
 
@@ -119,11 +123,15 @@ public class TransactionService {
     public TransactionResponse update(String id, UpdateTransactionRequest request) {
         var txn = getActiveTransaction(id);
 
-        return switch (txn.getType()) {
+        var result = switch (txn.getType()) {
             case INITIAL_BALANCE -> updateInitialBalance(txn, request);
             case INCOME, EXPENSE -> updateIncomeOrExpense(txn, request);
             case TRANSFER -> updateTransfer(txn, request);
         };
+        eventLogService.log("UPDATE", "TRANSACTION", id,
+                "Updated " + txn.getType() + " transaction" +
+                (txn.getDescription() != null ? " '" + txn.getDescription() + "'" : ""));
+        return result;
     }
 
     @Transactional
@@ -146,6 +154,10 @@ public class TransactionService {
             }
             default -> {}
         }
+
+        eventLogService.log("DELETE", "TRANSACTION", id,
+                "Deleted " + txn.getType() + " transaction" +
+                (txn.getDescription() != null ? " '" + txn.getDescription() + "'" : ""));
 
         // Delete cascade: remove linked payments or soft-delete debt records
         if (txn.getDebtLinks() != null) {

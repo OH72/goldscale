@@ -34,6 +34,7 @@ class AccountServiceTest {
     @Mock private MongoTemplate mongoTemplate;
     @Mock private SettingsService settingsService;
     @Mock private ExchangeRateService exchangeRateService;
+    @Mock private EventLogService eventLogService;
 
     @InjectMocks private AccountService accountService;
 

@@ -29,6 +29,10 @@ export const queryKeys = {
     detail: (id: string) => ['debtRecords', id] as const,
     summary: ['debtRecords', 'summary'] as const,
   },
+  eventLog: {
+    all: ['eventLog'] as const,
+    list: (filters: unknown) => ['eventLog', 'list', filters] as const,
+  },
   dashboard: {
     all: ['dashboard'] as const,
     expensesByCategory: (filters: unknown) => ['dashboard', 'expenses-by-category', filters] as const,

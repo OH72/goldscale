@@ -34,6 +34,7 @@ public class DebtOffsetService {
     private final DebtRecordRepository debtRecordRepository;
     private final PersonRepository personRepository;
     private final DebtRecordService debtRecordService;
+    private final EventLogService eventLogService;
 
     public OffsetResponse preview(String personId) {
         var person = personRepository.findById(personId)
@@ -74,6 +75,9 @@ public class DebtOffsetService {
                 byId.put(updated.getId(), updated);
             }
         }
+        var totalAmount = currencies.stream().mapToLong(OffsetCurrencyEntry::amount).sum();
+        eventLogService.log("OFFSET", "DEBT_RECORD", personId,
+                "Offset debts/loans for '" + person.getName() + "' (total " + totalAmount + " subunits)");
         return new OffsetResponse(personId, person.getName(), currencies);
     }
 

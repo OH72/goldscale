@@ -26,6 +26,7 @@ public class PersonService {
     private final DebtRecordRepository debtRecordRepository;
     private final DebtRecordService debtRecordService;
     private final DebtOffsetService debtOffsetService;
+    private final EventLogService eventLogService;
 
     public List<Person> findAll() {
         return personRepository.findAll(Sort.by(Sort.Direction.ASC, "name"));
@@ -66,7 +67,9 @@ public class PersonService {
         var person = new Person();
         person.setName(trimmed);
         person.setUpdatedAt(Instant.now());
-        return personRepository.save(person);
+        person = personRepository.save(person);
+        eventLogService.log("CREATE", "PERSON", person.getId(), "Created person '" + person.getName() + "'");
+        return person;
     }
 
     public Person update(String id, UpdatePersonRequest request) {
@@ -79,7 +82,9 @@ public class PersonService {
 
         person.setName(trimmed);
         person.setUpdatedAt(Instant.now());
-        return personRepository.save(person);
+        person = personRepository.save(person);
+        eventLogService.log("UPDATE", "PERSON", person.getId(), "Updated person '" + person.getName() + "'");
+        return person;
     }
 
     public void delete(String id) {
@@ -91,5 +96,6 @@ public class PersonService {
         }
 
         personRepository.delete(person);
+        eventLogService.log("DELETE", "PERSON", id, "Deleted person '" + person.getName() + "'");
     }
 }

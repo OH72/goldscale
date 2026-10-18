@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 public class TagService {
 
     private final TagRepository tagRepository;
+    private final EventLogService eventLogService;
 
     public List<Tag> findAll() {
         return tagRepository.findAll();
@@ -36,12 +37,15 @@ public class TagService {
 
         var tag = new Tag();
         tag.setName(trimmed);
-        return tagRepository.save(tag);
+        tag = tagRepository.save(tag);
+        eventLogService.log("CREATE", "TAG", tag.getId(), "Created tag '" + tag.getName() + "'");
+        return tag;
     }
 
     public void delete(String id) {
         var tag = findById(id);
         tagRepository.delete(tag);
+        eventLogService.log("DELETE", "TAG", id, "Deleted tag '" + tag.getName() + "'");
     }
 
     /**

@@ -31,6 +31,7 @@ public class AccountService {
     private final MongoTemplate mongoTemplate;
     private final SettingsService settingsService;
     private final ExchangeRateService exchangeRateService;
+    private final EventLogService eventLogService;
 
     public List<AccountResponse> findAllWithConvertedBalance() {
         var displayCurrency = settingsService.get().getDisplayCurrency();
@@ -70,6 +71,8 @@ public class AccountService {
         txn.setDeleted(false);
         transactionRepository.save(txn);
 
+        eventLogService.log("CREATE", "ACCOUNT", account.getId(),
+                "Created account '" + account.getName() + "' (" + account.getCurrency() + ")");
         return account;
     }
 
@@ -86,7 +89,9 @@ public class AccountService {
         account.setCurrency(request.currency());
         account.setActive(request.active());
         account.setColor(request.color());
-        return accountRepository.save(account);
+        account = accountRepository.save(account);
+        eventLogService.log("UPDATE", "ACCOUNT", account.getId(), "Updated account '" + account.getName() + "'");
+        return account;
     }
 
     @Transactional
@@ -108,5 +113,6 @@ public class AccountService {
         );
 
         accountRepository.delete(account);
+        eventLogService.log("DELETE", "ACCOUNT", id, "Deleted account '" + account.getName() + "'");
     }
 }

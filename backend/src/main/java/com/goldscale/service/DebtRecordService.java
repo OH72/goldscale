@@ -35,6 +35,7 @@ public class DebtRecordService {
     private final ExchangeRateService exchangeRateService;
     private final SettingsService settingsService;
     private final TagService tagService;
+    private final EventLogService eventLogService;
 
     public List<DebtRecordResponse> findAll(String personId, DebtType type, DebtStatus status) {
         var criteria = Criteria.where("deleted").ne(true);
@@ -82,6 +83,8 @@ public class DebtRecordService {
         record.setUpdatedAt(Instant.now());
         record = debtRecordRepository.save(record);
 
+        eventLogService.log("CREATE", "DEBT_RECORD", record.getId(),
+                "Created " + record.getType() + " record (" + record.getCurrency() + ")");
         return enrichWithNames(List.of(record)).getFirst();
     }
 
@@ -116,6 +119,8 @@ public class DebtRecordService {
         record.setUpdatedAt(Instant.now());
         record = debtRecordRepository.save(record);
 
+        eventLogService.log("UPDATE", "DEBT_RECORD", record.getId(),
+                "Updated " + record.getType() + " record (" + record.getCurrency() + ")");
         return enrichWithNames(List.of(record)).getFirst();
     }
 
@@ -124,6 +129,8 @@ public class DebtRecordService {
         record.setDeleted(true);
         record.setUpdatedAt(Instant.now());
         debtRecordRepository.save(record);
+        eventLogService.log("DELETE", "DEBT_RECORD", id,
+                "Deleted " + record.getType() + " record (" + record.getCurrency() + ")");
     }
 
     public DebtRecordResponse addPayment(String id, AddPaymentRequest request) {
@@ -137,6 +144,8 @@ public class DebtRecordService {
 
         record = applyPayment(record, request.amount(), request.date(), request.description());
 
+        eventLogService.log("CREATE", "PAYMENT", id,
+                "Added payment to " + record.getType() + " record");
         return enrichWithNames(List.of(record)).getFirst();
     }
 
@@ -193,6 +202,7 @@ public class DebtRecordService {
         // If this is an offset payment, cascade-remove all payments in the same group
         if (payment.getOffsetGroupId() != null) {
             removeOffsetGroup(record.getPersonId(), payment.getOffsetGroupId());
+            eventLogService.log("DELETE", "PAYMENT", id, "Removed offset payment group");
             // Re-fetch the record after cascade removal
             record = getActiveRecord(id);
             return enrichWithNames(List.of(record)).getFirst();
@@ -213,6 +223,7 @@ public class DebtRecordService {
         record.setUpdatedAt(Instant.now());
         record = debtRecordRepository.save(record);
 
+        eventLogService.log("DELETE", "PAYMENT", id, "Removed payment from " + record.getType() + " record");
         return enrichWithNames(List.of(record)).getFirst();
     }
 
@@ -241,6 +252,8 @@ public class DebtRecordService {
         record.setUpdatedAt(Instant.now());
         record = debtRecordRepository.save(record);
 
+        eventLogService.log("UPDATE", "DEBT_RECORD", id,
+                "Toggled " + record.getType() + " record to " + record.getStatus());
         return enrichWithNames(List.of(record)).getFirst();
     }
 

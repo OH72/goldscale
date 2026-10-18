@@ -19,6 +19,7 @@ public class CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final TransactionRepository transactionRepository;
+    private final EventLogService eventLogService;
 
     public List<Category> findAll() {
         return categoryRepository.findAll();
@@ -39,7 +40,9 @@ public class CategoryService {
         category.setName(request.name());
         category.setType(request.type());
         category.setIcon(request.icon());
-        return categoryRepository.save(category);
+        category = categoryRepository.save(category);
+        eventLogService.log("CREATE", "CATEGORY", category.getId(), "Created category '" + category.getName() + "'");
+        return category;
     }
 
     public Category update(String id, UpdateCategoryRequest request) {
@@ -54,7 +57,9 @@ public class CategoryService {
         category.setName(request.name());
         category.setType(request.type());
         category.setIcon(request.icon());
-        return categoryRepository.save(category);
+        category = categoryRepository.save(category);
+        eventLogService.log("UPDATE", "CATEGORY", category.getId(), "Updated category '" + category.getName() + "'");
+        return category;
     }
 
     public void delete(String id) {
@@ -66,6 +71,7 @@ public class CategoryService {
         }
 
         categoryRepository.delete(category);
+        eventLogService.log("DELETE", "CATEGORY", id, "Deleted category '" + category.getName() + "'");
     }
 
     public void bulkDelete(List<String> ids) {
@@ -84,5 +90,7 @@ public class CategoryService {
         }
 
         categoryRepository.deleteAll(categories);
+        var names = categories.stream().map(Category::getName).toList();
+        eventLogService.log("DELETE", "CATEGORY", null, "Bulk deleted categories: " + String.join(", ", names));
     }
 }

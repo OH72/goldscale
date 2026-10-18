@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 public class SettingsService {
 
     private final SettingsRepository settingsRepository;
+    private final EventLogService eventLogService;
 
     public Settings get() {
         return settingsRepository.findById(Settings.GLOBAL_ID)
@@ -25,6 +26,8 @@ public class SettingsService {
         if (request.initialDate() != null) {
             settings.setInitialDate(request.initialDate());
         }
-        return settingsRepository.save(settings);
+        settings = settingsRepository.save(settings);
+        eventLogService.log("UPDATE", "SETTINGS", null, "Updated settings");
+        return settings;
     }
 }
