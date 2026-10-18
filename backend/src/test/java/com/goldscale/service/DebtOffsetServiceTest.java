@@ -23,6 +23,8 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -116,18 +118,20 @@ class DebtOffsetServiceTest {
     }
 
     @Test
-    void should_applyPaymentsToBothSides_when_execute() {
+    void should_applyOffsetPaymentsToBothSides_when_execute() {
         var d1 = record("d1", DebtType.DEBT, 10000, 0, Currency.UAH, LocalDate.of(2026, 1, 1));
         var l1 = record("l1", DebtType.LOAN, 4000, 0, Currency.UAH, LocalDate.of(2026, 1, 15));
 
         when(personRepository.findById("p1")).thenReturn(Optional.of(person()));
         when(debtRecordRepository.findByPersonIdAndDeletedFalse("p1")).thenReturn(List.of(d1, l1));
+        when(debtRecordService.applyOffsetPayment(any(), anyLong(), any(LocalDate.class), any(), anyString()))
+                .thenAnswer(inv -> inv.getArgument(0));
 
         var result = debtOffsetService.execute("p1");
 
         assertThat(result.currencies().getFirst().amount()).isEqualTo(4000);
-        verify(debtRecordService).applyPayment(eq(d1), eq(4000L), any(LocalDate.class), any());
-        verify(debtRecordService).applyPayment(eq(l1), eq(4000L), any(LocalDate.class), any());
+        verify(debtRecordService).applyOffsetPayment(eq(d1), eq(4000L), any(LocalDate.class), any(), anyString());
+        verify(debtRecordService).applyOffsetPayment(eq(l1), eq(4000L), any(LocalDate.class), any(), anyString());
     }
 
     @Test
@@ -139,6 +143,6 @@ class DebtOffsetServiceTest {
 
         assertThatThrownBy(() -> debtOffsetService.execute("p1"))
                 .isInstanceOf(BusinessRuleException.class);
-        verify(debtRecordService, never()).applyPayment(any(), any(Long.class), any(), any());
+        verify(debtRecordService, never()).applyOffsetPayment(any(), anyLong(), any(), any(), any());
     }
 }

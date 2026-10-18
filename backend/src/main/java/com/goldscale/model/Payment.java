@@ -14,5 +14,6 @@ public class Payment {
     private LocalDate date;
     private String description;
     private String transactionId;
+    private String offsetGroupId;
     private Instant createdAt;
 }

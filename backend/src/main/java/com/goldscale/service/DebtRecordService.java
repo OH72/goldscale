@@ -140,6 +140,28 @@ public class DebtRecordService {
         return enrichWithNames(List.of(record)).getFirst();
     }
 
+    /** Adds an offset payment with a group ID linking all payments from the same offset operation. */
+    DebtRecord applyOffsetPayment(DebtRecord record, long amount, LocalDate date,
+                                  String description, String offsetGroupId) {
+        var payment = new Payment();
+        payment.setId(UUID.randomUUID().toString());
+        payment.setAmount(amount);
+        payment.setDate(date);
+        payment.setDescription(description);
+        payment.setOffsetGroupId(offsetGroupId);
+        payment.setCreatedAt(Instant.now());
+
+        record.getPayments().add(payment);
+        record.setCoveredAmount(record.getCoveredAmount() + amount);
+
+        if (record.getCoveredAmount() >= record.getAmount()) {
+            record.setStatus(DebtStatus.CLOSED);
+        }
+
+        record.setUpdatedAt(Instant.now());
+        return debtRecordRepository.save(record);
+    }
+
     /** Adds a payment, updates the covered amount and closes the record when fully covered. */
     DebtRecord applyPayment(DebtRecord record, long amount, LocalDate date, String description) {
         var payment = new Payment();
@@ -168,6 +190,14 @@ public class DebtRecordService {
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("Payment", paymentId));
 
+        // If this is an offset payment, cascade-remove all payments in the same group
+        if (payment.getOffsetGroupId() != null) {
+            removeOffsetGroup(record.getPersonId(), payment.getOffsetGroupId());
+            // Re-fetch the record after cascade removal
+            record = getActiveRecord(id);
+            return enrichWithNames(List.of(record)).getFirst();
+        }
+
         record.getPayments().remove(payment);
 
         // Recalculate coveredAmount from remaining payments
@@ -184,6 +214,24 @@ public class DebtRecordService {
         record = debtRecordRepository.save(record);
 
         return enrichWithNames(List.of(record)).getFirst();
+    }
+
+    /** Removes all payments with the given offsetGroupId across all records for the person. */
+    void removeOffsetGroup(String personId, String offsetGroupId) {
+        var records = debtRecordRepository.findByPersonIdAndDeletedFalse(personId);
+        for (var record : records) {
+            boolean removed = record.getPayments()
+                    .removeIf(p -> offsetGroupId.equals(p.getOffsetGroupId()));
+            if (removed) {
+                long newCovered = record.getPayments().stream()
+                        .mapToLong(Payment::getAmount)
+                        .sum();
+                record.setCoveredAmount(newCovered);
+                record.setStatus(newCovered >= record.getAmount() ? DebtStatus.CLOSED : DebtStatus.OPEN);
+                record.setUpdatedAt(Instant.now());
+                debtRecordRepository.save(record);
+            }
+        }
     }
 
     public DebtRecordResponse toggleStatus(String id) {

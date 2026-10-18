@@ -187,6 +187,7 @@ interface PaymentRowProps {
 
 function PaymentRow({ payment, currency, recordId, onRemove, removeLoading }: PaymentRowProps) {
   const isLinked = !!payment.transactionId
+  const isOffset = !!payment.offsetGroupId
   return (
     <div className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm">
       <div className="flex items-center gap-4">
@@ -194,15 +195,32 @@ function PaymentRow({ payment, currency, recordId, onRemove, removeLoading }: Pa
           {formatCurrency(payment.amount, currency)}
         </span>
         <span className="text-muted-foreground">{formatDate(payment.date)}</span>
-        {payment.description && (
+        {payment.description && !isOffset && (
           <span className="text-muted-foreground">{payment.description}</span>
         )}
         {isLinked && (
           <TransactionInfoPopover transactionId={payment.transactionId!} />
         )}
+        {isOffset && (
+          <Badge variant="secondary" className="gap-1 text-xs">
+            <Link className="h-3 w-3" />
+            Offset
+          </Badge>
+        )}
       </div>
       {isLinked ? (
         <span className="text-xs text-muted-foreground">Via transaction</span>
+      ) : isOffset ? (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-destructive hover:text-destructive"
+          onClick={() => onRemove(recordId, payment.id)}
+          disabled={removeLoading}
+          title="Remove this offset (removes all paired payments)"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
       ) : (
         <Button
           variant="ghost"
@@ -441,6 +459,7 @@ export function DebtsPage() {
   const [removePaymentTarget, setRemovePaymentTarget] = useState<{
     recordId: string
     paymentId: string
+    isOffset: boolean
   } | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
@@ -579,7 +598,9 @@ export function DebtsPage() {
   }
 
   function handleRemovePayment(recordId: string, paymentId: string) {
-    setRemovePaymentTarget({ recordId, paymentId })
+    const record = filteredRecords.find((r) => r.id === recordId)
+    const payment = record?.payments.find((p) => p.id === paymentId)
+    setRemovePaymentTarget({ recordId, paymentId, isOffset: !!payment?.offsetGroupId })
   }
 
   if (isLoading) return <div className="p-6">Loading...</div>
@@ -1081,8 +1102,12 @@ export function DebtsPage() {
       <ConfirmDialog
         open={!!removePaymentTarget}
         onOpenChange={(open) => !open && setRemovePaymentTarget(null)}
-        title="Remove Payment"
-        description="Remove this payment? The covered amount will be recalculated."
+        title={removePaymentTarget?.isOffset ? 'Remove Offset' : 'Remove Payment'}
+        description={
+          removePaymentTarget?.isOffset
+            ? 'Remove this offset? All paired offset payments on both sides will be removed and covered amounts recalculated.'
+            : 'Remove this payment? The covered amount will be recalculated.'
+        }
         loading={removePaymentMutation.isPending}
         onConfirm={() => {
           if (removePaymentTarget) {

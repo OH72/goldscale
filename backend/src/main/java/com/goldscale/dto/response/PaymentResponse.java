@@ -11,6 +11,7 @@ public record PaymentResponse(
         LocalDate date,
         String description,
         String transactionId,
+        String offsetGroupId,
         Instant createdAt
 ) {
     public static PaymentResponse from(Payment payment) {
@@ -18,6 +19,7 @@ public record PaymentResponse(
                 payment.getId(), payment.getAmount(),
                 payment.getDate(), payment.getDescription(),
                 payment.getTransactionId(),
+                payment.getOffsetGroupId(),
                 payment.getCreatedAt()
         );
     }

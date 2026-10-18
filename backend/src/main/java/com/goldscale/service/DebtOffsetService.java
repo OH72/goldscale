@@ -65,10 +65,13 @@ public class DebtOffsetService {
 
         var byId = records.stream().collect(Collectors.toMap(DebtRecord::getId, r -> r));
         var today = LocalDate.now();
+        var offsetGroupId = UUID.randomUUID().toString();
         for (var entry : currencies) {
             for (var allocation : concat(entry.debts(), entry.loans())) {
-                debtRecordService.applyPayment(
-                        byId.get(allocation.recordId()), allocation.amount(), today, OFFSET_DESCRIPTION);
+                var updated = debtRecordService.applyOffsetPayment(
+                        byId.get(allocation.recordId()), allocation.amount(), today,
+                        OFFSET_DESCRIPTION, offsetGroupId);
+                byId.put(updated.getId(), updated);
             }
         }
         return new OffsetResponse(personId, person.getName(), currencies);

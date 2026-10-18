@@ -44,6 +44,7 @@ export interface PaymentResponse {
   date: string
   description: string | null
   transactionId: string | null
+  offsetGroupId: string | null
   createdAt: string
 }
 
