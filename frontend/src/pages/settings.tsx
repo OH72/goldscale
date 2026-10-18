@@ -897,7 +897,7 @@ function EventLogCard() {
   const { data, isLoading, error } = useEventLog({
     entityType: entityType || undefined,
     page,
-    size: 50,
+    size: 20,
   })
 
   return (
@@ -937,44 +937,46 @@ function EventLogCard() {
           <div className="py-8 text-center text-muted-foreground">Loading...</div>
         ) : (
           <>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[160px]">Time</TableHead>
-                  <TableHead className="w-[80px]">Action</TableHead>
-                  <TableHead className="w-[120px]">Entity</TableHead>
-                  <TableHead>Description</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data?.content.map((entry) => (
-                  <TableRow key={entry.id}>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {formatTimestamp(entry.timestamp)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="secondary"
-                        className={`text-xs ${ACTION_COLORS[entry.action] ?? ''}`}
-                      >
-                        {entry.action}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {titleCase(entry.entityType)}
-                    </TableCell>
-                    <TableCell className="text-sm">{entry.description}</TableCell>
-                  </TableRow>
-                ))}
-                {data?.content.length === 0 && (
+            <div className="h-[540px] overflow-y-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
-                      No events recorded
-                    </TableCell>
+                    <TableHead className="w-[160px]">Time</TableHead>
+                    <TableHead className="w-[80px]">Action</TableHead>
+                    <TableHead className="w-[120px]">Entity</TableHead>
+                    <TableHead>Description</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {data?.content.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {formatTimestamp(entry.timestamp)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant="secondary"
+                          className={`text-xs ${ACTION_COLORS[entry.action] ?? ''}`}
+                        >
+                          {entry.action}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {titleCase(entry.entityType)}
+                      </TableCell>
+                      <TableCell className="text-sm">{entry.description}</TableCell>
+                    </TableRow>
+                  ))}
+                  {data?.content.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                        No events recorded
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
 
             {data && data.totalPages > 1 && (
               <div className="mt-4 flex items-center justify-between">
