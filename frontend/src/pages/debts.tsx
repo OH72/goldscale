@@ -175,17 +175,84 @@ function TransactionInfoPopover({ transactionId }: { transactionId: string }) {
   )
 }
 
+// --- Offset Info Popover ---
+
+function OffsetInfoPopover({
+  offsetGroupId,
+  currentRecordId,
+  allRecords,
+}: {
+  offsetGroupId: string
+  currentRecordId: string
+  allRecords: DebtRecordResponse[]
+}) {
+  const counterparts = allRecords.filter(
+    (r) =>
+      r.id !== currentRecordId &&
+      r.payments.some((p) => p.offsetGroupId === offsetGroupId),
+  )
+
+  return (
+    <Popover>
+      <PopoverTrigger>
+        <Badge variant="secondary" className="gap-1 text-xs cursor-pointer hover:bg-secondary/80">
+          <Link className="h-3 w-3" />
+          Offset
+        </Badge>
+      </PopoverTrigger>
+      <PopoverContent side="top" className="w-64 p-3">
+        <p className="font-medium text-xs mb-2">Offset counterparts</p>
+        {counterparts.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No counterpart records found (may be filtered out)</p>
+        ) : (
+          <div className="space-y-1.5">
+            {counterparts.map((r) => {
+              const offsetPayment = r.payments.find((p) => p.offsetGroupId === offsetGroupId)
+              return (
+                <div key={r.id} className="text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">{r.personName}</span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'text-[10px] px-1 py-0',
+                        r.type === 'DEBT'
+                          ? 'border-red-500 text-red-600'
+                          : 'border-green-500 text-green-600',
+                      )}
+                    >
+                      {r.type === 'DEBT' ? 'Debt' : 'Loan'}
+                    </Badge>
+                  </div>
+                  <div className="text-muted-foreground">
+                    {formatCurrency(r.amount, r.currency)} total
+                    {offsetPayment && ` · ${formatCurrency(offsetPayment.amount, r.currency)} offset`}
+                  </div>
+                  {r.description && (
+                    <div className="text-muted-foreground truncate">{r.description}</div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 // --- Payment Row ---
 
 interface PaymentRowProps {
   payment: PaymentResponse
   currency: Currency
   recordId: string
+  allRecords: DebtRecordResponse[]
   onRemove: (recordId: string, paymentId: string) => void
   removeLoading: boolean
 }
 
-function PaymentRow({ payment, currency, recordId, onRemove, removeLoading }: PaymentRowProps) {
+function PaymentRow({ payment, currency, recordId, allRecords, onRemove, removeLoading }: PaymentRowProps) {
   const isLinked = !!payment.transactionId
   const isOffset = !!payment.offsetGroupId
   return (
@@ -202,10 +269,11 @@ function PaymentRow({ payment, currency, recordId, onRemove, removeLoading }: Pa
           <TransactionInfoPopover transactionId={payment.transactionId!} />
         )}
         {isOffset && (
-          <Badge variant="secondary" className="gap-1 text-xs">
-            <Link className="h-3 w-3" />
-            Offset
-          </Badge>
+          <OffsetInfoPopover
+            offsetGroupId={payment.offsetGroupId!}
+            currentRecordId={recordId}
+            allRecords={allRecords}
+          />
         )}
       </div>
       {isLinked ? (
@@ -240,6 +308,7 @@ function PaymentRow({ payment, currency, recordId, onRemove, removeLoading }: Pa
 
 interface RecordRowProps {
   record: DebtRecordResponse
+  allRecords: DebtRecordResponse[]
   expanded: boolean
   onToggleExpand: () => void
   onEdit: (record: DebtRecordResponse) => void
@@ -253,6 +322,7 @@ interface RecordRowProps {
 
 function RecordRow({
   record,
+  allRecords,
   expanded,
   onToggleExpand,
   onEdit,
@@ -410,6 +480,7 @@ function RecordRow({
               payment={payment}
               currency={record.currency}
               recordId={record.id}
+              allRecords={allRecords}
               onRemove={onRemovePayment}
               removeLoading={removePaymentLoading}
             />
@@ -684,6 +755,7 @@ export function DebtsPage() {
             <RecordRow
               key={record.id}
               record={record}
+              allRecords={filteredRecords}
               expanded={expandedIds.has(record.id)}
               onToggleExpand={() => toggleExpand(record.id)}
               onEdit={openEdit}
