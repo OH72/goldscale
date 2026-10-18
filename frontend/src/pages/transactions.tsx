@@ -35,11 +35,10 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { MoreHorizontal, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ArrowUp, ArrowDown, ArrowUpDown, X, Search, Link } from 'lucide-react'
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/currency'
 import type { TransactionResponse, TransactionFilters } from '@/types/transaction'
@@ -442,21 +441,38 @@ export function TransactionsPage() {
                   <TableCell className="align-top whitespace-normal text-muted-foreground" title={txn.description ?? ''}>
                     <div className="flex items-start gap-1">
                       {txn.debtLinks && txn.debtLinks.length > 0 && (
-                        <TooltipProvider delayDuration={200}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Link className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-500 cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              <p className="font-medium text-xs mb-1">Linked debts/loans:</p>
+                        <Popover>
+                          <PopoverTrigger>
+                            <Link className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-500 cursor-pointer hover:text-blue-700" />
+                          </PopoverTrigger>
+                          <PopoverContent side="top" className="w-64 p-3">
+                            <p className="font-medium text-xs mb-2">Linked debts/loans</p>
+                            <div className="space-y-1.5">
                               {txn.debtLinks.map((link) => (
-                                <p key={link.debtRecordId} className="text-xs">
-                                  {link.personName} ({link.debtType}) — {formatCurrency(link.amount, 'UAH')}
-                                </p>
+                                <div key={link.debtRecordId} className="text-xs">
+                                  <div className="flex items-center justify-between">
+                                    <span className="font-medium">{link.personName}</span>
+                                    <Badge
+                                      variant="outline"
+                                      className={cn(
+                                        'text-[10px] px-1 py-0',
+                                        link.debtType === 'DEBT'
+                                          ? 'border-red-500 text-red-600'
+                                          : 'border-green-500 text-green-600',
+                                      )}
+                                    >
+                                      {link.debtType === 'DEBT' ? 'Debt' : 'Loan'}
+                                    </Badge>
+                                  </div>
+                                  <div className="text-muted-foreground">
+                                    {formatCurrency(link.amount, 'UAH')}
+                                    {link.debtDescription && ` — ${link.debtDescription}`}
+                                  </div>
+                                </div>
                               ))}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
                       )}
                       <p className="line-clamp-2 break-words text-xs">{txn.description ?? ''}</p>
                     </div>

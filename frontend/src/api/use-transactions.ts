@@ -36,6 +36,14 @@ export function useTransactions(filters: TransactionFilters) {
   })
 }
 
+export function useTransaction(id: string | null) {
+  return useQuery({
+    queryKey: queryKeys.transactions.detail(id!),
+    queryFn: () => api.get<TransactionResponse>(`/transactions/${id}`),
+    enabled: !!id,
+  })
+}
+
 export function useCreateTransaction() {
   const queryClient = useQueryClient()
   return useMutation({

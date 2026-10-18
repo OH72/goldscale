@@ -319,7 +319,7 @@ export function TransactionFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
             {isInitialBalance
@@ -330,7 +330,7 @@ export function TransactionFormDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="overflow-y-auto flex-1 pr-1">
+        <div className="overflow-y-auto flex-1 pr-3">
           {!isEdit && !isInitialBalance && (
             <Tabs
               value={txnType}

@@ -11,6 +11,8 @@ import {
   useRemovePayment,
   useToggleDebtStatus,
 } from '@/api/use-debt-records'
+import { useTransaction } from '@/api/use-transactions'
+import { useAccounts } from '@/api/use-accounts'
 import { usePeople } from '@/api/use-people'
 import { useCategories } from '@/api/use-categories'
 import { useTags } from '@/api/use-tags'
@@ -45,6 +47,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { TransactionBadge } from '@/components/transaction-badge'
 import {
   ChevronDown,
   ChevronRight,
@@ -113,6 +121,60 @@ const paymentSchema = z.object({
 
 type PaymentForm = z.infer<typeof paymentSchema>
 
+// --- Transaction Info Popover ---
+
+function TransactionInfoPopover({ transactionId }: { transactionId: string }) {
+  const { data: txn, isLoading } = useTransaction(transactionId)
+  const { data: accounts } = useAccounts()
+
+  const currency = accounts?.find((a) => a.id === txn?.accountId)?.currency ?? 'UAH'
+
+  return (
+    <Popover>
+      <PopoverTrigger>
+        <Badge variant="secondary" className="gap-1 text-xs cursor-pointer hover:bg-secondary/80">
+          <Link className="h-3 w-3" />
+          Transaction
+        </Badge>
+      </PopoverTrigger>
+      <PopoverContent side="top" className="w-64 p-3">
+        {isLoading ? (
+          <p className="text-xs text-muted-foreground">Loading...</p>
+        ) : txn ? (
+          <div className="space-y-1.5 text-xs">
+            <div className="flex items-center justify-between">
+              <TransactionBadge type={txn.type} />
+              <span className="text-muted-foreground">{formatDate(txn.date)}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Account</span>
+              <span className="font-medium">{txn.accountName}</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Amount</span>
+              <span className="font-medium">{formatCurrency(txn.amount, currency)}</span>
+            </div>
+            {txn.categoryName && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Category</span>
+                <span>{txn.categoryName}</span>
+              </div>
+            )}
+            {txn.description && (
+              <div>
+                <span className="text-muted-foreground">Description: </span>
+                <span>{txn.description}</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">Transaction not found</p>
+        )}
+      </PopoverContent>
+    </Popover>
+  )
+}
+
 // --- Payment Row ---
 
 interface PaymentRowProps {
@@ -136,10 +198,7 @@ function PaymentRow({ payment, currency, recordId, onRemove, removeLoading }: Pa
           <span className="text-muted-foreground">{payment.description}</span>
         )}
         {isLinked && (
-          <Badge variant="secondary" className="gap-1 text-xs">
-            <Link className="h-3 w-3" />
-            Auto
-          </Badge>
+          <TransactionInfoPopover transactionId={payment.transactionId!} />
         )}
       </div>
       {isLinked ? (
@@ -217,6 +276,11 @@ function RecordRow({
           >
             {TYPE_LABELS[record.type]}
           </Badge>
+          {record.sourceTransactionId && (
+            <span onClick={(e) => e.stopPropagation()}>
+              <TransactionInfoPopover transactionId={record.sourceTransactionId} />
+            </span>
+          )}
           <span className="font-medium">
             {formatCurrency(record.amount, record.currency)}
           </span>
