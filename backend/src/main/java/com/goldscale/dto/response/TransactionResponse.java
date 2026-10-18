@@ -24,6 +24,8 @@ public record TransactionResponse(
         LocalDate date,
         List<String> tagIds,
         List<String> tagNames,
+        String debtRecordId,
+        String paymentId,
         Instant createdAt
 ) {
     public static TransactionResponse from(
@@ -57,6 +59,8 @@ public record TransactionResponse(
                 txn.getDate(),
                 txnTags,
                 resolvedTagNames,
+                txn.getDebtRecordId(),
+                txn.getPaymentId(),
                 txn.getCreatedAt()
         );
     }

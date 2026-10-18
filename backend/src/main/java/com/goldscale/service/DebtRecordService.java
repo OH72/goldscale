@@ -254,6 +254,162 @@ public class DebtRecordService {
         return summaries;
     }
 
+    // --- Transaction-linked operations ---
+
+    /**
+     * Creates a payment on a debt record originating from a transaction.
+     * Returns the created Payment (caller stores the payment ID on the transaction).
+     */
+    Payment applyPaymentFromTransaction(String recordId, long amount, LocalDate date,
+                                        String description, String transactionId) {
+        var record = getActiveRecord(recordId);
+
+        long remaining = record.getAmount() - record.getCoveredAmount();
+        if (amount > remaining) {
+            throw new BusinessRuleException(
+                    "Payment amount (" + amount + ") exceeds remaining amount (" + remaining + ")");
+        }
+
+        var payment = new Payment();
+        payment.setId(UUID.randomUUID().toString());
+        payment.setAmount(amount);
+        payment.setDate(date);
+        payment.setDescription(description);
+        payment.setTransactionId(transactionId);
+        payment.setCreatedAt(Instant.now());
+
+        record.getPayments().add(payment);
+        record.setCoveredAmount(record.getCoveredAmount() + amount);
+
+        if (record.getCoveredAmount() >= record.getAmount()) {
+            record.setStatus(DebtStatus.CLOSED);
+        }
+
+        record.setUpdatedAt(Instant.now());
+        debtRecordRepository.save(record);
+
+        return payment;
+    }
+
+    /**
+     * Updates an existing payment that was created from a transaction.
+     * Recalculates coveredAmount and status.
+     */
+    void updatePaymentFromTransaction(String recordId, String paymentId,
+                                      long newAmount, LocalDate newDate, String newDescription) {
+        var record = getActiveRecord(recordId);
+
+        var payment = record.getPayments().stream()
+                .filter(p -> p.getId().equals(paymentId))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Payment", paymentId));
+
+        long otherPaymentsTotal = record.getPayments().stream()
+                .filter(p -> !p.getId().equals(paymentId))
+                .mapToLong(Payment::getAmount)
+                .sum();
+
+        long remaining = record.getAmount() - otherPaymentsTotal;
+        if (newAmount > remaining) {
+            throw new BusinessRuleException(
+                    "Updated payment amount (" + newAmount + ") exceeds remaining amount (" + remaining + ")");
+        }
+
+        payment.setAmount(newAmount);
+        payment.setDate(newDate);
+        payment.setDescription(newDescription);
+
+        record.setCoveredAmount(otherPaymentsTotal + newAmount);
+        record.setStatus(record.getCoveredAmount() >= record.getAmount() ? DebtStatus.CLOSED : DebtStatus.OPEN);
+        record.setUpdatedAt(Instant.now());
+        debtRecordRepository.save(record);
+    }
+
+    /**
+     * Removes a payment by its linked transaction ID.
+     * Recalculates coveredAmount and status.
+     */
+    void removePaymentByTransactionId(String recordId, String transactionId) {
+        var record = getActiveRecord(recordId);
+
+        var payment = record.getPayments().stream()
+                .filter(p -> transactionId.equals(p.getTransactionId()))
+                .findFirst()
+                .orElse(null);
+
+        if (payment == null) return;
+
+        record.getPayments().remove(payment);
+        long newCovered = record.getPayments().stream()
+                .mapToLong(Payment::getAmount)
+                .sum();
+        record.setCoveredAmount(newCovered);
+
+        if (record.getCoveredAmount() < record.getAmount()) {
+            record.setStatus(DebtStatus.OPEN);
+        }
+
+        record.setUpdatedAt(Instant.now());
+        debtRecordRepository.save(record);
+    }
+
+    /**
+     * Updates the debt record amount when the originating transaction (UC2/UC3) is edited.
+     */
+    void updateDebtAmountFromTransaction(String recordId, long newAmount) {
+        var record = getActiveRecord(recordId);
+
+        if (newAmount < record.getCoveredAmount()) {
+            throw new BusinessRuleException(
+                    "New amount cannot be less than covered amount (" + record.getCoveredAmount() + ")");
+        }
+
+        record.setAmount(newAmount);
+        record.setStatus(record.getCoveredAmount() >= record.getAmount() ? DebtStatus.CLOSED : DebtStatus.OPEN);
+        record.setUpdatedAt(Instant.now());
+        debtRecordRepository.save(record);
+    }
+
+    /**
+     * Soft-deletes a debt record only if it has no payments.
+     * Throws BusinessRuleException if payments exist.
+     */
+    void softDeleteIfNoPayments(String recordId) {
+        var record = getActiveRecord(recordId);
+
+        if (record.getPayments() != null && !record.getPayments().isEmpty()) {
+            throw new BusinessRuleException(
+                    "Cannot delete: linked debt record has existing payments. Remove them first.");
+        }
+
+        record.setDeleted(true);
+        record.setUpdatedAt(Instant.now());
+        debtRecordRepository.save(record);
+    }
+
+    /**
+     * Creates a new debt record from a transaction (UC2/UC3).
+     * Returns the created DebtRecord.
+     */
+    DebtRecord createFromTransaction(String personId, DebtType type, long amount,
+                                     com.goldscale.model.Currency currency, LocalDate date, String description) {
+        validatePersonExists(personId);
+
+        var record = new DebtRecord();
+        record.setPersonId(personId);
+        record.setType(type);
+        record.setAmount(amount);
+        record.setCoveredAmount(0);
+        record.setCurrency(currency);
+        record.setDate(date);
+        record.setDescription(description);
+        record.setStatus(DebtStatus.OPEN);
+        record.setPayments(new ArrayList<>());
+        record.setDeleted(false);
+        record.setUpdatedAt(Instant.now());
+        return debtRecordRepository.save(record);
+    }
+
     // --- Internal helpers ---
 
     private DebtRecord getActiveRecord(String id) {

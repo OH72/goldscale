@@ -10,12 +10,14 @@ public record PaymentResponse(
         long amount,
         LocalDate date,
         String description,
+        String transactionId,
         Instant createdAt
 ) {
     public static PaymentResponse from(Payment payment) {
         return new PaymentResponse(
                 payment.getId(), payment.getAmount(),
                 payment.getDate(), payment.getDescription(),
+                payment.getTransactionId(),
                 payment.getCreatedAt()
         );
     }

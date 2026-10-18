@@ -13,5 +13,6 @@ public class Payment {
     private long amount;
     private LocalDate date;
     private String description;
+    private String transactionId;
     private Instant createdAt;
 }

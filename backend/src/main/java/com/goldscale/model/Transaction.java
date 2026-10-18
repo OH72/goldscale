@@ -49,6 +49,10 @@ public class Transaction {
 
     private List<String> tags;
 
+    private String debtRecordId;
+
+    private String paymentId;
+
     private boolean deleted;
 
     @CreatedDate
