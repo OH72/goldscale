@@ -8,7 +8,6 @@ import { TagsPage } from '@/pages/tags'
 import { SettingsPage } from '@/pages/settings'
 import { PeoplePage } from '@/pages/people'
 import { DebtsPage } from '@/pages/debts'
-import { EventLogPage } from '@/pages/event-log'
 
 export const router = createBrowserRouter([
   {
@@ -22,7 +21,6 @@ export const router = createBrowserRouter([
       { path: 'people', element: <PeoplePage /> },
       { path: 'debts', element: <DebtsPage /> },
       { path: 'settings', element: <SettingsPage /> },
-      { path: 'event-log', element: <EventLogPage /> },
     ],
   },
 ])

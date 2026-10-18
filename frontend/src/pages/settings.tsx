@@ -34,7 +34,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Download, Upload, X, FileText } from 'lucide-react'
+import { Download, Upload, X, FileText, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { fromSubunits, toSubunits } from '@/lib/currency'
 import type { Currency } from '@/types/common'
@@ -42,6 +42,8 @@ import type { ImportRowState, ConfirmRow, BankType } from '@/types/import'
 import { BANK_TYPE_LABELS } from '@/types/import'
 import type { CategoryResponse } from '@/types/category'
 import type { AccountResponse } from '@/types/account'
+import { useEventLog } from '@/api/use-event-log'
+import type { EventLogFilters } from '@/types/event-log'
 
 const CURRENCIES: Currency[] = ['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'USDT']
 const NONE_VALUE = '__none__'
@@ -303,6 +305,9 @@ export function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Event Log */}
+        <EventLogCard />
+
         {/* Import Statement */}
         <Card>
           <CardHeader>
@@ -532,6 +537,7 @@ export function SettingsPage() {
               </Button>
             </CardContent>
           </Card>
+
         </div>
       </div>
 
@@ -853,5 +859,147 @@ function ImportTableRow({
         </Button>
       </TableCell>
     </TableRow>
+  )
+}
+
+// --- Event Log Card ---
+
+const ENTITY_TYPES = [
+  'ACCOUNT', 'TRANSACTION', 'CATEGORY', 'TAG',
+  'PERSON', 'DEBT_RECORD', 'PAYMENT', 'SETTINGS',
+]
+
+const ACTION_COLORS: Record<string, string> = {
+  CREATE: 'bg-green-100 text-green-800',
+  UPDATE: 'bg-blue-100 text-blue-800',
+  DELETE: 'bg-red-100 text-red-800',
+  OFFSET: 'bg-amber-100 text-amber-800',
+  IMPORT: 'bg-purple-100 text-purple-800',
+}
+
+const ALL_LOG_VALUE = '__all__'
+
+function titleCase(s: string): string {
+  return s.replace('_', ' ').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function formatTimestamp(ts: string): string {
+  const d = new Date(ts)
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) +
+    ' ' +
+    d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+function EventLogCard() {
+  const [entityType, setEntityType] = useState<string>('')
+  const [page, setPage] = useState(0)
+
+  const { data, isLoading, error } = useEventLog({
+    entityType: entityType || undefined,
+    page,
+    size: 50,
+  })
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Event Log</CardTitle>
+        <CardDescription>Log of all actions that impact the database.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="mb-4">
+          <Select
+            value={entityType || ALL_LOG_VALUE}
+            onValueChange={(v) => {
+              setEntityType(v === ALL_LOG_VALUE ? '' : v)
+              setPage(0)
+            }}
+          >
+            <SelectTrigger className="h-8 w-44 text-sm">
+              <SelectValue>
+                {(v: string) => (v === ALL_LOG_VALUE ? 'All types' : titleCase(v))}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_LOG_VALUE}>All types</SelectItem>
+              {ENTITY_TYPES.map((t) => (
+                <SelectItem key={t} value={t}>
+                  {titleCase(t)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {error ? (
+          <div className="py-8 text-center text-destructive">Failed to load event log</div>
+        ) : isLoading ? (
+          <div className="py-8 text-center text-muted-foreground">Loading...</div>
+        ) : (
+          <>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[160px]">Time</TableHead>
+                  <TableHead className="w-[80px]">Action</TableHead>
+                  <TableHead className="w-[120px]">Entity</TableHead>
+                  <TableHead>Description</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data?.content.map((entry) => (
+                  <TableRow key={entry.id}>
+                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                      {formatTimestamp(entry.timestamp)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="secondary"
+                        className={`text-xs ${ACTION_COLORS[entry.action] ?? ''}`}
+                      >
+                        {entry.action}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {titleCase(entry.entityType)}
+                    </TableCell>
+                    <TableCell className="text-sm">{entry.description}</TableCell>
+                  </TableRow>
+                ))}
+                {data?.content.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      No events recorded
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+
+            {data && data.totalPages > 1 && (
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">
+                  Page {data.number + 1} of {data.totalPages} ({data.totalElements} total)
+                </span>
+                <div className="flex items-center gap-1">
+                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={data.number === 0} onClick={() => setPage(0)}>
+                    <ChevronsLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={data.number === 0} onClick={() => setPage(data.number - 1)}>
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={data.number >= data.totalPages - 1} onClick={() => setPage(data.number + 1)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button variant="outline" size="icon" className="h-8 w-8" disabled={data.number >= data.totalPages - 1} onClick={() => setPage(data.totalPages - 1)}>
+                    <ChevronsRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   )
 }

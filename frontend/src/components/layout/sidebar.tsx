@@ -8,7 +8,6 @@ import {
   Users,
   HandCoins,
   Settings,
-  ScrollText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUiStore } from '@/stores/ui-store'
@@ -27,7 +26,6 @@ const navGroups = [
   ],
   [
     { to: '/settings', label: 'Settings', icon: Settings },
-    { to: '/event-log', label: 'Event Log', icon: ScrollText },
   ],
 ]
 
