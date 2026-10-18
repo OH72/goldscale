@@ -404,7 +404,7 @@ public class DashboardService {
                         .collect(Collectors.toMap(Tag::getId, Tag::getName));
 
         return transactions.stream()
-                .map(txn -> TransactionResponse.from(txn, accountNames, categoryNames, tagNamesMap))
+                .map(txn -> TransactionResponse.from(txn, accountNames, categoryNames, tagNamesMap, null))
                 .toList();
     }
 }

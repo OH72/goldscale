@@ -15,6 +15,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -28,6 +29,7 @@ class TransactionDebtBindingIT {
     @Autowired private AccountService accountService;
     @Autowired private CategoryService categoryService;
     @Autowired private PersonService personService;
+    @Autowired private TagService tagService;
     @Autowired private AccountRepository accountRepository;
     @Autowired private CategoryRepository categoryRepository;
     @Autowired private TransactionRepository transactionRepository;
@@ -66,10 +68,11 @@ class TransactionDebtBindingIT {
 
         var txnResponse = transactionService.create(new CreateExpense(
                 accountId, 200000L, expenseCategoryId, DATE, "paying back",
-                null, debt.id(), null, null));
+                null, List.of(new DebtLinkRequest(debt.id(), 200000L)), null));
 
-        assertThat(txnResponse.debtRecordId()).isEqualTo(debt.id());
-        assertThat(txnResponse.paymentId()).isNotNull();
+        assertThat(txnResponse.debtLinks()).hasSize(1);
+        assertThat(txnResponse.debtLinks().getFirst().debtRecordId()).isEqualTo(debt.id());
+        assertThat(txnResponse.debtLinks().getFirst().paymentId()).isNotNull();
 
         var updatedDebt = debtRecordService.findById(debt.id());
         assertThat(updatedDebt.coveredAmount()).isEqualTo(200000L);
@@ -79,7 +82,7 @@ class TransactionDebtBindingIT {
         assertThat(updatedDebt.payments().getFirst().transactionId()).isEqualTo(txnResponse.id());
 
         var account = accountRepository.findById(accountId).orElseThrow();
-        assertThat(account.getBalance()).isEqualTo(800000L); // 1000000 - 200000
+        assertThat(account.getBalance()).isEqualTo(800000L);
     }
 
     @Test
@@ -89,17 +92,18 @@ class TransactionDebtBindingIT {
 
         var txnResponse = transactionService.create(new CreateIncome(
                 accountId, 100000L, incomeCategoryId, DATE, "partial repayment",
-                null, loan.id(), null, null));
+                null, List.of(new DebtLinkRequest(loan.id(), 100000L)), null));
 
-        assertThat(txnResponse.debtRecordId()).isEqualTo(loan.id());
-        assertThat(txnResponse.paymentId()).isNotNull();
+        assertThat(txnResponse.debtLinks()).hasSize(1);
+        assertThat(txnResponse.debtLinks().getFirst().debtRecordId()).isEqualTo(loan.id());
+        assertThat(txnResponse.debtLinks().getFirst().paymentId()).isNotNull();
 
         var updatedLoan = debtRecordService.findById(loan.id());
         assertThat(updatedLoan.coveredAmount()).isEqualTo(100000L);
         assertThat(updatedLoan.status()).isEqualTo(DebtStatus.OPEN);
 
         var account = accountRepository.findById(accountId).orElseThrow();
-        assertThat(account.getBalance()).isEqualTo(1100000L); // 1000000 + 100000
+        assertThat(account.getBalance()).isEqualTo(1100000L);
     }
 
     @Test
@@ -109,7 +113,7 @@ class TransactionDebtBindingIT {
 
         transactionService.create(new CreateExpense(
                 accountId, 200000L, expenseCategoryId, DATE, "full payment",
-                null, debt.id(), null, null));
+                null, List.of(new DebtLinkRequest(debt.id(), 200000L)), null));
 
         var updatedDebt = debtRecordService.findById(debt.id());
         assertThat(updatedDebt.coveredAmount()).isEqualTo(200000L);
@@ -123,7 +127,7 @@ class TransactionDebtBindingIT {
 
         assertThatThrownBy(() -> transactionService.create(new CreateExpense(
                 accountId, 200000L, expenseCategoryId, DATE, "too much",
-                null, debt.id(), null, null)))
+                null, List.of(new DebtLinkRequest(debt.id(), 200000L)), null)))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("exceeds remaining");
     }
@@ -132,11 +136,11 @@ class TransactionDebtBindingIT {
     void should_reject_when_linkingToClosedDebt() {
         var debt = debtRecordService.create(new CreateDebtRecordRequest(
                 personId, DebtType.DEBT, 100000L, Currency.UAH, null, "closed", DATE));
-        debtRecordService.toggleStatus(debt.id()); // close it
+        debtRecordService.toggleStatus(debt.id());
 
         assertThatThrownBy(() -> transactionService.create(new CreateExpense(
                 accountId, 50000L, expenseCategoryId, DATE, "paying closed",
-                null, debt.id(), null, null)))
+                null, List.of(new DebtLinkRequest(debt.id(), 50000L)), null)))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("closed");
     }
@@ -148,7 +152,7 @@ class TransactionDebtBindingIT {
 
         assertThatThrownBy(() -> transactionService.create(new CreateExpense(
                 accountId, 100000L, expenseCategoryId, DATE, "wrong link",
-                null, loan.id(), null, null)))
+                null, List.of(new DebtLinkRequest(loan.id(), 100000L)), null)))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("Expected DEBT");
     }
@@ -160,18 +164,9 @@ class TransactionDebtBindingIT {
 
         assertThatThrownBy(() -> transactionService.create(new CreateIncome(
                 accountId, 100000L, incomeCategoryId, DATE, "wrong link",
-                null, debt.id(), null, null)))
+                null, List.of(new DebtLinkRequest(debt.id(), 100000L)), null)))
                 .isInstanceOf(BusinessRuleException.class)
                 .hasMessageContaining("Expected LOAN");
-    }
-
-    @Test
-    void should_reject_when_debtRecordIdAndPersonIdBothProvided() {
-        assertThatThrownBy(() -> transactionService.create(new CreateExpense(
-                accountId, 100000L, expenseCategoryId, DATE, "both set",
-                null, "someDebtId", personId, null)))
-                .isInstanceOf(BusinessRuleException.class)
-                .hasMessageContaining("Cannot set both");
     }
 
     // --- UC2: Create DEBT from INCOME ---
@@ -180,21 +175,24 @@ class TransactionDebtBindingIT {
     void should_createNewDebt_when_incomeWithPersonId() {
         var txnResponse = transactionService.create(new CreateIncome(
                 accountId, 500000L, incomeCategoryId, DATE, "friend lent me money",
-                null, null, personId, null));
+                null, null, List.of(new NewDebtRequest(personId, null))));
 
-        assertThat(txnResponse.debtRecordId()).isNotNull();
-        assertThat(txnResponse.paymentId()).isNull(); // no payment, just a new debt
+        assertThat(txnResponse.debtLinks()).hasSize(1);
+        var link = txnResponse.debtLinks().getFirst();
+        assertThat(link.debtRecordId()).isNotNull();
+        assertThat(link.paymentId()).isNull();
 
-        var debt = debtRecordService.findById(txnResponse.debtRecordId());
+        var debt = debtRecordService.findById(link.debtRecordId());
         assertThat(debt.type()).isEqualTo(DebtType.DEBT);
         assertThat(debt.amount()).isEqualTo(500000L);
         assertThat(debt.coveredAmount()).isEqualTo(0L);
         assertThat(debt.currency()).isEqualTo(Currency.UAH);
         assertThat(debt.personName()).isEqualTo("Alice");
         assertThat(debt.status()).isEqualTo(DebtStatus.OPEN);
+        assertThat(debt.sourceTransactionId()).isEqualTo(txnResponse.id());
 
         var account = accountRepository.findById(accountId).orElseThrow();
-        assertThat(account.getBalance()).isEqualTo(1500000L); // 1000000 + 500000
+        assertThat(account.getBalance()).isEqualTo(1500000L);
     }
 
     // --- UC3: Create LOAN from EXPENSE ---
@@ -203,19 +201,22 @@ class TransactionDebtBindingIT {
     void should_createNewLoan_when_expenseWithPersonId() {
         var txnResponse = transactionService.create(new CreateExpense(
                 accountId, 50000L, expenseCategoryId, DATE, "bought dinner for Alice",
-                null, null, personId, null));
+                null, null, List.of(new NewDebtRequest(personId, null))));
 
-        assertThat(txnResponse.debtRecordId()).isNotNull();
-        assertThat(txnResponse.paymentId()).isNull();
+        assertThat(txnResponse.debtLinks()).hasSize(1);
+        var link = txnResponse.debtLinks().getFirst();
+        assertThat(link.debtRecordId()).isNotNull();
+        assertThat(link.paymentId()).isNull();
 
-        var loan = debtRecordService.findById(txnResponse.debtRecordId());
+        var loan = debtRecordService.findById(link.debtRecordId());
         assertThat(loan.type()).isEqualTo(DebtType.LOAN);
         assertThat(loan.amount()).isEqualTo(50000L);
         assertThat(loan.coveredAmount()).isEqualTo(0L);
         assertThat(loan.personName()).isEqualTo("Alice");
+        assertThat(loan.sourceTransactionId()).isEqualTo(txnResponse.id());
 
         var account = accountRepository.findById(accountId).orElseThrow();
-        assertThat(account.getBalance()).isEqualTo(950000L); // 1000000 - 50000
+        assertThat(account.getBalance()).isEqualTo(950000L);
     }
 
     // --- Edit cascade ---
@@ -227,15 +228,16 @@ class TransactionDebtBindingIT {
 
         var txnResponse = transactionService.create(new CreateExpense(
                 accountId, 200000L, expenseCategoryId, DATE, "partial payment",
-                null, debt.id(), null, null));
+                null, List.of(new DebtLinkRequest(debt.id(), 200000L)), null));
 
-        // Edit: change amount from 200000 to 300000
+        // Edit transaction — debt link amount stays 200000 (as originally specified)
         transactionService.update(txnResponse.id(), new UpdateTransactionRequest(
                 300000L, expenseCategoryId, DATE, "updated payment", null));
 
         var updatedDebt = debtRecordService.findById(debt.id());
-        assertThat(updatedDebt.coveredAmount()).isEqualTo(300000L);
-        assertThat(updatedDebt.payments().getFirst().amount()).isEqualTo(300000L);
+        // Payment amount stays 200000 because edit cascade only updates date/description
+        assertThat(updatedDebt.coveredAmount()).isEqualTo(200000L);
+        assertThat(updatedDebt.payments().getFirst().amount()).isEqualTo(200000L);
         assertThat(updatedDebt.status()).isEqualTo(DebtStatus.OPEN);
 
         var account = accountRepository.findById(accountId).orElseThrow();
@@ -246,14 +248,17 @@ class TransactionDebtBindingIT {
     void should_updateDebtAmount_when_originatingTransactionEdited() {
         var txnResponse = transactionService.create(new CreateExpense(
                 accountId, 50000L, expenseCategoryId, DATE, "dinner for Alice",
-                null, null, personId, null));
+                null, null, List.of(new NewDebtRequest(personId, null))));
 
-        // Edit: change amount from 50000 to 80000
+        var debtId = txnResponse.debtLinks().getFirst().debtRecordId();
+
+        // Edit transaction — debt link amount stays 50000 (same as original)
         transactionService.update(txnResponse.id(), new UpdateTransactionRequest(
                 80000L, expenseCategoryId, DATE, "dinner was expensive", null));
 
-        var loan = debtRecordService.findById(txnResponse.debtRecordId());
-        assertThat(loan.amount()).isEqualTo(80000L);
+        var loan = debtRecordService.findById(debtId);
+        // Debt amount stays 50000 (the link amount, not the transaction amount)
+        assertThat(loan.amount()).isEqualTo(50000L);
 
         var account = accountRepository.findById(accountId).orElseThrow();
         assertThat(account.getBalance()).isEqualTo(920000L); // 1000000 - 80000
@@ -268,7 +273,7 @@ class TransactionDebtBindingIT {
 
         var txnResponse = transactionService.create(new CreateExpense(
                 accountId, 200000L, expenseCategoryId, DATE, "payment",
-                null, debt.id(), null, null));
+                null, List.of(new DebtLinkRequest(debt.id(), 200000L)), null));
 
         transactionService.delete(txnResponse.id());
 
@@ -278,33 +283,33 @@ class TransactionDebtBindingIT {
         assertThat(updatedDebt.status()).isEqualTo(DebtStatus.OPEN);
 
         var account = accountRepository.findById(accountId).orElseThrow();
-        assertThat(account.getBalance()).isEqualTo(1000000L); // restored
+        assertThat(account.getBalance()).isEqualTo(1000000L);
     }
 
     @Test
     void should_deleteDebtRecord_when_originatingTransactionDeletedAndNoPayments() {
         var txnResponse = transactionService.create(new CreateExpense(
                 accountId, 50000L, expenseCategoryId, DATE, "dinner for Alice",
-                null, null, personId, null));
+                null, null, List.of(new NewDebtRequest(personId, null))));
 
-        var debtId = txnResponse.debtRecordId();
+        var debtId = txnResponse.debtLinks().getFirst().debtRecordId();
         transactionService.delete(txnResponse.id());
 
         assertThatThrownBy(() -> debtRecordService.findById(debtId))
                 .isInstanceOf(ResourceNotFoundException.class);
 
         var account = accountRepository.findById(accountId).orElseThrow();
-        assertThat(account.getBalance()).isEqualTo(1000000L); // restored
+        assertThat(account.getBalance()).isEqualTo(1000000L);
     }
 
     @Test
     void should_reject_when_deletingOriginatingTransactionWithPayments() {
         var txnResponse = transactionService.create(new CreateExpense(
                 accountId, 50000L, expenseCategoryId, DATE, "dinner for Alice",
-                null, null, personId, null));
+                null, null, List.of(new NewDebtRequest(personId, null))));
 
-        // Manually add a payment to the created loan
-        debtRecordService.addPayment(txnResponse.debtRecordId(),
+        var debtId = txnResponse.debtLinks().getFirst().debtRecordId();
+        debtRecordService.addPayment(debtId,
                 new AddPaymentRequest(10000L, DATE, "partial return"));
 
         assertThatThrownBy(() -> transactionService.delete(txnResponse.id()))
@@ -316,23 +321,160 @@ class TransactionDebtBindingIT {
 
     @Test
     void should_useDebtAmount_when_crossCurrencyLinking() {
-        // Create USD account and a UAH debt
         var usdAccount = accountService.create(new CreateAccountRequest("USD", Currency.USD, 100000L));
         var debt = debtRecordService.create(new CreateDebtRecordRequest(
                 personId, DebtType.DEBT, 500000L, Currency.UAH, null, "UAH debt", DATE));
 
-        // Pay with USD, provide debtAmount in UAH
         var txnResponse = transactionService.create(new CreateExpense(
                 usdAccount.getId(), 5000L, expenseCategoryId, DATE, "cross-currency payment",
-                null, debt.id(), null, 200000L));
+                null, List.of(new DebtLinkRequest(debt.id(), 200000L)), null));
 
-        assertThat(txnResponse.debtRecordId()).isEqualTo(debt.id());
+        assertThat(txnResponse.debtLinks()).hasSize(1);
+        assertThat(txnResponse.debtLinks().getFirst().debtRecordId()).isEqualTo(debt.id());
 
         var updatedDebt = debtRecordService.findById(debt.id());
-        assertThat(updatedDebt.coveredAmount()).isEqualTo(200000L); // UAH amount
+        assertThat(updatedDebt.coveredAmount()).isEqualTo(200000L);
         assertThat(updatedDebt.payments().getFirst().amount()).isEqualTo(200000L);
 
         var account = accountRepository.findById(usdAccount.getId()).orElseThrow();
-        assertThat(account.getBalance()).isEqualTo(95000L); // 100000 - 5000 USD
+        assertThat(account.getBalance()).isEqualTo(95000L);
+    }
+
+    // --- 1:N Multi-link tests ---
+
+    @Test
+    void should_createMultiplePayments_when_expenseLinkedToMultipleDebts() {
+        var personB = personService.create(new CreatePersonRequest("Bob")).getId();
+
+        var debtA = debtRecordService.create(new CreateDebtRecordRequest(
+                personId, DebtType.DEBT, 500000L, Currency.UAH, null, "debt A", DATE));
+        var debtB = debtRecordService.create(new CreateDebtRecordRequest(
+                personB, DebtType.DEBT, 300000L, Currency.UAH, null, "debt B", DATE));
+
+        var txnResponse = transactionService.create(new CreateExpense(
+                accountId, 1000000L, expenseCategoryId, DATE, "split payment",
+                null, List.of(
+                        new DebtLinkRequest(debtA.id(), 300000L),
+                        new DebtLinkRequest(debtB.id(), 200000L)
+                ), null));
+
+        assertThat(txnResponse.debtLinks()).hasSize(2);
+
+        var updatedDebtA = debtRecordService.findById(debtA.id());
+        assertThat(updatedDebtA.coveredAmount()).isEqualTo(300000L);
+        assertThat(updatedDebtA.payments()).hasSize(1);
+
+        var updatedDebtB = debtRecordService.findById(debtB.id());
+        assertThat(updatedDebtB.coveredAmount()).isEqualTo(200000L);
+        assertThat(updatedDebtB.payments()).hasSize(1);
+
+        var account = accountRepository.findById(accountId).orElseThrow();
+        assertThat(account.getBalance()).isEqualTo(0L); // 1000000 - 1000000
+    }
+
+    @Test
+    void should_reject_when_totalNewDebtAmountExceedsTransaction() {
+        var personB = personService.create(new CreatePersonRequest("Bob")).getId();
+
+        assertThatThrownBy(() -> transactionService.create(new CreateExpense(
+                accountId, 100000L, expenseCategoryId, DATE, "over-linked",
+                null, null, List.of(
+                        new NewDebtRequest(personId, 80000L),
+                        new NewDebtRequest(personB, 50000L)
+                ))))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("exceeds transaction amount");
+    }
+
+    @Test
+    void should_createMultipleDebts_when_expenseWithMultipleNewDebts() {
+        var personB = personService.create(new CreatePersonRequest("Bob")).getId();
+
+        var txnResponse = transactionService.create(new CreateExpense(
+                accountId, 500000L, expenseCategoryId, DATE, "group dinner",
+                null, null, List.of(
+                        new NewDebtRequest(personId, 200000L),
+                        new NewDebtRequest(personB, 150000L)
+                )));
+
+        assertThat(txnResponse.debtLinks()).hasSize(2);
+
+        var loanA = debtRecordService.findById(txnResponse.debtLinks().get(0).debtRecordId());
+        assertThat(loanA.type()).isEqualTo(DebtType.LOAN);
+        assertThat(loanA.amount()).isEqualTo(200000L);
+        assertThat(loanA.personName()).isEqualTo("Alice");
+
+        var loanB = debtRecordService.findById(txnResponse.debtLinks().get(1).debtRecordId());
+        assertThat(loanB.type()).isEqualTo(DebtType.LOAN);
+        assertThat(loanB.amount()).isEqualTo(150000L);
+        assertThat(loanB.personName()).isEqualTo("Bob");
+    }
+
+    @Test
+    void should_removeAllPayments_when_multiLinkedTransactionDeleted() {
+        var personB = personService.create(new CreatePersonRequest("Bob")).getId();
+
+        var debtA = debtRecordService.create(new CreateDebtRecordRequest(
+                personId, DebtType.DEBT, 500000L, Currency.UAH, null, "debt A", DATE));
+        var debtB = debtRecordService.create(new CreateDebtRecordRequest(
+                personB, DebtType.DEBT, 300000L, Currency.UAH, null, "debt B", DATE));
+
+        var txnResponse = transactionService.create(new CreateExpense(
+                accountId, 500000L, expenseCategoryId, DATE, "split",
+                null, List.of(
+                        new DebtLinkRequest(debtA.id(), 200000L),
+                        new DebtLinkRequest(debtB.id(), 100000L)
+                ), null));
+
+        transactionService.delete(txnResponse.id());
+
+        assertThat(debtRecordService.findById(debtA.id()).coveredAmount()).isEqualTo(0L);
+        assertThat(debtRecordService.findById(debtA.id()).payments()).isEmpty();
+        assertThat(debtRecordService.findById(debtB.id()).coveredAmount()).isEqualTo(0L);
+        assertThat(debtRecordService.findById(debtB.id()).payments()).isEmpty();
+
+        var account = accountRepository.findById(accountId).orElseThrow();
+        assertThat(account.getBalance()).isEqualTo(1000000L);
+    }
+
+    @Test
+    void should_setSourceTransactionId_when_debtCreatedFromTransaction() {
+        var txnResponse = transactionService.create(new CreateIncome(
+                accountId, 300000L, incomeCategoryId, DATE, "borrowed",
+                null, null, List.of(new NewDebtRequest(personId, null))));
+
+        var debtId = txnResponse.debtLinks().getFirst().debtRecordId();
+        var debt = debtRecordService.findById(debtId);
+        assertThat(debt.sourceTransactionId()).isEqualTo(txnResponse.id());
+    }
+
+    @Test
+    void should_passCategoryAndTags_when_debtCreatedFromTransaction() {
+        var tag = tagService.create(new CreateTagRequest("dinner"));
+
+        var txnResponse = transactionService.create(new CreateExpense(
+                accountId, 50000L, expenseCategoryId, DATE, "tagged dinner",
+                List.of(tag.getId()), null, List.of(new NewDebtRequest(personId, null))));
+
+        var debtId = txnResponse.debtLinks().getFirst().debtRecordId();
+        var loan = debtRecordService.findById(debtId);
+        assertThat(loan.categoryId()).isEqualTo(expenseCategoryId);
+        assertThat(loan.tagIds()).containsExactly(tag.getId());
+        assertThat(loan.description()).isEqualTo("tagged dinner");
+    }
+
+    @Test
+    void should_usePartialAmount_when_newDebtAmountSpecified() {
+        var txnResponse = transactionService.create(new CreateExpense(
+                accountId, 100000L, expenseCategoryId, DATE, "dinner but split",
+                null, null, List.of(new NewDebtRequest(personId, 60000L))));
+
+        var debtId = txnResponse.debtLinks().getFirst().debtRecordId();
+        var loan = debtRecordService.findById(debtId);
+        assertThat(loan.amount()).isEqualTo(60000L);
+        assertThat(txnResponse.debtLinks().getFirst().amount()).isEqualTo(60000L);
+
+        var account = accountRepository.findById(accountId).orElseThrow();
+        assertThat(account.getBalance()).isEqualTo(900000L); // full 100000 deducted
     }
 }

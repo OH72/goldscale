@@ -1,8 +1,11 @@
 package com.goldscale.service;
 
+import com.goldscale.dto.request.DebtLinkRequest;
+import com.goldscale.dto.request.NewDebtRequest;
 import com.goldscale.dto.request.TransactionCommand;
 import com.goldscale.dto.request.TransactionCommand.*;
 import com.goldscale.dto.request.UpdateTransactionRequest;
+import com.goldscale.dto.response.DebtLinkResponse;
 import com.goldscale.dto.response.TransactionResponse;
 import com.goldscale.exception.BusinessRuleException;
 import com.goldscale.exception.ResourceNotFoundException;
@@ -98,11 +101,11 @@ public class TransactionService {
             case CreateIncome cmd -> createIncomeOrExpense(
                     cmd.accountId(), cmd.amount(), cmd.categoryId(),
                     cmd.date(), cmd.description(), TransactionType.INCOME, cmd.tagIds(),
-                    cmd.debtRecordId(), cmd.personId(), cmd.debtAmount());
+                    cmd.debtLinks(), cmd.newDebts());
             case CreateExpense cmd -> createIncomeOrExpense(
                     cmd.accountId(), cmd.amount(), cmd.categoryId(),
                     cmd.date(), cmd.description(), TransactionType.EXPENSE, cmd.tagIds(),
-                    cmd.debtRecordId(), cmd.personId(), cmd.debtAmount());
+                    cmd.debtLinks(), cmd.newDebts());
             case CreateTransfer cmd -> createTransfer(
                     cmd.sourceAccountId(), cmd.targetAccountId(),
                     cmd.amount(), cmd.targetAmount(),
@@ -144,14 +147,16 @@ public class TransactionService {
             default -> {}
         }
 
-        // Delete cascade: remove linked payment or soft-delete debt record
-        if (txn.getDebtRecordId() != null) {
-            if (txn.getPaymentId() != null) {
-                // UC1: remove the payment from the debt record
-                debtRecordService.removePaymentByTransactionId(txn.getDebtRecordId(), txn.getId());
-            } else {
-                // UC2/UC3: soft-delete the debt record if it has no payments
-                debtRecordService.softDeleteIfNoPayments(txn.getDebtRecordId());
+        // Delete cascade: remove linked payments or soft-delete debt records
+        if (txn.getDebtLinks() != null) {
+            for (var link : txn.getDebtLinks()) {
+                if (link.getPaymentId() != null) {
+                    // UC1: remove the payment from the debt record
+                    debtRecordService.removePaymentByTransactionId(link.getDebtRecordId(), txn.getId());
+                } else {
+                    // UC2/UC3: soft-delete the debt record if it has no payments
+                    debtRecordService.softDeleteIfNoPayments(link.getDebtRecordId());
+                }
             }
         }
     }
@@ -161,25 +166,25 @@ public class TransactionService {
     Transaction createIncomeOrExpense(
             String accountId, long amount, String categoryId,
             LocalDate date, String description, TransactionType type) {
-        return createIncomeOrExpense(accountId, amount, categoryId, date, description, type, null, null, null, null);
+        return createIncomeOrExpense(accountId, amount, categoryId, date, description, type, null, null, null);
     }
 
     Transaction createIncomeOrExpense(
             String accountId, long amount, String categoryId,
             LocalDate date, String description, TransactionType type, List<String> tagIds) {
-        return createIncomeOrExpense(accountId, amount, categoryId, date, description, type, tagIds, null, null, null);
+        return createIncomeOrExpense(accountId, amount, categoryId, date, description, type, tagIds, null, null);
     }
 
     Transaction createIncomeOrExpense(
             String accountId, long amount, String categoryId,
             LocalDate date, String description, TransactionType type, List<String> tagIds,
-            String debtRecordId, String personId, Long debtAmount) {
+            List<DebtLinkRequest> debtLinkRequests, List<NewDebtRequest> newDebtRequests) {
 
         validateAccountExists(accountId);
         if (categoryId != null) {
             validateCategoryForTransaction(categoryId, type);
         }
-        validateDebtLinkingParams(debtRecordId, personId, type);
+        validateDebtLinkingParams(debtLinkRequests, newDebtRequests, amount, type);
 
         var txn = new Transaction();
         txn.setType(type);
@@ -195,30 +200,48 @@ public class TransactionService {
         long delta = balanceService.calculateDelta(type, amount);
         balanceService.adjustBalance(accountId, delta);
 
-        // UC1: Link to existing debt record
-        if (debtRecordId != null) {
+        var links = new ArrayList<DebtLink>();
+
+        // UC1: Link to existing debt records
+        if (debtLinkRequests != null && !debtLinkRequests.isEmpty()) {
             var expectedDebtType = type == TransactionType.EXPENSE ? DebtType.DEBT : DebtType.LOAN;
-            validateDebtRecordForLinking(debtRecordId, expectedDebtType);
 
-            long paymentAmount = debtAmount != null ? debtAmount : amount;
-            var payment = debtRecordService.applyPaymentFromTransaction(
-                    debtRecordId, paymentAmount, date, description, txn.getId());
+            for (var req : debtLinkRequests) {
+                validateDebtRecordForLinking(req.debtRecordId(), expectedDebtType);
 
-            txn.setDebtRecordId(debtRecordId);
-            txn.setPaymentId(payment.getId());
-            txn = transactionRepository.save(txn);
+                var payment = debtRecordService.applyPaymentFromTransaction(
+                        req.debtRecordId(), req.amount(), date, description, txn.getId());
+
+                var link = new DebtLink();
+                link.setDebtRecordId(req.debtRecordId());
+                link.setPaymentId(payment.getId());
+                link.setAmount(req.amount());
+                links.add(link);
+            }
         }
 
-        // UC2/UC3: Create new debt record from transaction
-        if (personId != null) {
+        // UC2/UC3: Create new debt records from transaction
+        if (newDebtRequests != null && !newDebtRequests.isEmpty()) {
             var debtType = type == TransactionType.INCOME ? DebtType.DEBT : DebtType.LOAN;
             var account = accountRepository.findById(accountId)
                     .orElseThrow(() -> new ResourceNotFoundException("Account", accountId));
 
-            var debtRecord = debtRecordService.createFromTransaction(
-                    personId, debtType, amount, account.getCurrency(), date, description);
+            for (var req : newDebtRequests) {
+                long debtAmount = req.amount() != null ? req.amount() : amount;
 
-            txn.setDebtRecordId(debtRecord.getId());
+                var debtRecord = debtRecordService.createFromTransaction(
+                        req.personId(), debtType, debtAmount, account.getCurrency(),
+                        date, description, categoryId, tagIds, txn.getId());
+
+                var link = new DebtLink();
+                link.setDebtRecordId(debtRecord.getId());
+                link.setAmount(debtAmount);
+                links.add(link);
+            }
+        }
+
+        if (!links.isEmpty()) {
+            txn.setDebtLinks(links);
             txn = transactionRepository.save(txn);
         }
 
@@ -318,17 +341,20 @@ public class TransactionService {
         txn.setTags(request.tagIds());
         transactionRepository.save(txn);
 
-        // Edit cascade: update linked debt payment or debt amount
-        if (txn.getDebtRecordId() != null) {
-            if (txn.getPaymentId() != null) {
-                // UC1: linked payment — update amount, date, description
-                debtRecordService.updatePaymentFromTransaction(
-                        txn.getDebtRecordId(), txn.getPaymentId(),
-                        request.amount(), request.date(), request.description());
-            } else {
-                // UC2/UC3: originating debt — update the debt amount
-                debtRecordService.updateDebtAmountFromTransaction(
-                        txn.getDebtRecordId(), request.amount());
+        // Edit cascade: update linked debt payments or debt amounts
+        if (txn.getDebtLinks() != null) {
+            for (var link : txn.getDebtLinks()) {
+                if (link.getPaymentId() != null) {
+                    // UC1: linked payment — update date and description only
+                    // (amount stays as originally specified in the link)
+                    debtRecordService.updatePaymentFromTransaction(
+                            link.getDebtRecordId(), link.getPaymentId(),
+                            link.getAmount(), request.date(), request.description());
+                } else {
+                    // UC2/UC3: originating debt — update the debt amount
+                    debtRecordService.updateDebtAmountFromTransaction(
+                            link.getDebtRecordId(), link.getAmount());
+                }
             }
         }
 
@@ -402,9 +428,22 @@ public class TransactionService {
         }
     }
 
-    private void validateDebtLinkingParams(String debtRecordId, String personId, TransactionType type) {
-        if (debtRecordId != null && personId != null) {
-            throw new BusinessRuleException("Cannot set both debtRecordId and personId");
+    private void validateDebtLinkingParams(List<DebtLinkRequest> debtLinks, List<NewDebtRequest> newDebts,
+                                           long transactionAmount, TransactionType type) {
+        // UC1 links: no total-amount check — amounts are in debt currency (may differ from
+        // transaction currency in cross-currency scenarios). Each individual link is validated
+        // against the debt record's remaining amount in applyPaymentFromTransaction.
+
+        // UC2/UC3 new debts: total must not exceed transaction amount (same currency)
+        boolean hasNewDebts = newDebts != null && !newDebts.isEmpty();
+        if (hasNewDebts) {
+            long totalNewDebt = newDebts.stream()
+                    .mapToLong(r -> r.amount() != null ? r.amount() : transactionAmount)
+                    .sum();
+            if (totalNewDebt > transactionAmount) {
+                throw new BusinessRuleException(
+                        "Total new debt amount (" + totalNewDebt + ") exceeds transaction amount (" + transactionAmount + ")");
+            }
         }
     }
 
@@ -428,12 +467,18 @@ public class TransactionService {
         var accountIds = new HashSet<String>();
         var categoryIds = new HashSet<String>();
         var tagIds = new ArrayList<String>();
+        var debtRecordIds = new HashSet<String>();
 
         for (var txn : transactions) {
             accountIds.add(txn.getAccountId());
             if (txn.getTargetAccountId() != null) accountIds.add(txn.getTargetAccountId());
             if (txn.getCategoryId() != null) categoryIds.add(txn.getCategoryId());
             if (txn.getTags() != null) tagIds.addAll(txn.getTags());
+            if (txn.getDebtLinks() != null) {
+                for (var link : txn.getDebtLinks()) {
+                    debtRecordIds.add(link.getDebtRecordId());
+                }
+            }
         }
 
         var accountNames = accountRepository.findAllById(accountIds).stream()
@@ -446,8 +491,51 @@ public class TransactionService {
 
         var tagNamesMap = tagService.getTagNamesByIds(tagIds);
 
+        // Batch-fetch debt records for enrichment
+        Map<String, DebtRecord> debtRecordMap = debtRecordIds.isEmpty()
+                ? Map.of()
+                : debtRecordRepository.findAllById(debtRecordIds).stream()
+                        .collect(Collectors.toMap(DebtRecord::getId, Function.identity()));
+
+        // Fetch person names for debt records
+        var debtPersonIds = debtRecordMap.values().stream()
+                .map(DebtRecord::getPersonId)
+                .collect(Collectors.toSet());
+        Map<String, String> personNames = debtPersonIds.isEmpty()
+                ? Map.of()
+                : new HashMap<>();
+        if (!debtPersonIds.isEmpty()) {
+            var persons = mongoTemplate.find(
+                    Query.query(Criteria.where("_id").in(debtPersonIds)),
+                    com.goldscale.model.Person.class);
+            for (var p : persons) {
+                personNames.put(p.getId(), p.getName());
+            }
+        }
+
         return transactions.stream()
-                .map(txn -> TransactionResponse.from(txn, accountNames, categoryNames, tagNamesMap))
+                .map(txn -> {
+                    List<DebtLinkResponse> debtLinks = null;
+                    if (txn.getDebtLinks() != null && !txn.getDebtLinks().isEmpty()) {
+                        debtLinks = txn.getDebtLinks().stream()
+                                .map(link -> {
+                                    var dr = debtRecordMap.get(link.getDebtRecordId());
+                                    String personName = dr != null
+                                            ? personNames.getOrDefault(dr.getPersonId(), "Unknown")
+                                            : "Unknown";
+                                    return new DebtLinkResponse(
+                                            link.getDebtRecordId(),
+                                            link.getPaymentId(),
+                                            link.getAmount(),
+                                            personName,
+                                            dr != null ? dr.getType() : null,
+                                            dr != null ? dr.getDescription() : null
+                                    );
+                                })
+                                .toList();
+                    }
+                    return TransactionResponse.from(txn, accountNames, categoryNames, tagNamesMap, debtLinks);
+                })
                 .toList();
     }
 }

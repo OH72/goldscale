@@ -23,12 +23,11 @@ public sealed interface TransactionCommand {
             @NotNull LocalDate date,
             String description,
             List<String> tagIds,
-            String debtRecordId,
-            String personId,
-            Long debtAmount
+            List<DebtLinkRequest> debtLinks,
+            List<NewDebtRequest> newDebts
     ) implements TransactionCommand {
         public CreateIncome(String accountId, Long amount, String categoryId, LocalDate date, String description) {
-            this(accountId, amount, categoryId, date, description, null, null, null, null);
+            this(accountId, amount, categoryId, date, description, null, null, null);
         }
     }
 
@@ -39,12 +38,11 @@ public sealed interface TransactionCommand {
             @NotNull LocalDate date,
             String description,
             List<String> tagIds,
-            String debtRecordId,
-            String personId,
-            Long debtAmount
+            List<DebtLinkRequest> debtLinks,
+            List<NewDebtRequest> newDebts
     ) implements TransactionCommand {
         public CreateExpense(String accountId, Long amount, String categoryId, LocalDate date, String description) {
-            this(accountId, amount, categoryId, date, description, null, null, null, null);
+            this(accountId, amount, categoryId, date, description, null, null, null);
         }
     }
 

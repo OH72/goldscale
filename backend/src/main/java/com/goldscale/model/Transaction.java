@@ -49,9 +49,7 @@ public class Transaction {
 
     private List<String> tags;
 
-    private String debtRecordId;
-
-    private String paymentId;
+    private List<DebtLink> debtLinks;
 
     private boolean deleted;
 

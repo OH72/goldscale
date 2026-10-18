@@ -392,7 +392,9 @@ public class DebtRecordService {
      * Returns the created DebtRecord.
      */
     DebtRecord createFromTransaction(String personId, DebtType type, long amount,
-                                     com.goldscale.model.Currency currency, LocalDate date, String description) {
+                                     com.goldscale.model.Currency currency, LocalDate date,
+                                     String description, String categoryId, List<String> tagIds,
+                                     String sourceTransactionId) {
         validatePersonExists(personId);
 
         var record = new DebtRecord();
@@ -401,10 +403,13 @@ public class DebtRecordService {
         record.setAmount(amount);
         record.setCoveredAmount(0);
         record.setCurrency(currency);
+        record.setCategoryId(categoryId);
+        record.setTagIds(tagIds != null ? new ArrayList<>(tagIds) : new ArrayList<>());
         record.setDate(date);
         record.setDescription(description);
         record.setStatus(DebtStatus.OPEN);
         record.setPayments(new ArrayList<>());
+        record.setSourceTransactionId(sourceTransactionId);
         record.setDeleted(false);
         record.setUpdatedAt(Instant.now());
         return debtRecordRepository.save(record);

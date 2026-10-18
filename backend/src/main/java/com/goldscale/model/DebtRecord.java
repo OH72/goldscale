@@ -29,6 +29,7 @@ public class DebtRecord {
     private LocalDate date;
     private DebtStatus status;
     private List<Payment> payments;
+    private String sourceTransactionId;
     private boolean deleted;
     @CreatedDate
     private Instant createdAt;

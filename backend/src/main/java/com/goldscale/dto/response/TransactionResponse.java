@@ -24,15 +24,15 @@ public record TransactionResponse(
         LocalDate date,
         List<String> tagIds,
         List<String> tagNames,
-        String debtRecordId,
-        String paymentId,
+        List<DebtLinkResponse> debtLinks,
         Instant createdAt
 ) {
     public static TransactionResponse from(
             Transaction txn,
             Map<String, String> accountNames,
             Map<String, String> categoryNames,
-            Map<String, String> tagNamesMap) {
+            Map<String, String> tagNamesMap,
+            List<DebtLinkResponse> debtLinks) {
         var txnTags = txn.getTags();
         List<String> resolvedTagNames = null;
         if (txnTags != null && !txnTags.isEmpty()) {
@@ -59,8 +59,7 @@ public record TransactionResponse(
                 txn.getDate(),
                 txnTags,
                 resolvedTagNames,
-                txn.getDebtRecordId(),
-                txn.getPaymentId(),
+                debtLinks,
                 txn.getCreatedAt()
         );
     }

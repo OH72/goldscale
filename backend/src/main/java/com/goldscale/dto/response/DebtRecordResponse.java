@@ -24,6 +24,7 @@ public record DebtRecordResponse(
         LocalDate date,
         DebtStatus status,
         List<PaymentResponse> payments,
+        String sourceTransactionId,
         Instant createdAt,
         Instant updatedAt
 ) {
@@ -48,6 +49,7 @@ public record DebtRecordResponse(
                 record.getStatus(),
                 record.getPayments() == null ? List.of() :
                         record.getPayments().stream().map(PaymentResponse::from).toList(),
+                record.getSourceTransactionId(),
                 record.getCreatedAt(),
                 record.getUpdatedAt()
         );
