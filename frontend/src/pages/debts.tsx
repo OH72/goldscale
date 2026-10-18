@@ -274,14 +274,20 @@ function RecordRow({
             >
               Add Payment
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit(record)
-              }}
-            >
-              Edit
-            </DropdownMenuItem>
+            {record.sourceTransactionId ? (
+              <DropdownMenuItem disabled className="text-muted-foreground text-xs">
+                Edit via transaction
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onEdit(record)
+                }}
+              >
+                Edit
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
               onClick={(e) => {
                 e.stopPropagation()
@@ -291,16 +297,20 @@ function RecordRow({
             >
               {record.status === 'OPEN' ? 'Close' : 'Reopen'}
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              className="text-destructive"
-              onClick={(e) => {
-                e.stopPropagation()
-                onDelete(record)
-              }}
-            >
-              Delete
-            </DropdownMenuItem>
+            {!record.sourceTransactionId && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDelete(record)
+                  }}
+                >
+                  Delete
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
