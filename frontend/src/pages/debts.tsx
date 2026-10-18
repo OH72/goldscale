@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -10,6 +10,7 @@ import {
   useAddPayment,
   useRemovePayment,
   useToggleDebtStatus,
+  useReconcileDebt,
 } from '@/api/use-debt-records'
 import { useTransaction } from '@/api/use-transactions'
 import { useAccounts } from '@/api/use-accounts'
@@ -60,6 +61,7 @@ import {
   MoreHorizontal,
   Plus,
   RotateCcw,
+  Scale,
   Trash2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -120,6 +122,222 @@ const paymentSchema = z.object({
 })
 
 type PaymentForm = z.infer<typeof paymentSchema>
+
+// --- Reconcile Dialog ---
+
+function ReconcileDialog({
+  source,
+  allRecords,
+  onClose,
+}: {
+  source: DebtRecordResponse | null
+  allRecords: DebtRecordResponse[]
+  onClose: () => void
+}) {
+  const reconcileMutation = useReconcileDebt()
+  const [counterpartId, setCounterpartId] = useState('')
+  const [sourceAmount, setSourceAmount] = useState('')
+  const [counterpartAmount, setCounterpartAmount] = useState('')
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    setCounterpartId('')
+    setSourceAmount('')
+    setCounterpartAmount('')
+    setError('')
+  }, [source])
+
+  const eligible = useMemo(() => {
+    if (!source) return []
+    return allRecords.filter(
+      (r) =>
+        r.personId === source.personId &&
+        r.type !== source.type &&
+        r.status === 'OPEN' &&
+        r.remainingAmount > 0 &&
+        r.id !== source.id,
+    )
+  }, [source, allRecords])
+
+  const counterpart = eligible.find((r) => r.id === counterpartId)
+  const sameCurrency = source && counterpart && source.currency === counterpart.currency
+
+  function handleCounterpartChange(id: string) {
+    setCounterpartId(id)
+    setError('')
+    const cp = eligible.find((r) => r.id === id)
+    if (!cp || !source) return
+    if (source.currency === cp.currency) {
+      const defaultAmt = Math.min(source.remainingAmount, cp.remainingAmount)
+      setSourceAmount(String(fromSubunits(defaultAmt)))
+      setCounterpartAmount(String(fromSubunits(defaultAmt)))
+    } else {
+      setSourceAmount(String(fromSubunits(source.remainingAmount)))
+      setCounterpartAmount(String(fromSubunits(cp.remainingAmount)))
+    }
+  }
+
+  function handleSubmit() {
+    if (!source || !counterpartId) return
+    setError('')
+
+    const srcAmt = toSubunits(parseFloat(sourceAmount) || 0)
+    const cpAmt = toSubunits(parseFloat(counterpartAmount) || 0)
+
+    if (srcAmt <= 0 || cpAmt <= 0) {
+      setError('Both amounts must be positive')
+      return
+    }
+    if (srcAmt > source.remainingAmount) {
+      setError(`Source amount exceeds remaining (${fromSubunits(source.remainingAmount)})`)
+      return
+    }
+    if (counterpart && cpAmt > counterpart.remainingAmount) {
+      setError(`Counterpart amount exceeds remaining (${fromSubunits(counterpart.remainingAmount)})`)
+      return
+    }
+
+    reconcileMutation.mutate(
+      { id: source.id, data: { counterpartId, sourceAmount: srcAmt, counterpartAmount: cpAmt } },
+      { onSuccess: onClose },
+    )
+  }
+
+  if (!source) return null
+
+  return (
+    <Dialog open={!!source} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Reconcile</DialogTitle>
+        </DialogHeader>
+
+        <div className="rounded-md border p-3 text-sm">
+          <div className="flex items-center gap-2">
+            <Badge
+              variant="outline"
+              className={cn(
+                source.type === 'DEBT'
+                  ? 'border-red-500 text-red-600'
+                  : 'border-green-500 text-green-600',
+              )}
+            >
+              {TYPE_LABELS[source.type]}
+            </Badge>
+            <span className="font-medium">
+              {formatCurrency(source.amount, source.currency)}
+            </span>
+            <span className="text-muted-foreground">
+              (remaining: {formatCurrency(source.remainingAmount, source.currency)})
+            </span>
+          </div>
+          {source.description && (
+            <p className="mt-1 text-muted-foreground">{source.description}</p>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Counterpart record</Label>
+            {eligible.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No eligible {source.type === 'DEBT' ? 'loans' : 'debts'} for this person
+              </p>
+            ) : (
+              <Select value={counterpartId} onValueChange={handleCounterpartChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select record">
+                    {(v: string) => {
+                      const r = eligible.find((e) => e.id === v)
+                      if (!r) return v
+                      return `${TYPE_LABELS[r.type]} · ${formatCurrency(r.amount, r.currency)} (rem: ${formatCurrency(r.remainingAmount, r.currency)})`
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent className="min-w-[400px]">
+                  {eligible.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      <div className="flex items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={cn(
+                            'text-xs',
+                            r.type === 'DEBT'
+                              ? 'border-red-500 text-red-600'
+                              : 'border-green-500 text-green-600',
+                          )}
+                        >
+                          {TYPE_LABELS[r.type]}
+                        </Badge>
+                        <span>{formatCurrency(r.amount, r.currency)}</span>
+                        <span className="text-muted-foreground">
+                          (rem: {formatCurrency(r.remainingAmount, r.currency)})
+                        </span>
+                      </div>
+                      {r.description && (
+                        <p className="text-xs text-muted-foreground">{r.description}</p>
+                      )}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
+          {counterpartId && counterpart && (
+            <>
+              {sameCurrency ? (
+                <div className="space-y-2">
+                  <Label>Amount ({source.currency})</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={sourceAmount}
+                    onChange={(e) => {
+                      setSourceAmount(e.target.value)
+                      setCounterpartAmount(e.target.value)
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Source ({source.currency})</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={sourceAmount}
+                      onChange={(e) => setSourceAmount(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Counterpart ({counterpart.currency})</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={counterpartAmount}
+                      onChange={(e) => setCounterpartAmount(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {error && <p className="text-sm text-destructive">{error}</p>}
+
+              <Button
+                className="w-full"
+                onClick={handleSubmit}
+                disabled={reconcileMutation.isPending}
+              >
+                {reconcileMutation.isPending ? 'Reconciling...' : 'Reconcile'}
+              </Button>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
 
 // --- Transaction Info Popover ---
 
@@ -316,6 +534,7 @@ interface RecordRowProps {
   onAddPayment: (record: DebtRecordResponse) => void
   onToggleStatus: (id: string) => void
   onRemovePayment: (recordId: string, paymentId: string) => void
+  onReconcile: (record: DebtRecordResponse) => void
   toggleStatusLoading: boolean
   removePaymentLoading: boolean
 }
@@ -330,6 +549,7 @@ function RecordRow({
   onAddPayment,
   onToggleStatus,
   onRemovePayment,
+  onReconcile,
   toggleStatusLoading,
   removePaymentLoading,
 }: RecordRowProps) {
@@ -426,6 +646,17 @@ function RecordRow({
                 }}
               >
                 Add Payment
+              </DropdownMenuItem>
+            )}
+            {record.status === 'OPEN' && record.remainingAmount > 0 && (
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onReconcile(record)
+                }}
+              >
+                <Scale className="mr-2 h-4 w-4" />
+                Reconcile
               </DropdownMenuItem>
             )}
             {record.sourceTransactionId ? (
@@ -532,6 +763,7 @@ export function DebtsPage() {
     paymentId: string
     isOffset: boolean
   } | null>(null)
+  const [reconcileRecord, setReconcileRecord] = useState<DebtRecordResponse | null>(null)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
   const hasActiveFilters = personId !== '' || type !== 'ALL' || status !== 'ALL' || search !== ''
@@ -763,6 +995,7 @@ export function DebtsPage() {
               onAddPayment={openAddPayment}
               onToggleStatus={(id) => toggleStatusMutation.mutate(id)}
               onRemovePayment={handleRemovePayment}
+              onReconcile={setReconcileRecord}
               toggleStatusLoading={toggleStatusMutation.isPending}
               removePaymentLoading={removePaymentMutation.isPending}
             />
@@ -1168,6 +1401,13 @@ export function DebtsPage() {
             })
           }
         }}
+      />
+
+      {/* Reconcile Dialog */}
+      <ReconcileDialog
+        source={reconcileRecord}
+        allRecords={records ?? []}
+        onClose={() => setReconcileRecord(null)}
       />
 
       {/* Remove Payment Confirmation */}

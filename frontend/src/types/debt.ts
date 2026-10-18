@@ -110,3 +110,9 @@ export interface AddPaymentRequest {
   date: string
   description?: string | null
 }
+
+export interface ReconcileRequest {
+  counterpartId: string
+  sourceAmount: number
+  counterpartAmount: number
+}

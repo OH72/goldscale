@@ -2,6 +2,7 @@ package com.goldscale.controller;
 
 import com.goldscale.dto.request.AddPaymentRequest;
 import com.goldscale.dto.request.CreateDebtRecordRequest;
+import com.goldscale.dto.request.ReconcileRequest;
 import com.goldscale.dto.request.UpdateDebtRecordRequest;
 import com.goldscale.dto.response.DebtRecordResponse;
 import com.goldscale.dto.response.DebtSummaryResponse;
@@ -61,6 +62,13 @@ public class DebtRecordController {
             @PathVariable String id,
             @Valid @RequestBody AddPaymentRequest request) {
         return ResponseEntity.ok(debtRecordService.addPayment(id, request));
+    }
+
+    @PostMapping("/{id}/reconcile")
+    public ResponseEntity<List<DebtRecordResponse>> reconcile(
+            @PathVariable String id,
+            @Valid @RequestBody ReconcileRequest request) {
+        return ResponseEntity.ok(debtRecordService.reconcile(id, request));
     }
 
     @DeleteMapping("/{id}/payments/{paymentId}")

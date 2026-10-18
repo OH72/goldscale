@@ -8,6 +8,7 @@ import type {
   CreateDebtRecordRequest,
   UpdateDebtRecordRequest,
   AddPaymentRequest,
+  ReconcileRequest,
   DebtType,
   DebtStatus,
 } from '@/types/debt'
@@ -141,6 +142,23 @@ export function useToggleDebtStatus() {
     },
     onError: (error: Error) => {
       toast.error(error instanceof ApiError ? error.message : 'Failed to toggle status')
+    },
+  })
+}
+
+export function useReconcileDebt() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ReconcileRequest }) =>
+      api.post<DebtRecordResponse[]>(`/debt-records/${id}/reconcile`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.summary })
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
+      toast.success('Records reconciled')
+    },
+    onError: (error: Error) => {
+      toast.error(error instanceof ApiError ? error.message : 'Failed to reconcile')
     },
   })
 }

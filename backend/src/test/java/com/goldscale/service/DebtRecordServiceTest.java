@@ -2,6 +2,7 @@ package com.goldscale.service;
 
 import com.goldscale.dto.request.AddPaymentRequest;
 import com.goldscale.dto.request.CreateDebtRecordRequest;
+import com.goldscale.dto.request.ReconcileRequest;
 import com.goldscale.dto.request.UpdateDebtRecordRequest;
 import com.goldscale.exception.BusinessRuleException;
 import com.goldscale.exception.ResourceNotFoundException;
@@ -397,6 +398,160 @@ class DebtRecordServiceTest {
         assertThat(entry.totalDebt()).isEqualTo(0);
         assertThat(entry.totalLoan()).isEqualTo(0);
         assertThat(entry.net()).isEqualTo(0);
+    }
+
+    // --- Reconcile tests ---
+
+    @Test
+    void should_reconcileDebtWithLoan_sameCurrency() {
+        var source = createTestRecord("src1", "p1", 10000L, 0);
+        source.setType(DebtType.DEBT);
+        source.setCurrency(Currency.UAH);
+
+        var counterpart = createTestRecord("cpt1", "p1", 4000L, 0);
+        counterpart.setType(DebtType.LOAN);
+        counterpart.setCurrency(Currency.UAH);
+
+        var person = new Person();
+        person.setId("p1");
+        person.setName("Alice");
+
+        when(debtRecordRepository.findByIdAndDeletedFalse("src1")).thenReturn(Optional.of(source));
+        when(debtRecordRepository.findByIdAndDeletedFalse("cpt1")).thenReturn(Optional.of(counterpart));
+        when(debtRecordRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(personRepository.findAllById(any())).thenReturn(List.of(person));
+        when(tagService.getTagNamesByIds(any())).thenReturn(Map.of());
+
+        var request = new ReconcileRequest("cpt1", 4000L, 4000L);
+        var result = debtRecordService.reconcile("src1", request);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).coveredAmount()).isEqualTo(4000L);
+        assertThat(result.get(1).coveredAmount()).isEqualTo(4000L);
+        assertThat(result.get(1).status()).isEqualTo(DebtStatus.CLOSED);
+        verify(debtRecordRepository, times(2)).save(any());
+    }
+
+    @Test
+    void should_reconcileCrossCurrency() {
+        var source = createTestRecord("src1", "p1", 10000L, 0);
+        source.setType(DebtType.DEBT);
+        source.setCurrency(Currency.UAH);
+
+        var counterpart = createTestRecord("cpt1", "p1", 100L, 0);
+        counterpart.setType(DebtType.LOAN);
+        counterpart.setCurrency(Currency.USD);
+
+        var person = new Person();
+        person.setId("p1");
+        person.setName("Alice");
+
+        when(debtRecordRepository.findByIdAndDeletedFalse("src1")).thenReturn(Optional.of(source));
+        when(debtRecordRepository.findByIdAndDeletedFalse("cpt1")).thenReturn(Optional.of(counterpart));
+        when(debtRecordRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(personRepository.findAllById(any())).thenReturn(List.of(person));
+        when(tagService.getTagNamesByIds(any())).thenReturn(Map.of());
+
+        var request = new ReconcileRequest("cpt1", 4000L, 100L);
+        var result = debtRecordService.reconcile("src1", request);
+
+        assertThat(result).hasSize(2);
+        assertThat(result.get(0).coveredAmount()).isEqualTo(4000L);
+        assertThat(result.get(1).coveredAmount()).isEqualTo(100L);
+        assertThat(result.get(1).status()).isEqualTo(DebtStatus.CLOSED);
+    }
+
+    @Test
+    void should_throw_whenSameType() {
+        var source = createTestRecord("src1", "p1", 10000L, 0);
+        source.setType(DebtType.DEBT);
+
+        var counterpart = createTestRecord("cpt1", "p1", 5000L, 0);
+        counterpart.setType(DebtType.DEBT);
+
+        when(debtRecordRepository.findByIdAndDeletedFalse("src1")).thenReturn(Optional.of(source));
+        when(debtRecordRepository.findByIdAndDeletedFalse("cpt1")).thenReturn(Optional.of(counterpart));
+
+        var request = new ReconcileRequest("cpt1", 5000L, 5000L);
+
+        assertThatThrownBy(() -> debtRecordService.reconcile("src1", request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("same type");
+    }
+
+    @Test
+    void should_throw_whenDifferentPerson() {
+        var source = createTestRecord("src1", "p1", 10000L, 0);
+        source.setType(DebtType.DEBT);
+
+        var counterpart = createTestRecord("cpt1", "p2", 5000L, 0);
+        counterpart.setType(DebtType.LOAN);
+
+        when(debtRecordRepository.findByIdAndDeletedFalse("src1")).thenReturn(Optional.of(source));
+        when(debtRecordRepository.findByIdAndDeletedFalse("cpt1")).thenReturn(Optional.of(counterpart));
+
+        var request = new ReconcileRequest("cpt1", 5000L, 5000L);
+
+        assertThatThrownBy(() -> debtRecordService.reconcile("src1", request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("same person");
+    }
+
+    @Test
+    void should_throw_whenSourceClosed() {
+        var source = createTestRecord("src1", "p1", 10000L, 10000);
+        source.setType(DebtType.DEBT);
+        source.setStatus(DebtStatus.CLOSED);
+
+        var counterpart = createTestRecord("cpt1", "p1", 5000L, 0);
+        counterpart.setType(DebtType.LOAN);
+
+        when(debtRecordRepository.findByIdAndDeletedFalse("src1")).thenReturn(Optional.of(source));
+        when(debtRecordRepository.findByIdAndDeletedFalse("cpt1")).thenReturn(Optional.of(counterpart));
+
+        var request = new ReconcileRequest("cpt1", 5000L, 5000L);
+
+        assertThatThrownBy(() -> debtRecordService.reconcile("src1", request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Source record is not open");
+    }
+
+    @Test
+    void should_throw_whenSourceAmountExceedsRemaining() {
+        var source = createTestRecord("src1", "p1", 10000L, 5000);
+        source.setType(DebtType.DEBT);
+
+        var counterpart = createTestRecord("cpt1", "p1", 10000L, 0);
+        counterpart.setType(DebtType.LOAN);
+
+        when(debtRecordRepository.findByIdAndDeletedFalse("src1")).thenReturn(Optional.of(source));
+        when(debtRecordRepository.findByIdAndDeletedFalse("cpt1")).thenReturn(Optional.of(counterpart));
+
+        var request = new ReconcileRequest("cpt1", 6000L, 5000L);
+
+        assertThatThrownBy(() -> debtRecordService.reconcile("src1", request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Source amount")
+                .hasMessageContaining("exceeds remaining");
+    }
+
+    @Test
+    void should_throw_whenCounterpartAmountExceedsRemaining() {
+        var source = createTestRecord("src1", "p1", 10000L, 0);
+        source.setType(DebtType.DEBT);
+
+        var counterpart = createTestRecord("cpt1", "p1", 5000L, 2000);
+        counterpart.setType(DebtType.LOAN);
+
+        when(debtRecordRepository.findByIdAndDeletedFalse("src1")).thenReturn(Optional.of(source));
+        when(debtRecordRepository.findByIdAndDeletedFalse("cpt1")).thenReturn(Optional.of(counterpart));
+
+        var request = new ReconcileRequest("cpt1", 5000L, 4000L);
+
+        assertThatThrownBy(() -> debtRecordService.reconcile("src1", request))
+                .isInstanceOf(BusinessRuleException.class)
+                .hasMessageContaining("Counterpart amount")
+                .hasMessageContaining("exceeds remaining");
     }
 
     // --- Helpers ---

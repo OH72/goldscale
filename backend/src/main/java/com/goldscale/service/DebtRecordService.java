@@ -2,6 +2,7 @@ package com.goldscale.service;
 
 import com.goldscale.dto.request.AddPaymentRequest;
 import com.goldscale.dto.request.CreateDebtRecordRequest;
+import com.goldscale.dto.request.ReconcileRequest;
 import com.goldscale.dto.request.UpdateDebtRecordRequest;
 import com.goldscale.dto.response.DebtRecordResponse;
 import com.goldscale.dto.response.DebtSummaryEntry;
@@ -18,6 +19,7 @@ import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -147,6 +149,52 @@ public class DebtRecordService {
         eventLogService.log("CREATE", "PAYMENT", id,
                 "Added payment to " + record.getType() + " record");
         return enrichWithNames(List.of(record)).getFirst();
+    }
+
+    @Transactional
+    public List<DebtRecordResponse> reconcile(String id, ReconcileRequest request) {
+        var source = getActiveRecord(id);
+        var counterpart = getActiveRecord(request.counterpartId());
+
+        if (!source.getPersonId().equals(counterpart.getPersonId())) {
+            throw new BusinessRuleException("Both records must belong to the same person");
+        }
+        if (source.getType() == counterpart.getType()) {
+            throw new BusinessRuleException("Cannot reconcile records of the same type");
+        }
+        if (source.getStatus() != DebtStatus.OPEN) {
+            throw new BusinessRuleException("Source record is not open");
+        }
+        if (counterpart.getStatus() != DebtStatus.OPEN) {
+            throw new BusinessRuleException("Counterpart record is not open");
+        }
+
+        long sourceRemaining = source.getAmount() - source.getCoveredAmount();
+        if (request.sourceAmount() > sourceRemaining) {
+            throw new BusinessRuleException(
+                    "Source amount (" + request.sourceAmount() + ") exceeds remaining (" + sourceRemaining + ")");
+        }
+
+        long counterpartRemaining = counterpart.getAmount() - counterpart.getCoveredAmount();
+        if (request.counterpartAmount() > counterpartRemaining) {
+            throw new BusinessRuleException(
+                    "Counterpart amount (" + request.counterpartAmount() + ") exceeds remaining (" + counterpartRemaining + ")");
+        }
+
+        var offsetGroupId = UUID.randomUUID().toString();
+        var today = LocalDate.now();
+
+        var sourceDesc = "Reconciled with " + counterpart.getType() + " " + counterpart.getCurrency() + " " + request.counterpartAmount();
+        var counterpartDesc = "Reconciled with " + source.getType() + " " + source.getCurrency() + " " + request.sourceAmount();
+
+        source = applyOffsetPayment(source, request.sourceAmount(), today, sourceDesc, offsetGroupId);
+        counterpart = applyOffsetPayment(counterpart, request.counterpartAmount(), today, counterpartDesc, offsetGroupId);
+
+        eventLogService.log("OFFSET", "DEBT_RECORD", id,
+                "Reconciled " + source.getType() + " (" + source.getCurrency() + " " + request.sourceAmount() +
+                ") with " + counterpart.getType() + " (" + counterpart.getCurrency() + " " + request.counterpartAmount() + ")");
+
+        return enrichWithNames(List.of(source, counterpart));
     }
 
     /** Adds an offset payment with a group ID linking all payments from the same offset operation. */
