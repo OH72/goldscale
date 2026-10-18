@@ -120,10 +120,10 @@ export function AccountsPage() {
   const [deleteAccount, setDeleteAccount] = useState<AccountResponse | null>(
     null,
   )
-  const { currencyFilter, sortField, sortDir } = useFilterStore((s) => s.accounts)
+  const { search, currencyFilter, sortField, sortDir } = useFilterStore((s) => s.accounts)
   const setAccounts = useFilterStore((s) => s.setAccounts)
   const resetAccounts = useFilterStore((s) => s.resetAccounts)
-  const hasActiveFilters = currencyFilter !== '' || sortField !== 'name' || sortDir !== 'asc'
+  const hasActiveFilters = search !== '' || currencyFilter !== '' || sortField !== 'name' || sortDir !== 'asc'
 
   function toggleSort(field: SortField) {
     if (sortField === field) {
@@ -135,6 +135,10 @@ export function AccountsPage() {
 
   const filteredAccounts = useMemo(() => {
     let list = accounts ?? []
+    if (search) {
+      const q = search.toLowerCase()
+      list = list.filter((a) => a.name.toLowerCase().includes(q))
+    }
     if (currencyFilter) {
       list = list.filter((a) => a.currency === currencyFilter)
     }
@@ -155,7 +159,7 @@ export function AccountsPage() {
       })
     }
     return list
-  }, [accounts, currencyFilter, sortField, sortDir])
+  }, [accounts, search, currencyFilter, sortField, sortDir])
 
   const createForm = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
@@ -208,7 +212,13 @@ export function AccountsPage() {
         </Button>
       </PageHeader>
 
-      <div className="mb-4 flex items-center gap-4">
+      <div className="mb-4 flex flex-wrap items-center gap-4">
+        <Input
+          placeholder="Search accounts..."
+          value={search}
+          onChange={(e) => setAccounts({ search: e.target.value })}
+          className="max-w-xs"
+        />
         <div className="flex items-center gap-2">
           <Label className="text-sm text-muted-foreground">Currency</Label>
           <Select

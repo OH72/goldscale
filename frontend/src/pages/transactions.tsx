@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import { useTransactions, useDeleteTransaction } from '@/api/use-transactions'
 import { useAccounts } from '@/api/use-accounts'
 import { useCategories } from '@/api/use-categories'
@@ -41,6 +40,7 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/currency'
+import { useFilterStore } from '@/stores/filter-store'
 import type { TransactionResponse, TransactionFilters } from '@/types/transaction'
 import type { TransactionType } from '@/types/common'
 
@@ -54,7 +54,6 @@ const TYPE_LABELS: Record<string, string> = {
 }
 
 export function TransactionsPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
   const { data: accounts } = useAccounts()
   const { data: categories } = useCategories()
   const { data: tags } = useTags()
@@ -64,36 +63,30 @@ export function TransactionsPage() {
   const [editTxn, setEditTxn] = useState<TransactionResponse | null>(null)
   const [deleteTxn, setDeleteTxn] = useState<TransactionResponse | null>(null)
 
+  const txnFilters = useFilterStore((s) => s.transactions)
+  const setTransactions = useFilterStore((s) => s.setTransactions)
+
   const filters: TransactionFilters = {
-    accountId: searchParams.get('accountId') ?? undefined,
-    type: (searchParams.get('type') as TransactionType) ?? undefined,
-    categoryId: searchParams.get('categoryId') ?? undefined,
-    tagId: searchParams.get('tagId') ?? undefined,
-    startDate: searchParams.get('startDate') ?? undefined,
-    endDate: searchParams.get('endDate') ?? undefined,
-    search: searchParams.get('search') ?? undefined,
-    sort: searchParams.get('sort') ?? undefined,
-    page: Number(searchParams.get('page') ?? 0),
+    accountId: txnFilters.accountId || undefined,
+    type: (txnFilters.type as TransactionType) || undefined,
+    categoryId: txnFilters.categoryId || undefined,
+    tagId: txnFilters.tagId || undefined,
+    startDate: txnFilters.startDate || undefined,
+    endDate: txnFilters.endDate || undefined,
+    search: txnFilters.search || undefined,
+    sort: txnFilters.sort || undefined,
+    page: txnFilters.page,
     size: 20,
   }
 
   const { data, isLoading, error } = useTransactions(filters)
 
   function setFilter(key: string, value: string | undefined) {
-    const next = new URLSearchParams(searchParams)
-    if (value) {
-      next.set(key, value)
-    } else {
-      next.delete(key)
-    }
-    next.delete('page')
-    setSearchParams(next)
+    setTransactions({ [key]: value ?? '', page: 0 })
   }
 
   function setPage(page: number) {
-    const next = new URLSearchParams(searchParams)
-    next.set('page', String(page))
-    setSearchParams(next, { preventScrollReset: true })
+    setTransactions({ page })
   }
 
   function getSortState(field: string): 'asc' | 'desc' | null {
@@ -335,11 +328,7 @@ export function TransactionsPage() {
             size="icon"
             className="h-7 w-7"
             onClick={() => {
-              const next = new URLSearchParams(searchParams)
-              next.delete('startDate')
-              next.delete('endDate')
-              next.delete('page')
-              setSearchParams(next)
+              setTransactions({ startDate: '', endDate: '', page: 0 })
             }}
           >
             <X className="h-4 w-4" />

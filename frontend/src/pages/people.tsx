@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -28,10 +28,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-import { ArrowDown, ArrowUp, ArrowLeftRight, MoreHorizontal, Plus } from 'lucide-react'
+import { ArrowDown, ArrowUp, ArrowLeftRight, MoreHorizontal, Plus, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/currency'
 import { formatDate } from '@/lib/date'
+import { useFilterStore } from '@/stores/filter-store'
 import type {
   OffsetAllocation,
   PersonResponse,
@@ -105,18 +106,19 @@ function AllocationList({
 }
 
 export function PeoplePage() {
-  const [sortBy, setSortBy] = useState<PersonSortField>('NAME')
-  const [direction, setDirection] = useState<SortDirection>('ASC')
+  const { search, sortBy, direction } = useFilterStore((s) => s.people)
+  const setPeople = useFilterStore((s) => s.setPeople)
+  const resetPeople = useFilterStore((s) => s.resetPeople)
   const { data: people, isLoading } = usePeople(sortBy, direction)
   const { data: debtSummary } = useDebtSummary()
   const displayCurrency = debtSummary?.displayCurrency ?? ''
+  const hasActiveFilters = search !== '' || sortBy !== 'NAME' || direction !== 'ASC'
 
   function toggleSort(field: PersonSortField) {
     if (field === sortBy) {
-      setDirection((d) => (d === 'ASC' ? 'DESC' : 'ASC'))
+      setPeople({ direction: direction === 'ASC' ? 'DESC' : 'ASC' })
     } else {
-      setSortBy(field)
-      setDirection(field === 'NAME' ? 'ASC' : 'DESC')
+      setPeople({ sortBy: field, direction: field === 'NAME' ? 'ASC' : 'DESC' })
     }
   }
 
@@ -167,7 +169,14 @@ export function PeoplePage() {
     setEditPerson(person)
   }
 
-  const sorted = people ?? []
+  const sorted = useMemo(() => {
+    let list = people ?? []
+    if (search) {
+      const q = search.toLowerCase()
+      list = list.filter((p) => p.name.toLowerCase().includes(q))
+    }
+    return list
+  }, [people, search])
 
   if (isLoading) return <div className="p-6">Loading...</div>
 
@@ -178,6 +187,20 @@ export function PeoplePage() {
           <Plus className="mr-2 h-4 w-4" /> New Person
         </Button>
       </PageHeader>
+
+      <div className="mb-4 flex items-center gap-3">
+        <Input
+          placeholder="Search people..."
+          value={search}
+          onChange={(e) => setPeople({ search: e.target.value })}
+          className="max-w-xs"
+        />
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={resetPeople}>
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reset
+          </Button>
+        )}
+      </div>
 
       {sorted.length === 0 ? (
         <p className="py-8 text-center text-muted-foreground">No people yet</p>

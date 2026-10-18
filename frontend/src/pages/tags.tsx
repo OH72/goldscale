@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -21,8 +21,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-import { MoreHorizontal, Plus } from 'lucide-react'
+import { MoreHorizontal, Plus, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useFilterStore } from '@/stores/filter-store'
 import type { TagResponse } from '@/api/use-tags'
 
 const createSchema = z.object({
@@ -38,6 +39,9 @@ export function TagsPage() {
 
   const [createOpen, setCreateOpen] = useState(false)
   const [deleteTag, setDeleteTag] = useState<TagResponse | null>(null)
+  const { search } = useFilterStore((s) => s.tags)
+  const setTags = useFilterStore((s) => s.setTags)
+  const resetTags = useFilterStore((s) => s.resetTags)
 
   const createForm = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
@@ -56,7 +60,14 @@ export function TagsPage() {
     )
   }
 
-  const sorted = tags?.slice().sort((a, b) => a.name.localeCompare(b.name)) ?? []
+  const sorted = useMemo(() => {
+    let list = tags?.slice().sort((a, b) => a.name.localeCompare(b.name)) ?? []
+    if (search) {
+      const q = search.toLowerCase()
+      list = list.filter((t) => t.name.toLowerCase().includes(q))
+    }
+    return list
+  }, [tags, search])
 
   if (isLoading) return <div className="p-6">Loading...</div>
 
@@ -67,6 +78,20 @@ export function TagsPage() {
           <Plus className="mr-2 h-4 w-4" /> New Tag
         </Button>
       </PageHeader>
+
+      <div className="mb-4 flex items-center gap-3">
+        <Input
+          placeholder="Search tags..."
+          value={search}
+          onChange={(e) => setTags({ search: e.target.value })}
+          className="max-w-xs"
+        />
+        {search && (
+          <Button variant="ghost" size="sm" onClick={resetTags}>
+            <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reset
+          </Button>
+        )}
+      </div>
 
       {sorted.length === 0 ? (
         <p className="py-8 text-center text-muted-foreground">No tags yet</p>
