@@ -97,6 +97,7 @@ export function TransactionFormDialog({
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [tagSearch, setTagSearch] = useState('')
   const [categorySearch, setCategorySearch] = useState('')
+  const [categoryOpen, setCategoryOpen] = useState(false)
   const [pendingEditValues, setPendingEditValues] = useState<FormValues | null>(null)
 
   // Debt linking state (create mode only)
@@ -470,7 +471,7 @@ export function TransactionFormDialog({
             {!isInitialBalance && txnType !== 'TRANSFER' && (
               <div className="space-y-2">
                 <Label>Category</Label>
-                <Popover>
+                <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
@@ -516,6 +517,7 @@ export function TransactionFormDialog({
                                 onClick={() => {
                                   form.setValue('categoryId', c.id)
                                   setCategorySearch('')
+                                  setCategoryOpen(false)
                                 }}
                               >
                                 {c.name}
@@ -535,6 +537,7 @@ export function TransactionFormDialog({
                                 onClick={() => {
                                   form.setValue('categoryId', c.id)
                                   setCategorySearch('')
+                                  setCategoryOpen(false)
                                 }}
                               >
                                 {c.name}
