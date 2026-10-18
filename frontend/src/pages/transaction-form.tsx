@@ -7,6 +7,8 @@ import { CalendarIcon, ChevronsUpDown, X } from 'lucide-react'
 import { useAccounts } from '@/api/use-accounts'
 import { useCategories } from '@/api/use-categories'
 import { useTags } from '@/api/use-tags'
+import { useDebtRecords } from '@/api/use-debt-records'
+import { usePeople } from '@/api/use-people'
 import {
   useTransactions,
   useCreateTransaction,
@@ -37,7 +39,9 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { toSubunits, fromSubunits } from '@/lib/currency'
+import { Separator } from '@/components/ui/separator'
+import { ConfirmDialog } from '@/components/confirm-dialog'
+import { toSubunits, fromSubunits, formatCurrency } from '@/lib/currency'
 import { toISODate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import type { TransactionResponse } from '@/types/transaction'
@@ -77,11 +81,26 @@ export function TransactionFormDialog({
   const { data: accounts } = useAccounts()
   const { data: categories } = useCategories()
   const { data: tags } = useTags()
+  const { data: people } = usePeople()
   const createMutation = useCreateTransaction()
   const updateMutation = useUpdateTransaction()
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [tagSearch, setTagSearch] = useState('')
   const [categorySearch, setCategorySearch] = useState('')
+  const [pendingEditValues, setPendingEditValues] = useState<FormValues | null>(null)
+
+  // Debt linking state (create mode only)
+  type DebtLinkMode = 'none' | 'existing' | 'new'
+  const [debtLinkMode, setDebtLinkMode] = useState<DebtLinkMode>('none')
+  const [selectedDebtRecordId, setSelectedDebtRecordId] = useState<string | null>(null)
+  const [selectedPersonId, setSelectedPersonId] = useState<string | null>(null)
+  const [debtAmountInput, setDebtAmountInput] = useState<string>('')
+
+  // Fetch open debts/loans for linking (UC1)
+  const debtTypeForLink = txnType === 'EXPENSE' ? 'DEBT' : 'LOAN'
+  const { data: openDebtRecords } = useDebtRecords(
+    debtLinkMode === 'existing' ? { type: debtTypeForLink, status: 'OPEN' } : undefined,
+  )
 
   const { data: recentTxns } = useTransactions({ page: 0, size: 100 })
 
@@ -140,6 +159,10 @@ export function TransactionFormDialog({
       setSelectedTagIds([])
       setTagSearch('')
       setCategorySearch('')
+      setDebtLinkMode('none')
+      setSelectedDebtRecordId(null)
+      setSelectedPersonId(null)
+      setDebtAmountInput('')
       const firstActiveId = defaultAccountId ?? accounts?.find((a) => a.active)?.id ?? accounts?.[0]?.id ?? ''
       form.reset({
         amount: 0,
@@ -152,6 +175,12 @@ export function TransactionFormDialog({
   }, [editTransaction, open, accounts, defaultAccountId])
 
   function handleSubmit(values: FormValues) {
+    // If editing a linked transaction, ask for confirmation first
+    if (isEdit && editTransaction?.debtRecordId && !pendingEditValues) {
+      setPendingEditValues(values)
+      return
+    }
+
     const tagIds = selectedTagIds.length > 0 ? selectedTagIds : null
 
     if (isEdit) {
@@ -193,6 +222,20 @@ export function TransactionFormDialog({
         { onSuccess: () => onOpenChange(false) },
       )
     } else {
+      const debtFields: {
+        debtRecordId?: string | null
+        personId?: string | null
+        debtAmount?: number | null
+      } = {}
+      if (debtLinkMode === 'existing' && selectedDebtRecordId) {
+        debtFields.debtRecordId = selectedDebtRecordId
+        if (debtAmountInput) {
+          debtFields.debtAmount = toSubunits(Number(debtAmountInput))
+        }
+      } else if (debtLinkMode === 'new' && selectedPersonId) {
+        debtFields.personId = selectedPersonId
+      }
+
       createMutation.mutate(
         {
           type: txnType as 'INCOME' | 'EXPENSE',
@@ -202,6 +245,7 @@ export function TransactionFormDialog({
           date: toISODate(values.date),
           description: values.description ?? null,
           tagIds,
+          ...debtFields,
         },
         { onSuccess: () => onOpenChange(false) },
       )
@@ -574,6 +618,138 @@ export function TransactionFormDialog({
             </div>
           )}
 
+          {/* Debt/Loan Linking (create mode, INCOME/EXPENSE only) */}
+          {!isEdit && !isInitialBalance && txnType !== 'TRANSFER' && (
+            <>
+              <Separator />
+              <div className="space-y-3">
+                <Label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                  Link to Debt / Loan
+                </Label>
+                <Tabs
+                  value={debtLinkMode}
+                  onValueChange={(v) => {
+                    setDebtLinkMode(v as DebtLinkMode)
+                    setSelectedDebtRecordId(null)
+                    setSelectedPersonId(null)
+                    setDebtAmountInput('')
+                  }}
+                >
+                  <TabsList className="w-full">
+                    <TabsTrigger value="none" className="flex-1">None</TabsTrigger>
+                    <TabsTrigger value="existing" className="flex-1">
+                      Link existing
+                    </TabsTrigger>
+                    <TabsTrigger value="new" className="flex-1">Create new</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+
+                {/* UC1: Link to existing debt/loan */}
+                {debtLinkMode === 'existing' && (
+                  <div className="space-y-2">
+                    <Label>
+                      {txnType === 'EXPENSE' ? 'Open Debt' : 'Open Loan'}
+                    </Label>
+                    <Select
+                      value={selectedDebtRecordId ?? ''}
+                      onValueChange={setSelectedDebtRecordId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={`Select ${txnType === 'EXPENSE' ? 'debt' : 'loan'}`}>
+                          {(v: string) => {
+                            const r = openDebtRecords?.find((d) => d.id === v)
+                            return r
+                              ? `${r.personName} — ${formatCurrency(r.remainingAmount, r.currency)} remaining`
+                              : `Select ${txnType === 'EXPENSE' ? 'debt' : 'loan'}`
+                          }}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {openDebtRecords?.map((r) => (
+                          <SelectItem key={r.id} value={r.id}>
+                            <div>
+                              <span className="font-medium">{r.personName}</span>
+                              <span className="ml-2 text-muted-foreground">
+                                {formatCurrency(r.remainingAmount, r.currency)} remaining
+                              </span>
+                              {r.description && (
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  — {r.description}
+                                </span>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                        {(!openDebtRecords || openDebtRecords.length === 0) && (
+                          <div className="px-2 py-3 text-sm text-center text-muted-foreground">
+                            No open {txnType === 'EXPENSE' ? 'debts' : 'loans'}
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
+
+                    {/* Cross-currency: show debt amount input if currencies differ */}
+                    {(() => {
+                      const selectedDebt = openDebtRecords?.find((d) => d.id === selectedDebtRecordId)
+                      if (!selectedDebt || selectedDebt.currency === selectedAccountCurrency) return null
+                      return (
+                        <div className="space-y-1">
+                          <Label className="text-sm">
+                            Payment in {selectedDebt.currency}
+                          </Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            placeholder={`Amount in ${selectedDebt.currency}`}
+                            value={debtAmountInput}
+                            onChange={(e) => setDebtAmountInput(e.target.value)}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Transaction is in {selectedAccountCurrency}, debt is in {selectedDebt.currency}
+                          </p>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+
+                {/* UC2/UC3: Create new debt/loan */}
+                {debtLinkMode === 'new' && (
+                  <div className="space-y-2">
+                    <Label>Person</Label>
+                    <Select
+                      value={selectedPersonId ?? ''}
+                      onValueChange={setSelectedPersonId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select person">
+                          {(v: string) => people?.find((p) => p.id === v)?.name ?? 'Select person'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {people?.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name}
+                          </SelectItem>
+                        ))}
+                        {(!people || people.length === 0) && (
+                          <div className="px-2 py-3 text-sm text-center text-muted-foreground">
+                            No people yet
+                          </div>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {txnType === 'INCOME'
+                        ? 'Will create a DEBT (you owe them)'
+                        : 'Will create a LOAN (they owe you)'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
           <Button type="submit" className="w-full" disabled={isPending}>
             {isPending
               ? 'Saving...'
@@ -582,6 +758,24 @@ export function TransactionFormDialog({
                 : 'Create'}
           </Button>
         </form>
+
+        {/* Edit-cascade confirmation for linked transactions */}
+        <ConfirmDialog
+          open={!!pendingEditValues}
+          onOpenChange={(open) => { if (!open) setPendingEditValues(null) }}
+          title="Update Linked Transaction"
+          description="This transaction is linked to a debt/loan record. Saving will also update the linked payment. Continue?"
+          confirmLabel="Save"
+          confirmVariant="default"
+          loading={updateMutation.isPending}
+          onConfirm={() => {
+            if (pendingEditValues) {
+              const v = pendingEditValues
+              setPendingEditValues(null)
+              handleSubmit(v)
+            }
+          }}
+        />
       </DialogContent>
     </Dialog>
   )

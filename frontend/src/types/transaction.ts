@@ -16,6 +16,8 @@ export interface TransactionResponse {
   date: string
   tagIds: string[] | null
   tagNames: string[] | null
+  debtRecordId: string | null
+  paymentId: string | null
   createdAt: string
 }
 
@@ -27,6 +29,9 @@ export interface CreateIncomeRequest {
   date: string
   description: string | null
   tagIds: string[] | null
+  debtRecordId?: string | null
+  personId?: string | null
+  debtAmount?: number | null
 }
 
 export interface CreateExpenseRequest {
@@ -37,6 +42,9 @@ export interface CreateExpenseRequest {
   date: string
   description: string | null
   tagIds: string[] | null
+  debtRecordId?: string | null
+  personId?: string | null
+  debtAmount?: number | null
 }
 
 export interface CreateTransferRequest {

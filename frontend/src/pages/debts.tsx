@@ -48,6 +48,7 @@ import { Label } from '@/components/ui/label'
 import {
   ChevronDown,
   ChevronRight,
+  Link,
   MoreHorizontal,
   Plus,
   RotateCcw,
@@ -123,6 +124,7 @@ interface PaymentRowProps {
 }
 
 function PaymentRow({ payment, currency, recordId, onRemove, removeLoading }: PaymentRowProps) {
+  const isLinked = !!payment.transactionId
   return (
     <div className="flex items-center justify-between rounded-md bg-muted/50 px-3 py-2 text-sm">
       <div className="flex items-center gap-4">
@@ -133,16 +135,26 @@ function PaymentRow({ payment, currency, recordId, onRemove, removeLoading }: Pa
         {payment.description && (
           <span className="text-muted-foreground">{payment.description}</span>
         )}
+        {isLinked && (
+          <Badge variant="secondary" className="gap-1 text-xs">
+            <Link className="h-3 w-3" />
+            Auto
+          </Badge>
+        )}
       </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-7 w-7 text-destructive hover:text-destructive"
-        onClick={() => onRemove(recordId, payment.id)}
-        disabled={removeLoading}
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </Button>
+      {isLinked ? (
+        <span className="text-xs text-muted-foreground">Via transaction</span>
+      ) : (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7 text-destructive hover:text-destructive"
+          onClick={() => onRemove(recordId, payment.id)}
+          disabled={removeLoading}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      )}
     </div>
   )
 }

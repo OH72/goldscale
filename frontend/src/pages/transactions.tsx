@@ -33,7 +33,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
-import { MoreHorizontal, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ArrowUp, ArrowDown, ArrowUpDown, X, Search } from 'lucide-react'
+import { MoreHorizontal, Plus, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, ArrowUp, ArrowDown, ArrowUpDown, X, Search, Link } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/currency'
 import type { TransactionResponse, TransactionFilters } from '@/types/transaction'
@@ -434,7 +434,12 @@ export function TransactionsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="align-top whitespace-normal text-muted-foreground" title={txn.description ?? ''}>
-                    <p className="line-clamp-2 break-words text-xs">{txn.description ?? ''}</p>
+                    <div className="flex items-start gap-1">
+                      {txn.debtRecordId && (
+                        <Link className="h-3.5 w-3.5 shrink-0 mt-0.5 text-blue-500" />
+                      )}
+                      <p className="line-clamp-2 break-words text-xs">{txn.description ?? ''}</p>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -495,7 +500,11 @@ export function TransactionsPage() {
         open={!!deleteTxn}
         onOpenChange={(open) => !open && setDeleteTxn(null)}
         title="Delete Transaction"
-        description="Delete this transaction? The account balance will be adjusted."
+        description={
+          deleteTxn?.debtRecordId
+            ? 'Delete this transaction? The account balance will be adjusted and the linked debt/loan payment will also be removed.'
+            : 'Delete this transaction? The account balance will be adjusted.'
+        }
         loading={deleteMutation.isPending}
         onConfirm={() => {
           if (deleteTxn) {

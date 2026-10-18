@@ -43,6 +43,7 @@ export interface PaymentResponse {
   amount: number
   date: string
   description: string | null
+  transactionId: string | null
   createdAt: string
 }
 

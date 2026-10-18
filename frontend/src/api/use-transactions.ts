@@ -45,6 +45,9 @@ export function useCreateTransaction() {
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.summary })
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
       toast.success('Transaction created')
     },
     onError: (error: Error) => {
@@ -69,6 +72,9 @@ export function useUpdateTransaction() {
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.summary })
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
       toast.success('Transaction updated')
     },
     onError: (error: Error) => {
@@ -87,6 +93,9 @@ export function useDeleteTransaction() {
       queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all })
       queryClient.invalidateQueries({ queryKey: queryKeys.dashboard })
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.summary })
+      queryClient.invalidateQueries({ queryKey: queryKeys.people.all })
       toast.success('Transaction deleted')
     },
     onError: (error: Error) => {
