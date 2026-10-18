@@ -20,6 +20,7 @@ interface PeopleFilters {
 interface AccountsFilters {
   search: string
   currencyFilter: Currency | ''
+  activeFilter: 'all' | 'active' | 'inactive'
   sortField: 'name' | 'balance' | 'converted' | null
   sortDir: 'asc' | 'desc'
 }
@@ -72,6 +73,7 @@ const PEOPLE_DEFAULTS: PeopleFilters = {
 const ACCOUNTS_DEFAULTS: AccountsFilters = {
   search: '',
   currencyFilter: '',
+  activeFilter: 'all',
   sortField: 'name',
   sortDir: 'asc',
 }

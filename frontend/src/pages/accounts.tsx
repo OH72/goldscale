@@ -120,10 +120,10 @@ export function AccountsPage() {
   const [deleteAccount, setDeleteAccount] = useState<AccountResponse | null>(
     null,
   )
-  const { search, currencyFilter, sortField, sortDir } = useFilterStore((s) => s.accounts)
+  const { search, currencyFilter, activeFilter, sortField, sortDir } = useFilterStore((s) => s.accounts)
   const setAccounts = useFilterStore((s) => s.setAccounts)
   const resetAccounts = useFilterStore((s) => s.resetAccounts)
-  const hasActiveFilters = search !== '' || currencyFilter !== '' || sortField !== 'name' || sortDir !== 'asc'
+  const hasActiveFilters = search !== '' || currencyFilter !== '' || activeFilter !== 'all' || sortField !== 'name' || sortDir !== 'asc'
 
   function toggleSort(field: SortField) {
     if (sortField === field) {
@@ -142,6 +142,9 @@ export function AccountsPage() {
     if (currencyFilter) {
       list = list.filter((a) => a.currency === currencyFilter)
     }
+    if (activeFilter !== 'all') {
+      list = list.filter((a) => activeFilter === 'active' ? a.active : !a.active)
+    }
     if (sortField) {
       const dir = sortDir === 'asc' ? 1 : -1
       list = [...list].sort((a, b) => {
@@ -159,7 +162,7 @@ export function AccountsPage() {
       })
     }
     return list
-  }, [accounts, search, currencyFilter, sortField, sortDir])
+  }, [accounts, search, currencyFilter, activeFilter, sortField, sortDir])
 
   const createForm = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
@@ -235,6 +238,22 @@ export function AccountsPage() {
                   {c}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex items-center gap-2">
+          <Label className="text-sm text-muted-foreground">Status</Label>
+          <Select
+            value={activeFilter}
+            onValueChange={(v) => setAccounts({ activeFilter: v as 'all' | 'active' | 'inactive' })}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
             </SelectContent>
           </Select>
         </div>
