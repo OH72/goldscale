@@ -857,11 +857,13 @@ export function TransactionFormDialog({
                                   </SelectValue>
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {people?.map((p) => (
-                                    <SelectItem key={p.id} value={p.id}>
-                                      {p.name}
-                                    </SelectItem>
-                                  ))}
+                                  {people
+                                    ?.filter((p) => p.id === row.personId || !newDebtRows.some((r, i) => i !== idx && r.personId === p.id))
+                                    .map((p) => (
+                                      <SelectItem key={p.id} value={p.id}>
+                                        {p.name}
+                                      </SelectItem>
+                                    ))}
                                 </SelectContent>
                               </Select>
                               <div className="flex items-center gap-2">
