@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useTags, useCreateTag, useUpdateTag, useDeleteTag } from '@/api/use-tags'
+import { useTags, useCreateTag, useUpdateTag, useMergeTag, useDeleteTag } from '@/api/use-tags'
 import { PageHeader } from '@/components/layout/page-header'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
@@ -21,7 +21,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-import { MoreHorizontal, Plus, RotateCcw } from 'lucide-react'
+import { Merge, MoreHorizontal, Plus, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useFilterStore } from '@/stores/filter-store'
 import type { TagResponse } from '@/api/use-tags'
@@ -36,10 +36,14 @@ export function TagsPage() {
   const { data: tags, isLoading } = useTags()
   const createMutation = useCreateTag()
   const updateMutation = useUpdateTag()
+  const mergeMutation = useMergeTag()
   const deleteMutation = useDeleteTag()
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editTag, setEditTag] = useState<TagResponse | null>(null)
+  const [mergeTag, setMergeTag] = useState<TagResponse | null>(null)
+  const [mergeTargetId, setMergeTargetId] = useState('')
+  const [mergeSearch, setMergeSearch] = useState('')
   const [deleteTag, setDeleteTag] = useState<TagResponse | null>(null)
   const { search } = useFilterStore((s) => s.tags)
   const setTags = useFilterStore((s) => s.setTags)
@@ -134,6 +138,9 @@ export function TagsPage() {
                   <DropdownMenuItem onClick={() => openEdit(tag)}>
                     Edit
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setMergeTag(tag); setMergeTargetId(''); setMergeSearch('') }}>
+                    <Merge className="mr-2 h-4 w-4" /> Merge into...
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-destructive"
                     onClick={() => setDeleteTag(tag)}
@@ -212,6 +219,55 @@ export function TagsPage() {
               {updateMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Merge Dialog */}
+      <Dialog open={!!mergeTag} onOpenChange={(open) => !open && setMergeTag(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Merge "{mergeTag?.name}" into...</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              placeholder="Search tags..."
+              value={mergeSearch}
+              onChange={(e) => setMergeSearch(e.target.value)}
+            />
+            <div className="max-h-60 overflow-y-auto space-y-1">
+              {tags
+                ?.filter((t) => t.id !== mergeTag?.id)
+                .filter((t) => !mergeSearch || t.name.toLowerCase().includes(mergeSearch.toLowerCase()))
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    className={cn(
+                      'flex w-full items-center rounded-md border px-3 py-2 text-left text-sm hover:bg-accent',
+                      mergeTargetId === t.id && 'border-primary bg-accent',
+                    )}
+                    onClick={() => setMergeTargetId(t.id)}
+                  >
+                    <Badge variant="outline">{t.name}</Badge>
+                  </button>
+                ))}
+            </div>
+            <Button
+              className="w-full"
+              disabled={!mergeTargetId || mergeMutation.isPending}
+              onClick={() => {
+                if (mergeTag && mergeTargetId) {
+                  mergeMutation.mutate(
+                    { sourceId: mergeTag.id, targetId: mergeTargetId },
+                    { onSuccess: () => setMergeTag(null) },
+                  )
+                }
+              }}
+            >
+              {mergeMutation.isPending ? 'Merging...' : 'Merge'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

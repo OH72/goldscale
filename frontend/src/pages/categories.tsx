@@ -7,6 +7,7 @@ import {
   useCreateCategory,
   useUpdateCategory,
   useDeleteCategory,
+  useMergeCategory,
   useBulkDeleteCategories,
 } from '@/api/use-categories'
 import { PageHeader } from '@/components/layout/page-header'
@@ -36,7 +37,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-import { MoreHorizontal, Plus, RotateCcw, Trash2 } from 'lucide-react'
+import { Merge, MoreHorizontal, Plus, RotateCcw, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { CategoryResponse } from '@/types/category'
 import type { CategoryType } from '@/types/common'
@@ -66,12 +67,16 @@ export function CategoriesPage() {
   const createMutation = useCreateCategory()
   const updateMutation = useUpdateCategory()
   const deleteMutation = useDeleteCategory()
+  const mergeMutation = useMergeCategory()
   const bulkDeleteMutation = useBulkDeleteCategories()
 
   const [createOpen, setCreateOpen] = useState(false)
   const [editCategory, setEditCategory] = useState<CategoryResponse | null>(
     null,
   )
+  const [mergeCategory, setMergeCategory] = useState<CategoryResponse | null>(null)
+  const [mergeTargetId, setMergeTargetId] = useState('')
+  const [mergeSearch, setMergeSearch] = useState('')
   const [deleteCategory, setDeleteCategory] =
     useState<CategoryResponse | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -242,6 +247,9 @@ export function CategoriesPage() {
                   <DropdownMenuItem onClick={() => openEdit(cat)}>
                     Edit
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setMergeCategory(cat); setMergeTargetId(''); setMergeSearch('') }}>
+                    <Merge className="mr-2 h-4 w-4" /> Merge into...
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-destructive"
                     onClick={() => setDeleteCategory(cat)}
@@ -359,6 +367,58 @@ export function CategoriesPage() {
               {updateMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Merge Dialog */}
+      <Dialog open={!!mergeCategory} onOpenChange={(open) => !open && setMergeCategory(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Merge "{mergeCategory?.name}" into...</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              placeholder="Search categories..."
+              value={mergeSearch}
+              onChange={(e) => setMergeSearch(e.target.value)}
+            />
+            <div className="max-h-60 overflow-y-auto space-y-1">
+              {categories
+                ?.filter((c) => c.id !== mergeCategory?.id)
+                .filter((c) => !mergeSearch || c.name.toLowerCase().includes(mergeSearch.toLowerCase()))
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={cn(
+                      'flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm hover:bg-accent',
+                      mergeTargetId === c.id && 'border-primary bg-accent',
+                    )}
+                    onClick={() => setMergeTargetId(c.id)}
+                  >
+                    <span className="font-medium">{c.name}</span>
+                    <Badge variant="outline" className={cn('ml-auto', TYPE_COLORS[c.type])}>
+                      {TYPE_LABELS[c.type]}
+                    </Badge>
+                  </button>
+                ))}
+            </div>
+            <Button
+              className="w-full"
+              disabled={!mergeTargetId || mergeMutation.isPending}
+              onClick={() => {
+                if (mergeCategory && mergeTargetId) {
+                  mergeMutation.mutate(
+                    { sourceId: mergeCategory.id, targetId: mergeTargetId },
+                    { onSuccess: () => setMergeCategory(null) },
+                  )
+                }
+              }}
+            >
+              {mergeMutation.isPending ? 'Merging...' : 'Merge'}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

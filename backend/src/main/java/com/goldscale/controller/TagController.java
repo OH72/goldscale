@@ -1,6 +1,7 @@
 package com.goldscale.controller;
 
 import com.goldscale.dto.request.CreateTagRequest;
+import com.goldscale.dto.request.MergeRequest;
 import com.goldscale.dto.request.UpdateTagRequest;
 import com.goldscale.dto.response.TagResponse;
 import com.goldscale.service.TagService;
@@ -37,6 +38,12 @@ public class TagController {
     public ResponseEntity<TagResponse> update(@PathVariable String id, @Valid @RequestBody UpdateTagRequest request) {
         var tag = tagService.update(id, request);
         return ResponseEntity.ok(TagResponse.from(tag));
+    }
+
+    @PostMapping("/{id}/merge")
+    public ResponseEntity<Void> merge(@PathVariable String id, @Valid @RequestBody MergeRequest request) {
+        tagService.merge(id, request.targetId());
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")

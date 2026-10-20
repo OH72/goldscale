@@ -1,6 +1,7 @@
 package com.goldscale.controller;
 
 import com.goldscale.dto.request.CreateCategoryRequest;
+import com.goldscale.dto.request.MergeRequest;
 import com.goldscale.dto.request.UpdateCategoryRequest;
 import com.goldscale.dto.response.CategoryResponse;
 import com.goldscale.service.CategoryService;
@@ -45,6 +46,12 @@ public class CategoryController {
             @Valid @RequestBody UpdateCategoryRequest request) {
         var category = categoryService.update(id, request);
         return ResponseEntity.ok(CategoryResponse.from(category));
+    }
+
+    @PostMapping("/{id}/merge")
+    public ResponseEntity<Void> merge(@PathVariable String id, @Valid @RequestBody MergeRequest request) {
+        categoryService.merge(id, request.targetId());
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}")

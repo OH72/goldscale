@@ -64,6 +64,23 @@ export function useDeleteCategory() {
   })
 }
 
+export function useMergeCategory() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ sourceId, targetId }: { sourceId: string; targetId: string }) =>
+      api.post(`/categories/${sourceId}/merge`, { targetId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.categories.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
+      toast.success('Categories merged')
+    },
+    onError: (error: Error) => {
+      toast.error(error instanceof ApiError ? error.message : 'Failed to merge categories')
+    },
+  })
+}
+
 export function useBulkDeleteCategories() {
   const queryClient = useQueryClient()
   return useMutation({

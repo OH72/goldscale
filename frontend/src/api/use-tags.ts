@@ -46,6 +46,23 @@ export function useUpdateTag() {
   })
 }
 
+export function useMergeTag() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ sourceId, targetId }: { sourceId: string; targetId: string }) =>
+      api.post(`/tags/${sourceId}/merge`, { targetId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tags.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.transactions.all })
+      queryClient.invalidateQueries({ queryKey: queryKeys.debtRecords.all })
+      toast.success('Tags merged')
+    },
+    onError: (error: Error) => {
+      toast.error(error instanceof ApiError ? error.message : 'Failed to merge tags')
+    },
+  })
+}
+
 export function useDeleteTag() {
   const queryClient = useQueryClient()
   return useMutation({

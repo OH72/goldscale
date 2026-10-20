@@ -7,6 +7,10 @@ import com.goldscale.exception.ResourceNotFoundException;
 import com.goldscale.model.Tag;
 import com.goldscale.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -20,6 +24,7 @@ public class TagService {
 
     private final TagRepository tagRepository;
     private final EventLogService eventLogService;
+    private final MongoTemplate mongoTemplate;
 
     public List<Tag> findAll() {
         return tagRepository.findAll();
@@ -54,6 +59,50 @@ public class TagService {
         tag = tagRepository.save(tag);
         eventLogService.log("UPDATE", "TAG", tag.getId(), "Renamed tag '" + oldName + "' → '" + tag.getName() + "'");
         return tag;
+    }
+
+    public void merge(String sourceId, String targetId) {
+        if (sourceId.equals(targetId)) {
+            throw new BusinessRuleException("Cannot merge a tag into itself");
+        }
+        var source = findById(sourceId);
+        var target = findById(targetId);
+
+        // Transactions: replace sourceId with targetId where targetId not already present
+        mongoTemplate.updateMulti(
+                Query.query(new Criteria().andOperator(
+                        Criteria.where("tags").is(sourceId),
+                        Criteria.where("tags").ne(targetId)
+                )),
+                new Update().set("tags.$", targetId),
+                "transactions"
+        );
+        // Transactions: remove sourceId (covers docs that already had targetId)
+        mongoTemplate.updateMulti(
+                Query.query(Criteria.where("tags").is(sourceId)),
+                new Update().pull("tags", sourceId),
+                "transactions"
+        );
+
+        // Debt records: replace sourceId with targetId where targetId not already present
+        mongoTemplate.updateMulti(
+                Query.query(new Criteria().andOperator(
+                        Criteria.where("tagIds").is(sourceId),
+                        Criteria.where("tagIds").ne(targetId)
+                )),
+                new Update().set("tagIds.$", targetId),
+                "debt_records"
+        );
+        // Debt records: remove sourceId
+        mongoTemplate.updateMulti(
+                Query.query(Criteria.where("tagIds").is(sourceId)),
+                new Update().pull("tagIds", sourceId),
+                "debt_records"
+        );
+
+        tagRepository.delete(source);
+        eventLogService.log("DELETE", "TAG", sourceId,
+                "Merged tag '" + source.getName() + "' into '" + target.getName() + "'");
     }
 
     public void delete(String id) {
