@@ -31,6 +31,21 @@ export function useCreateTag() {
   })
 }
 
+export function useUpdateTag() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name: string } }) =>
+      api.put<TagResponse>(`/tags/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tags.all })
+      toast.success('Tag updated')
+    },
+    onError: (error: Error) => {
+      toast.error(error instanceof ApiError ? error.message : 'Failed to update tag')
+    },
+  })
+}
+
 export function useDeleteTag() {
   const queryClient = useQueryClient()
   return useMutation({

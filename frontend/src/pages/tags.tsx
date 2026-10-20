@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useTags, useCreateTag, useDeleteTag } from '@/api/use-tags'
+import { useTags, useCreateTag, useUpdateTag, useDeleteTag } from '@/api/use-tags'
 import { PageHeader } from '@/components/layout/page-header'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
@@ -35,9 +35,11 @@ type CreateForm = z.infer<typeof createSchema>
 export function TagsPage() {
   const { data: tags, isLoading } = useTags()
   const createMutation = useCreateTag()
+  const updateMutation = useUpdateTag()
   const deleteMutation = useDeleteTag()
 
   const [createOpen, setCreateOpen] = useState(false)
+  const [editTag, setEditTag] = useState<TagResponse | null>(null)
   const [deleteTag, setDeleteTag] = useState<TagResponse | null>(null)
   const { search } = useFilterStore((s) => s.tags)
   const setTags = useFilterStore((s) => s.setTags)
@@ -46,6 +48,10 @@ export function TagsPage() {
   const createForm = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
     defaultValues: { name: '' },
+  })
+
+  const editForm = useForm<CreateForm>({
+    resolver: zodResolver(createSchema),
   })
 
   function handleCreate(data: CreateForm) {
@@ -58,6 +64,19 @@ export function TagsPage() {
         },
       },
     )
+  }
+
+  function handleEdit(data: CreateForm) {
+    if (!editTag) return
+    updateMutation.mutate(
+      { id: editTag.id, data: { name: data.name } },
+      { onSuccess: () => setEditTag(null) },
+    )
+  }
+
+  function openEdit(tag: TagResponse) {
+    editForm.reset({ name: tag.name })
+    setEditTag(tag)
   }
 
   const sorted = useMemo(() => {
@@ -112,6 +131,9 @@ export function TagsPage() {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => openEdit(tag)}>
+                    Edit
+                  </DropdownMenuItem>
                   <DropdownMenuItem
                     className="text-destructive"
                     onClick={() => setDeleteTag(tag)}
@@ -154,6 +176,40 @@ export function TagsPage() {
               disabled={createMutation.isPending}
             >
               {createMutation.isPending ? 'Creating...' : 'Create'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editTag} onOpenChange={(open) => !open && setEditTag(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Tag</DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={editForm.handleSubmit(handleEdit)}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <Label>Name</Label>
+              <Input
+                {...editForm.register('name')}
+                aria-invalid={!!editForm.formState.errors.name}
+                className={cn(editForm.formState.errors.name && 'border-destructive')}
+              />
+              {editForm.formState.errors.name && (
+                <p className="text-sm text-destructive">
+                  {editForm.formState.errors.name.message}
+                </p>
+              )}
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? 'Saving...' : 'Save'}
             </Button>
           </form>
         </DialogContent>

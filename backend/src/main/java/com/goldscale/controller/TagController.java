@@ -1,6 +1,7 @@
 package com.goldscale.controller;
 
 import com.goldscale.dto.request.CreateTagRequest;
+import com.goldscale.dto.request.UpdateTagRequest;
 import com.goldscale.dto.response.TagResponse;
 import com.goldscale.service.TagService;
 import jakarta.validation.Valid;
@@ -30,6 +31,12 @@ public class TagController {
     public ResponseEntity<TagResponse> create(@Valid @RequestBody CreateTagRequest request) {
         var tag = tagService.create(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(TagResponse.from(tag));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<TagResponse> update(@PathVariable String id, @Valid @RequestBody UpdateTagRequest request) {
+        var tag = tagService.update(id, request);
+        return ResponseEntity.ok(TagResponse.from(tag));
     }
 
     @DeleteMapping("/{id}")

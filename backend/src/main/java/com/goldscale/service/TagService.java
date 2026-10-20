@@ -1,6 +1,7 @@
 package com.goldscale.service;
 
 import com.goldscale.dto.request.CreateTagRequest;
+import com.goldscale.dto.request.UpdateTagRequest;
 import com.goldscale.exception.BusinessRuleException;
 import com.goldscale.exception.ResourceNotFoundException;
 import com.goldscale.model.Tag;
@@ -39,6 +40,19 @@ public class TagService {
         tag.setName(trimmed);
         tag = tagRepository.save(tag);
         eventLogService.log("CREATE", "TAG", tag.getId(), "Created tag '" + tag.getName() + "'");
+        return tag;
+    }
+
+    public Tag update(String id, UpdateTagRequest request) {
+        var tag = findById(id);
+        var trimmed = request.name().trim();
+        if (!tag.getName().equals(trimmed) && tagRepository.existsByName(trimmed)) {
+            throw new BusinessRuleException("Tag '" + trimmed + "' already exists");
+        }
+        var oldName = tag.getName();
+        tag.setName(trimmed);
+        tag = tagRepository.save(tag);
+        eventLogService.log("UPDATE", "TAG", tag.getId(), "Renamed tag '" + oldName + "' → '" + tag.getName() + "'");
         return tag;
     }
 
