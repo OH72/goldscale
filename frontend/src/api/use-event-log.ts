@@ -7,6 +7,8 @@ import type { EventLogResponse, EventLogFilters } from '@/types/event-log'
 function buildParams(filters: EventLogFilters): string {
   const params = new URLSearchParams()
   if (filters.entityType) params.set('entityType', filters.entityType)
+  if (filters.startDate) params.set('startDate', filters.startDate)
+  if (filters.endDate) params.set('endDate', filters.endDate)
   params.set('page', String(filters.page))
   params.set('size', String(filters.size))
   return params.toString()

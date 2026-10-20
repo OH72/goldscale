@@ -9,6 +9,8 @@ export interface EventLogResponse {
 
 export interface EventLogFilters {
   entityType?: string
+  startDate?: string
+  endDate?: string
   page: number
   size: number
 }

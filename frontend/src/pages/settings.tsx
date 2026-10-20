@@ -34,7 +34,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import { Download, Upload, X, FileText, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-react'
+import { Download, Upload, X, FileText, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { fromSubunits, toSubunits } from '@/lib/currency'
 import type { Currency } from '@/types/common'
@@ -892,12 +892,16 @@ function formatTimestamp(ts: string): string {
 
 function EventLogCard() {
   const [entityType, setEntityType] = useState<string>('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [page, setPage] = useState(0)
 
   const { data, isLoading, error } = useEventLog({
     entityType: entityType || undefined,
+    startDate: startDate || undefined,
+    endDate: endDate || undefined,
     page,
-    size: 20,
+    size: 10,
   })
 
   return (
@@ -907,7 +911,7 @@ function EventLogCard() {
         <CardDescription>Log of all actions that impact the database.</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="mb-4">
+        <div className="mb-4 flex flex-wrap items-center gap-3">
           <Select
             value={entityType || ALL_LOG_VALUE}
             onValueChange={(v) => {
@@ -929,6 +933,24 @@ function EventLogCard() {
               ))}
             </SelectContent>
           </Select>
+          <Input
+            type="date"
+            className="h-8 w-36 text-sm"
+            value={startDate}
+            onChange={(e) => { setStartDate(e.target.value); setPage(0) }}
+          />
+          <span className="text-sm text-muted-foreground">–</span>
+          <Input
+            type="date"
+            className="h-8 w-36 text-sm"
+            value={endDate}
+            onChange={(e) => { setEndDate(e.target.value); setPage(0) }}
+          />
+          {(startDate || endDate) && (
+            <Button variant="ghost" size="sm" className="h-8" onClick={() => { setStartDate(''); setEndDate(''); setPage(0) }}>
+              <RotateCcw className="mr-1.5 h-3.5 w-3.5" /> Reset
+            </Button>
+          )}
         </div>
 
         {error ? (
@@ -937,7 +959,7 @@ function EventLogCard() {
           <div className="py-8 text-center text-muted-foreground">Loading...</div>
         ) : (
           <>
-            <div className="h-[540px] overflow-y-auto">
+            <div className="h-[360px] overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -981,7 +1003,7 @@ function EventLogCard() {
             {data && data.totalPages > 1 && (
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">
-                  Page {data.number + 1} of {data.totalPages} ({data.totalElements} total)
+                  {data.totalElements} total
                 </span>
                 <div className="flex items-center gap-1">
                   <Button variant="outline" size="icon" className="h-8 w-8" disabled={data.number === 0} onClick={() => setPage(0)}>
@@ -990,6 +1012,28 @@ function EventLogCard() {
                   <Button variant="outline" size="icon" className="h-8 w-8" disabled={data.number === 0} onClick={() => setPage(data.number - 1)}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
+                  {Array.from({ length: data.totalPages }, (_, i) => i)
+                    .filter((i) => i === 0 || i === data.totalPages - 1 || Math.abs(i - data.number) <= 1)
+                    .reduce<number[]>((acc, i) => {
+                      if (acc.length > 0 && i - acc[acc.length - 1] > 1) acc.push(-1)
+                      acc.push(i)
+                      return acc
+                    }, [])
+                    .map((i, idx) =>
+                      i === -1 ? (
+                        <span key={`gap-${idx}`} className="px-1 text-sm text-muted-foreground">…</span>
+                      ) : (
+                        <Button
+                          key={i}
+                          variant={i === data.number ? 'default' : 'outline'}
+                          size="icon"
+                          className="h-8 w-8 text-xs"
+                          onClick={() => setPage(i)}
+                        >
+                          {i + 1}
+                        </Button>
+                      ),
+                    )}
                   <Button variant="outline" size="icon" className="h-8 w-8" disabled={data.number >= data.totalPages - 1} onClick={() => setPage(data.number + 1)}>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
