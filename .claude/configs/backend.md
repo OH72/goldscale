@@ -8,7 +8,7 @@ Read `context.md` and `principles.md` before writing any code.
 ### Java 21
 - Use Records for all DTOs (request/response). Never for `@Document` entities.
 - Use sealed interfaces for command objects (TransactionCommand).
-- Use enums for fixed sets: TransactionType, Currency.
+- Use enums for fixed sets: TransactionType, Currency, CategoryType, DebtType, DebtStatus.
 - Use pattern matching with switch expressions where applicable.
 - Use `var` for local variables when the type is obvious from context.
 
@@ -26,6 +26,7 @@ Read `context.md` and `principles.md` before writing any code.
 - Repositories extend `MongoRepository<T, String>`.
 - For complex queries: use `MongoTemplate` with `Query` and `Criteria`.
 - For `$inc` operations: use `MongoTemplate.updateFirst()` with `Update.inc()`.
+- For bulk updates: use `MongoTemplate.updateMulti()` (e.g., reassigning categories/tags during merge).
 - Amounts use `long` (subunits), not BigDecimal. No Decimal128 converter needed.
 - Connection string must include `?replicaSet=rs0` for transaction support.
 
@@ -141,6 +142,47 @@ mongoTemplate.updateFirst(
 );
 ```
 
+### Merge Pattern (Category/Tag)
+Merge source entity into target: reassign all references, then delete source.
+```java
+// For single-value fields (categoryId): simple replacement
+mongoTemplate.updateMulti(
+    Query.query(Criteria.where("categoryId").is(sourceId)),
+    Update.update("categoryId", targetId),
+    "transactions"
+);
+
+// For array fields (tags, tagIds): two-step to handle deduplication
+// Step 1: Replace sourceId with targetId where targetId NOT already present
+mongoTemplate.updateMulti(
+    Query.query(new Criteria().andOperator(
+        Criteria.where("tags").is(sourceId),
+        Criteria.where("tags").ne(targetId)
+    )),
+    new Update().set("tags.$", targetId),
+    "transactions"
+);
+// Step 2: Remove sourceId (covers docs that already had targetId)
+mongoTemplate.updateMulti(
+    Query.query(Criteria.where("tags").is(sourceId)),
+    new Update().pull("tags", sourceId),
+    "transactions"
+);
+```
+
+### Manual Pagination with MongoTemplate
+When repository queries aren't sufficient (e.g., combining filters with date ranges):
+```java
+var criteria = new Criteria();
+// build criteria dynamically...
+var query = Query.query(criteria).with(Sort.by(Sort.Direction.DESC, "timestamp"));
+long total = mongoTemplate.count(Query.query(criteria), EventLog.class);
+query.with(PageRequest.of(page, size));
+var items = mongoTemplate.find(query, EventLog.class);
+return PageableExecutionUtils.getPage(items, PageRequest.of(page, size), () -> total);
+```
+**Important**: Build separate Query instances for count and data fetch, or create data query fresh after count.
+
 ### Error Handling
 ```java
 @RestControllerAdvice
@@ -193,11 +235,29 @@ public class GlobalExceptionHandler {
 
 11. **DuplicateKeyException = 500 if not caught.** Application-level duplicate checks (`existsByName`) have a TOCTOU race window. The MongoDB unique index is the real guard. Always handle `DuplicateKeyException` in `GlobalExceptionHandler` and return 409.
 
-12. **Criteria duplicate field key.** Multiple `.and("date")` calls on the same Criteria silently discard the first constraint. Always combine range conditions into one chain: `Criteria.where("date").gte(start).lte(end)`.
+12. **Criteria duplicate field key.** You CANNOT add two conditions on the same field in a single Criteria chain — the second silently overwrites the first. For same-field conditions, use `Criteria.andOperator()`:
+    ```java
+    // WRONG: second "tags" overwrites first
+    Criteria.where("tags").is(sourceId).and("tags").ne(targetId)
+
+    // ALSO WRONG: multiple .and("date") calls — same issue
+    Criteria.where("date").gte(start).and("date").lte(end)
+
+    // RIGHT for same-field range: chain on same field
+    Criteria.where("date").gte(start).lte(end)
+
+    // RIGHT for same-field different operators: use andOperator
+    new Criteria().andOperator(
+        Criteria.where("tags").is(sourceId),
+        Criteria.where("tags").ne(targetId)
+    )
+    ```
 
 13. **Reusing Query for count + find.** Build separate Query instances for count and data fetch, or create data query fresh after count. Mutations (pageable, sort) on a shared Query corrupt the count.
 
 14. **Duplicated currency conversion.** All conversion lives in `ExchangeRateService`: `getLatestRates()` for the latest USD-based rates and `convertWithRates(amount, from, to, rates)` returning `OptionalLong`. Never re-implement the `amount * sourceRate / displayRate` math in another service. A missing/non-positive rate yields `OptionalLong.empty()`; display fields map that to `null` (aggregates like net worth may skip it explicitly via `orElse(0)`).
+
+15. **Docker image stale after backend changes.** After modifying any backend Java file, the Docker image must be rebuilt: `docker compose up -d --build backend`. Without `--build`, the old compiled code runs and new endpoints return 404.
 
 ## Dashboard Service Patterns
 
@@ -224,57 +284,125 @@ com.goldscale
 ├── GoldscaleApplication.java
 ├── config/
 │   ├── SecurityConfig.java
-│   └── MongoConfig.java
+│   ├── MongoConfig.java
+│   └── DebtLinkMigration.java
 ├── model/
 │   ├── Account.java
 │   ├── Category.java
+│   ├── CategoryType.java        # enum: INCOME, EXPENSE, BOTH
 │   ├── Tag.java
 │   ├── Transaction.java
+│   ├── TransactionType.java     # enum: INITIAL_BALANCE, INCOME, EXPENSE, TRANSFER
+│   ├── Currency.java            # enum: UAH, USD, EUR, PLN, GBP, USDT
+│   ├── Person.java
+│   ├── DebtRecord.java
+│   ├── DebtLink.java            # embedded in Transaction
+│   ├── DebtType.java            # enum: DEBT, LOAN
+│   ├── DebtStatus.java          # enum: OPEN, CLOSED
+│   ├── Payment.java             # embedded in DebtRecord
+│   ├── PersonSortField.java     # enum: NAME, TOTAL_DEBT, TOTAL_LOAN, NET
+│   ├── BankType.java            # enum: MONOBANK, MILLENNIUM, etc.
 │   ├── ExchangeRate.java
-│   ├── Settings.java
-│   ├── TransactionType.java
-│   └── Currency.java
+│   ├── EventLog.java
+│   └── Settings.java
 ├── dto/
 │   ├── request/
 │   │   ├── CreateAccountRequest.java
 │   │   ├── UpdateAccountRequest.java
 │   │   ├── CreateCategoryRequest.java
 │   │   ├── UpdateCategoryRequest.java
-│   │   ├── TransactionCommand.java
-│   │   └── UpdateTransactionRequest.java
+│   │   ├── CreateTagRequest.java
+│   │   ├── UpdateTagRequest.java
+│   │   ├── MergeRequest.java           # shared: { targetId }
+│   │   ├── TransactionCommand.java     # sealed: CreateIncome, CreateExpense, CreateTransfer
+│   │   ├── UpdateTransactionRequest.java
+│   │   ├── CreatePersonRequest.java
+│   │   ├── UpdatePersonRequest.java
+│   │   ├── CreateDebtRecordRequest.java
+│   │   ├── UpdateDebtRecordRequest.java
+│   │   ├── AddPaymentRequest.java
+│   │   ├── ReconcileRequest.java
+│   │   ├── DebtLinkRequest.java
+│   │   ├── NewDebtRequest.java
+│   │   ├── UpdateSettingsRequest.java
+│   │   ├── ImportConfirmRequest.java
+│   │   └── ConfirmRow.java
 │   └── response/
 │       ├── AccountResponse.java
+│       ├── AuditResponse.java
 │       ├── CategoryResponse.java
+│       ├── TagResponse.java (in use-tags.ts on frontend)
 │       ├── TransactionResponse.java
+│       ├── DebtLinkResponse.java
+│       ├── PersonResponse.java
+│       ├── DebtRecordResponse.java
+│       ├── DebtSummaryResponse.java
+│       ├── DebtSummaryEntry.java
+│       ├── PaymentResponse.java
+│       ├── OffsetResponse.java
+│       ├── OffsetCurrencyEntry.java
+│       ├── OffsetAllocation.java
+│       ├── EventLogResponse.java
 │       ├── DashboardResponse.java
 │       ├── GroupExpenseResponse.java
 │       ├── ExpenseTrendResponse.java
 │       ├── IncomeVsExpenseResponse.java
 │       ├── IncomeVsExpenseResult.java
+│       ├── SettingsResponse.java
+│       ├── ExchangeRateHistoryResponse.java
+│       ├── ImportPreviewResponse.java
+│       ├── ImportRow.java
+│       ├── ImportConfirmResponse.java
 │       └── ErrorResponse.java
 ├── repository/
 │   ├── AccountRepository.java
 │   ├── CategoryRepository.java
 │   ├── TagRepository.java
+│   ├── TransactionRepository.java
+│   ├── PersonRepository.java
+│   ├── DebtRecordRepository.java
+│   ├── EventLogRepository.java
 │   ├── ExchangeRateRepository.java
-│   └── TransactionRepository.java
+│   └── SettingsRepository.java
 ├── service/
 │   ├── AccountService.java
-│   ├── CategoryService.java
-│   ├── TagService.java
+│   ├── CategoryService.java         # includes merge()
+│   ├── TagService.java              # includes merge(), resolveTagNames()
 │   ├── TransactionService.java
+│   ├── PersonService.java
+│   ├── DebtRecordService.java
+│   ├── DebtOffsetService.java       # reconciliation logic
 │   ├── DashboardService.java
 │   ├── ExchangeRateService.java
+│   ├── EventLogService.java         # MongoTemplate pagination with filters
 │   ├── SettingsService.java
-│   └── BalanceService.java
+│   ├── BalanceService.java
+│   ├── BackupService.java
+│   ├── ImportService.java
+│   └── parser/
+│       ├── StatementParser.java     # interface
+│       ├── ParserDetector.java
+│       ├── AmountParser.java
+│       ├── SourceRefGenerator.java
+│       ├── MonobankParser.java
+│       ├── MillenniumParser.java
+│       ├── KredobankCardParser.java
+│       ├── KredobankAccountParser.java
+│       └── MoneyManagerParser.java
 ├── controller/
-│   ├── AccountController.java
-│   ├── CategoryController.java
-│   ├── TagController.java
-│   ├── TransactionController.java
-│   ├── SettingsController.java
-│   ├── ExchangeRateController.java
-│   └── DashboardController.java
+│   ├── AccountController.java       # /api/accounts
+│   ├── CategoryController.java      # /api/categories (includes merge endpoint)
+│   ├── TagController.java           # /api/tags (includes merge endpoint)
+│   ├── TransactionController.java   # /api/transactions
+│   ├── PersonController.java        # /api/people
+│   ├── DebtRecordController.java    # /api/debt-records
+│   ├── EventLogController.java      # /api/audit
+│   ├── DashboardController.java     # /api/dashboard
+│   ├── SettingsController.java      # /api/settings
+│   ├── ExchangeRateController.java  # /api/exchange-rates
+│   ├── BackupController.java        # /api/backup
+│   ├── ImportController.java        # /api/import
+│   └── HealthController.java        # /api/health
 └── exception/
     ├── GlobalExceptionHandler.java
     ├── ResourceNotFoundException.java

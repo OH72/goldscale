@@ -17,17 +17,20 @@ The project owner is a backend developer with no React experience — write clea
 - Use the `cn()` utility from `src/lib/utils.ts` for conditional class merging.
 - Don't write custom CSS unless Tailwind can't do it. Prefer utility classes.
 - Install shadcn components as needed: `npx shadcn@latest add <component>`.
+- Tailwind responsive prefixes (`sm:`, `md:`) override non-prefixed classes at that breakpoint. To override a `sm:max-w-sm` default, use `sm:max-w-lg` — not just `max-w-lg`.
 
 ### React Query (TanStack Query)
 - ALL server data goes through React Query. Never fetch in useEffect + useState.
 - Default config: `staleTime: 5min`, `gcTime: 10min`, `retry: 1`, `refetchOnWindowFocus: false`.
 - Query keys: use the factory pattern from `src/api/query-keys.ts`.
 - After mutations: invalidate related queries (e.g., creating transaction invalidates both transactions AND accounts).
+- Merge mutations must invalidate all affected collections (tags, transactions, debtRecords for tag merge; categories, transactions, debtRecords for category merge).
 
 ### Zustand
-- Only for client-side UI state (sidebar open/closed, selected theme).
+- Only for client-side UI state (sidebar open/closed, selected theme, page-level filters).
 - NEVER put server data in Zustand. That's React Query's job.
 - Keep stores small and focused. One store per concern.
+- Filter store pattern: `filter-store.ts` holds filter state for each page (categories, tags, people, accounts, transactions, debts, dashboard). Each page section has its own typed filters interface, defaults constant, setter, and resetter.
 
 ### React Router v7
 - Routes defined in `src/router.tsx`.
@@ -36,7 +39,7 @@ The project owner is a backend developer with no React experience — write clea
 
 ### React Hook Form + Zod
 - Every form uses React Hook Form with Zod resolver.
-- Zod schemas live in `src/types/` alongside the TypeScript interfaces.
+- Zod schemas live in page files alongside the form component, or in `src/types/` when shared.
 - Use `z.coerce.number()` for numeric inputs (HTML inputs return strings).
 - Shadcn's `<Form>` component wraps React Hook Form.
 
@@ -57,7 +60,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Basic ${btoa('admin:admin')}`,  // from auth store
+      'Authorization': `Basic ${btoa('admin:admin')}`,
     },
     ...options,
   })
@@ -76,6 +79,8 @@ export const api = {
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   delete: <T>(path: string) =>
     request<T>(path, { method: 'DELETE' }),
+  postForm: <T>(path: string, body: FormData) =>
+    request<T>(path, { method: 'POST', body, headers: undefined }),
 }
 ```
 
@@ -83,26 +88,23 @@ export const api = {
 ```typescript
 // src/api/query-keys.ts
 export const queryKeys = {
-  accounts: {
-    all: ['accounts'] as const,
-    detail: (id: string) => ['accounts', id] as const,
-  },
+  accounts: { all: ['accounts'] as const },
   transactions: {
     all: ['transactions'] as const,
     list: (filters: TransactionFilters) => ['transactions', 'list', filters] as const,
-    detail: (id: string) => ['transactions', id] as const,
   },
-  categories: {
-    all: ['categories'] as const,
-    byType: (type: string) => ['categories', type] as const,
-  },
+  categories: { all: ['categories'] as const },
+  tags: { all: ['tags'] as const },
+  people: { all: ['people'] as const },
+  debtRecords: { all: ['debtRecords'] as const },
+  eventLog: { all: ['eventLog'] as const },
   dashboard: ['dashboard'] as const,
+  // ... etc
 } as const
 ```
 
 ### Query Hook Example
 ```typescript
-// src/api/use-accounts.ts
 export function useAccounts() {
   return useQuery({
     queryKey: queryKeys.accounts.all,
@@ -119,11 +121,42 @@ export function useCreateAccount() {
       queryClient.invalidateQueries({ queryKey: queryKeys.accounts.all })
       toast.success('Account created')
     },
-    onError: (error: ApiError) => {
-      toast.error(error.message)
+    onError: (error: Error) => {
+      toast.error(error instanceof ApiError ? error.message : 'Failed to create account')
     },
   })
 }
+```
+
+### Filter Store Pattern
+```typescript
+// src/stores/filter-store.ts — Zustand store for page-level filters
+interface AccountsFilters {
+  search: string
+  currencyFilter: string
+  activeFilter: 'all' | 'active' | 'inactive'
+  sortField: string
+  sortDir: 'asc' | 'desc'
+}
+const ACCOUNTS_DEFAULTS: AccountsFilters = {
+  search: '', currencyFilter: 'ALL', activeFilter: 'all', sortField: 'name', sortDir: 'asc',
+}
+
+// In store: setAccounts(partial), resetAccounts() for each page section
+// In pages: const { search, activeFilter } = useFilterStore((s) => s.accounts)
+```
+
+### Merge Dialog Pattern
+Merge source entity into target with search:
+```typescript
+const [mergeEntity, setMergeEntity] = useState<Entity | null>(null)
+const [mergeTargetId, setMergeTargetId] = useState('')
+const [mergeSearch, setMergeSearch] = useState('')
+
+// Dialog: search input + scrollable list of selectable targets + merge button
+// Use sm:max-w-lg on DialogContent for wider merge dialogs
+// Filter out the source entity from the target list
+// Sort targets alphabetically
 ```
 
 ### Currency Display
@@ -150,11 +183,12 @@ export function formatCurrency(amountInSubunits: number, currency: string): stri
 | Data | Where | Why |
 |------|-------|-----|
 | Accounts, transactions, categories | React Query | Server data, cached and refetched |
-| Sidebar open/closed | Zustand | UI state, persists across navigation |
+| Sidebar open/closed | Zustand (ui-store) | UI state, persists across navigation |
+| Page-level filters (search, type tabs, sort) | Zustand (filter-store) | Persists across navigation within session |
 | Transaction page filters | URL search params | Bookmarkable, survives refresh |
 | Form field values | React Hook Form | Ephemeral, dies on navigation |
 | Hovered table row | `useState` | No other component cares |
-| Auth credentials | Zustand with persist | Survives page refresh (localStorage) |
+| Dialog/modal state | `useState` | Component-local |
 
 ## Dark Theme (next-themes)
 - `ThemeProvider` wraps the app in `app.tsx` with `attribute="class"`
@@ -222,15 +256,20 @@ export function formatCurrency(amountInSubunits: number, currency: string): stri
 ```
 src/
 ├── api/                    # all backend communication
-│   ├── client.ts           # fetch wrapper
+│   ├── client.ts           # fetch wrapper (get, post, put, delete, postForm)
 │   ├── query-keys.ts       # centralized cache keys
-│   ├── use-accounts.ts     # account queries + mutations
-│   ├── use-categories.ts
+│   ├── use-accounts.ts
+│   ├── use-categories.ts   # includes useMergeCategory
 │   ├── use-transactions.ts
-│   ├── use-tags.ts
+│   ├── use-tags.ts         # includes useUpdateTag, useMergeTag
+│   ├── use-people.ts
+│   ├── use-debt-records.ts # includes payments, reconciliation, toggle
 │   ├── use-settings.ts
 │   ├── use-exchange-rates.ts
-│   └── use-dashboard.ts
+│   ├── use-dashboard.ts
+│   ├── use-event-log.ts
+│   ├── use-backup.ts
+│   └── use-import.ts
 ├── components/
 │   ├── ui/                 # shadcn generated (don't manually edit often)
 │   ├── layout/
@@ -243,28 +282,35 @@ src/
 │   └── confirm-dialog.tsx
 ├── pages/
 │   ├── dashboard.tsx
-│   ├── accounts.tsx
+│   ├── accounts.tsx         # active/inactive filter
 │   ├── transactions.tsx
 │   ├── transaction-form.tsx
-│   ├── categories.tsx
-│   ├── tags.tsx
-│   ├── settings.tsx
+│   ├── categories.tsx       # merge support
+│   ├── tags.tsx             # edit + merge support
+│   ├── people.tsx
+│   ├── debts.tsx
+│   ├── settings.tsx         # includes EventLogCard with pagination + date filter
 │   └── import.tsx
 ├── stores/
-│   └── ui-store.ts
+│   ├── ui-store.ts          # sidebar state
+│   └── filter-store.ts      # page-level filters (7 sections)
 ├── types/
 │   ├── account.ts
 │   ├── category.ts
 │   ├── transaction.ts
-│   └── common.ts
+│   ├── debt.ts
+│   ├── event-log.ts
+│   ├── settings.ts
+│   ├── import.ts
+│   └── common.ts            # Currency, TransactionType, CategoryType, PageResponse<T>
 ├── lib/
-│   ├── utils.ts            # shadcn cn()
+│   ├── utils.ts             # shadcn cn()
 │   ├── currency.ts
 │   └── date.ts
 ├── router.tsx
-├── app.tsx                 # providers (QueryClient, Router, ErrorBoundary)
-├── main.tsx                # ReactDOM.createRoot entry
-└── index.css               # tailwind directives
+├── app.tsx                  # providers (QueryClient, Router, ErrorBoundary)
+├── main.tsx                 # ReactDOM.createRoot entry
+└── index.css                # tailwind directives
 ```
 
 ## Dependencies
@@ -277,7 +323,7 @@ react-hook-form @hookform/resolvers zod
 
 # UI (via shadcn init + add)
 # button input select dialog table card form tabs
-# dropdown-menu badge separator sheet sonner calendar popover
+# dropdown-menu badge separator sheet sonner calendar popover checkbox
 
 # Table
 @tanstack/react-table

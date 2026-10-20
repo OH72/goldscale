@@ -58,10 +58,11 @@ These rules apply to ALL code — backend and frontend.
 - Transfer = 3 writes (save transaction + $inc source + $inc target) — all or nothing.
 - Always validate that referenced documents exist before creating relationships (accountId, categoryId).
 - INITIAL_BALANCE: exactly one per account, created atomically with the account.
+- Merge operations must update ALL collections that reference the source entity (transactions, debt_records, etc.) before deleting the source.
 
 ### Common Pitfalls to Watch
 - Floating point for money — NEVER. Use long (subunits) everywhere.
-- Forgetting soft-delete filter — every transaction query must exclude deleted=true.
+- Forgetting soft-delete filter — every transaction/debt query must exclude deleted=true.
 - Forgetting to update BOTH accounts on transfer edit/delete.
 - Editing INITIAL_BALANCE — only amount can change, type and accountId are immutable.
 - Category existence — INCOME/EXPENSE transaction must reference an existing category.
@@ -77,6 +78,10 @@ These rules apply to ALL code — backend and frontend.
 - What: when a filter narrows which categories of data to include, use it to **gate** (skip entirely) — not to change the query predicate. E.g., `types=[INCOME, EXPENSE]` means "only process income and expense"; it does NOT mean query `.in(types)`.
 - Why: querying `.in(types)` in a method that expects a single type mixes all selected types together, producing wrong totals. This caused a real bug where selecting all three types inflated income/expense by counting transfers as both.
 - Example: wrong: `Criteria.where("type").in(types)`; right: `if (!types.contains(type)) return List.of(); Criteria.where("type").is(type)`.
+
+### Docker Rebuild After Backend Changes
+- What: after modifying any backend Java file, rebuild the Docker image with `docker compose up -d --build backend`.
+- Why: without `--build`, Docker reuses the cached image with old compiled code. New/changed endpoints will 404 or behave incorrectly.
 
 ### Testing Mindset
 - Test the happy path AND the edge cases.

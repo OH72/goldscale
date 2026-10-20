@@ -14,7 +14,7 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 - React 19, TypeScript, Vite
 - Tailwind CSS, Shadcn/ui
 - TanStack Query (React Query) — server state
-- Zustand — client-only UI state
+- Zustand — client-only UI state (sidebar, page-level filters)
 - React Router v7
 - React Hook Form + Zod — forms and validation
 - TanStack Table — data tables
@@ -28,9 +28,12 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 
 ### Collections
 - `accounts` — user bank accounts with denormalized balance
-- `categories` — universal categories (flat, no hierarchy)
+- `categories` — income/expense categories with type (INCOME, EXPENSE, BOTH)
 - `tags` — free-form labels; a transaction can have 0..N tags (`tags: List<String>` of tag IDs)
-- `transactions` — all financial operations
+- `transactions` — all financial operations (soft-deletable)
+- `people` — counterparties for debt/loan records
+- `debt_records` — debts (I owe) and loans (they owe me) with embedded payments
+- `event_log` — audit trail for all entity changes (create, update, delete)
 - `exchangeRates` — daily USD-based exchange rates for currency conversion
 - `settings` — app preferences (default currency, initial date)
 - NO `users` collection — single user, auth via config
@@ -62,25 +65,51 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 
 ### Soft Delete
 - Transactions have `deleted: boolean` field
+- Debt records have `deleted: boolean` field
 - All queries filter `{deleted: {$ne: true}}`
 - INITIAL_BALANCE cannot be deleted
 - Accounts: deleting account soft-deletes all related transactions
 
 ### Categories
-- Universal: any category can be used for both income and expense transactions
+- Type field: `INCOME`, `EXPENSE`, or `BOTH` (CategoryType enum)
 - Cannot delete if transactions reference it
 - Flat structure, no subcategories
 - Unique name constraint (no duplicates)
-
-### Timestamps
-- `LocalDate` for business date (user-selected)
-- `Instant` for system timestamps (createdAt, updatedAt)
+- Merge support: reassign all transactions and debt records from source to target, delete source
+- Merge type widening: if source and target types differ and target is not BOTH, target becomes BOTH
 
 ### Tags
 - Free-form labels stored in `tags` collection (id, name, createdAt)
 - Transaction field `tags: List<String>` holds tag IDs (can be empty/null)
+- Debt record field `tagIds: List<String>` holds tag IDs
 - One transaction can have multiple tags; in tag-grouped analytics, it contributes to **each** tag's total
 - MongoDB `.in(tagIds)` works on array fields for filtering
+- Rename: safe operation since tags stored by ID, not name
+- Merge support: replace source tag ID with target in transactions.tags and debt_records.tagIds arrays, handling deduplication
+
+### People
+- Counterparties for debt/loan tracking
+- Fields: id, name (unique indexed), createdAt, updatedAt
+- Can be deleted only if no open debt records reference them
+- Person summary includes totalDebt, totalLoan, net balance with display-currency conversion
+
+### Debt Records
+- Track debts (I owe someone) and loans (someone owes me)
+- Fields: id, personId, type (DEBT/LOAN), amount, coveredAmount, currency, categoryId, tagIds, description, date, status (OPEN/CLOSED), payments (embedded list), sourceTransactionId, deleted, createdAt, updatedAt
+- Payments are embedded documents: id, amount, date, description, transactionId, offsetGroupId, createdAt
+- Transactions can link to debt records via `debtLinks` field (List<DebtLink>: debtRecordId, paymentId, amount)
+- Reconciliation: offset debts between two people across currencies with historical exchange rates
+- Toggle status: manually open/close a debt record
+
+### Event Log (Audit Trail)
+- Records all entity changes: action (CREATE/UPDATE/DELETE), entityType, entityId, description, timestamp
+- Paginated with backend filtering by entityType and date range (startDate, endDate)
+- Endpoint: `GET /api/audit` (page, size, entityType, startDate, endDate)
+- Frontend renders in Settings page with fixed-height table, page selector, and date filters
+
+### Timestamps
+- `LocalDate` for business date (user-selected)
+- `Instant` for system timestamps (createdAt, updatedAt)
 
 ### Dashboard Analytics
 - All chart endpoints accept optional filters: `accountIds`, `categoryIds`, `tagIds`, `types`
@@ -90,6 +119,13 @@ Personal finance web application. Single user. Local-only (Docker Compose). No p
 - `ExpenseTrendResponse(period, groups: List<GroupExpenseResponse>)` — monthly breakdown
 - Transfers crossing account filter boundary count as income/expense in income-vs-expenses chart
 - Currency conversion uses historical rates for the transaction date within the selected range
+
+### Import
+- Bank statement import with preview → confirm flow
+- Supported banks: Monobank, Millennium, Kredobank (card + account), MoneyManager
+- Parser services detect bank format and extract transaction rows
+- Preview endpoint returns parsed rows; confirm endpoint creates transactions
+- Tags can be auto-created during import via `TagService.resolveTagNames()`
 
 ### Indexes (transactions)
 - `{accountId: 1, date: -1}` — primary query pattern
