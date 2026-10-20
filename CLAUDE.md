@@ -8,6 +8,10 @@ Read and follow all config files before writing any code:
 - `.claude/configs/frontend.md` — frontend-specific conventions and pitfalls
 - `.claude/configs/tech-lead.md` — review process, contract verification, config evolution
 
+## Changelog
+
+`.claude/CHANGELOG.md` tracks every feature, fix, and removal. Update it at the end of each session before the final commit — add entries for all work done in the session.
+
 ## Config Evolution
 
 Configs MUST stay in sync with the codebase. After each sprint or significant change:
