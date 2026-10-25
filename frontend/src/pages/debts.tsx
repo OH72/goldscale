@@ -747,6 +747,8 @@ export function DebtsPage() {
   }, [personId, type, status])
 
   const { data: records, isLoading } = useDebtRecords(serverFilters)
+  const { data: allRecordsData } = useDebtRecords()
+  const allRecords = allRecordsData ?? []
   const createMutation = useCreateDebtRecord()
   const updateMutation = useUpdateDebtRecord()
   const deleteMutation = useDeleteDebtRecord()
@@ -987,7 +989,7 @@ export function DebtsPage() {
             <RecordRow
               key={record.id}
               record={record}
-              allRecords={filteredRecords}
+              allRecords={allRecords}
               expanded={expandedIds.has(record.id)}
               onToggleExpand={() => toggleExpand(record.id)}
               onEdit={openEdit}
@@ -1406,7 +1408,7 @@ export function DebtsPage() {
       {/* Reconcile Dialog */}
       <ReconcileDialog
         source={reconcileRecord}
-        allRecords={records ?? []}
+        allRecords={allRecords}
         onClose={() => setReconcileRecord(null)}
       />
 
