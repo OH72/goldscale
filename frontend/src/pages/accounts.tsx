@@ -166,7 +166,7 @@ export function AccountsPage() {
 
   const createForm = useForm<CreateForm>({
     resolver: zodResolver(createSchema),
-    defaultValues: { name: '', currency: 'UAH', initialBalance: 0, color: null },
+    defaultValues: { name: '', currency: settings?.displayCurrency ?? 'UAH', initialBalance: 0, color: null },
   })
 
   const editForm = useForm<EditForm>({
@@ -184,7 +184,7 @@ export function AccountsPage() {
       {
         onSuccess: () => {
           setCreateOpen(false)
-          createForm.reset()
+          createForm.reset({ name: '', currency: settings?.displayCurrency ?? 'UAH', initialBalance: 0, color: null })
         },
       },
     )

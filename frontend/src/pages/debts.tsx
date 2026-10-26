@@ -17,9 +17,11 @@ import { useAccounts } from '@/api/use-accounts'
 import { usePeople } from '@/api/use-people'
 import { useCategories } from '@/api/use-categories'
 import { useTags } from '@/api/use-tags'
+import { useSettings } from '@/api/use-settings'
 import { CategorySelect } from '@/components/category-select'
 import { TagMultiSelect } from '@/components/tag-multi-select'
 import { useFilterStore } from '@/stores/filter-store'
+import { useDatePreferenceStore } from '@/stores/date-preference-store'
 import { PageHeader } from '@/components/layout/page-header'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
@@ -734,6 +736,10 @@ export function DebtsPage() {
   const { data: people } = usePeople()
   const { data: categories } = useCategories()
   const { data: tags } = useTags()
+  const { data: settings } = useSettings()
+  const defaultCurrency = settings?.displayCurrency ?? 'UAH'
+  const lastEnteredDate = useDatePreferenceStore((s) => s.lastEnteredDate)
+  const setLastEnteredDate = useDatePreferenceStore((s) => s.setLastEnteredDate)
   const { personId, type, status, search } = useFilterStore((s) => s.debts)
   const setDebts = useFilterStore((s) => s.setDebts)
   const resetDebts = useFilterStore((s) => s.resetDebts)
@@ -776,7 +782,7 @@ export function DebtsPage() {
       personId: '',
       type: 'DEBT',
       amount: 0,
-      currency: 'UAH',
+      currency: defaultCurrency,
       categoryId: '',
       tagIds: [],
       description: '',
@@ -830,8 +836,12 @@ export function DebtsPage() {
       },
       {
         onSuccess: () => {
+          setLastEnteredDate(data.date)
           setCreateOpen(false)
-          createForm.reset()
+          createForm.reset({
+            personId: '', type: 'DEBT', amount: 0, currency: defaultCurrency,
+            categoryId: '', tagIds: [], description: '', date: new Date().toISOString().slice(0, 10),
+          })
         },
       },
     )
@@ -886,8 +896,9 @@ export function DebtsPage() {
       },
       {
         onSuccess: () => {
+          setLastEnteredDate(data.date)
           setPaymentRecord(null)
-          paymentForm.reset()
+          paymentForm.reset({ amount: 0, date: new Date().toISOString().slice(0, 10), description: '' })
         },
       },
     )
@@ -1129,14 +1140,28 @@ export function DebtsPage() {
 
             <div className="space-y-2">
               <Label>Date</Label>
-              <Input
-                type="date"
-                {...createForm.register('date')}
-                aria-invalid={!!createForm.formState.errors.date}
-                className={cn(
-                  createForm.formState.errors.date && 'border-destructive',
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  {...createForm.register('date')}
+                  aria-invalid={!!createForm.formState.errors.date}
+                  className={cn(
+                    'flex-1',
+                    createForm.formState.errors.date && 'border-destructive',
+                  )}
+                />
+                {lastEnteredDate && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 text-xs"
+                    onClick={() => createForm.setValue('date', lastEnteredDate)}
+                  >
+                    Last: {formatDate(lastEnteredDate)}
+                  </Button>
                 )}
-              />
+              </div>
               {createForm.formState.errors.date && (
                 <p className="text-sm text-destructive">
                   {createForm.formState.errors.date.message}
@@ -1287,14 +1312,28 @@ export function DebtsPage() {
 
             <div className="space-y-2">
               <Label>Date</Label>
-              <Input
-                type="date"
-                {...editForm.register('date')}
-                aria-invalid={!!editForm.formState.errors.date}
-                className={cn(
-                  editForm.formState.errors.date && 'border-destructive',
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  {...editForm.register('date')}
+                  aria-invalid={!!editForm.formState.errors.date}
+                  className={cn(
+                    'flex-1',
+                    editForm.formState.errors.date && 'border-destructive',
+                  )}
+                />
+                {lastEnteredDate && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 text-xs"
+                    onClick={() => editForm.setValue('date', lastEnteredDate)}
+                  >
+                    Last: {formatDate(lastEnteredDate)}
+                  </Button>
                 )}
-              />
+              </div>
               {editForm.formState.errors.date && (
                 <p className="text-sm text-destructive">
                   {editForm.formState.errors.date.message}
@@ -1358,14 +1397,28 @@ export function DebtsPage() {
 
             <div className="space-y-2">
               <Label>Date</Label>
-              <Input
-                type="date"
-                {...paymentForm.register('date')}
-                aria-invalid={!!paymentForm.formState.errors.date}
-                className={cn(
-                  paymentForm.formState.errors.date && 'border-destructive',
+              <div className="flex items-center gap-2">
+                <Input
+                  type="date"
+                  {...paymentForm.register('date')}
+                  aria-invalid={!!paymentForm.formState.errors.date}
+                  className={cn(
+                    'flex-1',
+                    paymentForm.formState.errors.date && 'border-destructive',
+                  )}
+                />
+                {lastEnteredDate && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0 text-xs"
+                    onClick={() => paymentForm.setValue('date', lastEnteredDate)}
+                  >
+                    Last: {formatDate(lastEnteredDate)}
+                  </Button>
                 )}
-              />
+              </div>
               {paymentForm.formState.errors.date && (
                 <p className="text-sm text-destructive">
                   {paymentForm.formState.errors.date.message}

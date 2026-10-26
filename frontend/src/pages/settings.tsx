@@ -44,7 +44,6 @@ import type { CategoryResponse } from '@/types/category'
 import type { AccountResponse } from '@/types/account'
 import { useEventLog } from '@/api/use-event-log'
 import type { EventLogFilters } from '@/types/event-log'
-
 const CURRENCIES: Currency[] = ['UAH', 'USD', 'EUR', 'PLN', 'GBP', 'USDT']
 const NONE_VALUE = '__none__'
 const BANK_TYPES = Object.entries(BANK_TYPE_LABELS) as [BankType, string][]

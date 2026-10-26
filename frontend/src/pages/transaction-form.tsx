@@ -8,6 +8,7 @@ import { useAccounts } from '@/api/use-accounts'
 import { useCategories } from '@/api/use-categories'
 import { useTags } from '@/api/use-tags'
 import { useDebtRecords } from '@/api/use-debt-records'
+import { useDatePreferenceStore } from '@/stores/date-preference-store'
 import { usePeople } from '@/api/use-people'
 import {
   useTransactions,
@@ -42,7 +43,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { toSubunits, fromSubunits, formatCurrency } from '@/lib/currency'
-import { toISODate } from '@/lib/date'
+import { toISODate, formatDate } from '@/lib/date'
 import { cn } from '@/lib/utils'
 import type { TransactionResponse } from '@/types/transaction'
 import type { TransactionType } from '@/types/common'
@@ -88,6 +89,8 @@ export function TransactionFormDialog({
     editTransaction?.type ?? 'EXPENSE',
   )
 
+  const lastEnteredDate = useDatePreferenceStore((s) => s.lastEnteredDate)
+  const setLastEnteredDate = useDatePreferenceStore((s) => s.setLastEnteredDate)
   const { data: accounts } = useAccounts()
   const { data: categories } = useCategories()
   const { data: tags } = useTags()
@@ -220,6 +223,8 @@ export function TransactionFormDialog({
     }
 
     const tagIds = selectedTagIds.length > 0 ? selectedTagIds : null
+    const dateStr = toISODate(values.date)
+    const trackAndClose = () => { setLastEnteredDate(dateStr); onOpenChange(false) }
 
     if (isEdit) {
       updateMutation.mutate(
@@ -247,7 +252,7 @@ export function TransactionFormDialog({
               : null,
           },
         },
-        { onSuccess: () => onOpenChange(false) },
+        { onSuccess: trackAndClose },
       )
       return
     }
@@ -265,7 +270,7 @@ export function TransactionFormDialog({
           description: values.description ?? null,
           tagIds,
         },
-        { onSuccess: () => onOpenChange(false) },
+        { onSuccess: trackAndClose },
       )
     } else {
       const debtLinks =
@@ -300,7 +305,7 @@ export function TransactionFormDialog({
           debtLinks: debtLinks?.length ? debtLinks : undefined,
           newDebts: newDebts?.length ? newDebts : undefined,
         },
-        { onSuccess: () => onOpenChange(false) },
+        { onSuccess: trackAndClose },
       )
     }
   }
@@ -555,34 +560,47 @@ export function TransactionFormDialog({
             {/* Date */}
             <div className="space-y-2">
               <Label>Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        'flex-1 justify-start text-left font-normal',
+                        !form.watch('date') && 'text-muted-foreground',
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {form.watch('date')
+                        ? format(form.watch('date'), 'dd.MM.yyyy')
+                        : 'Pick a date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      captionLayout="dropdown"
+                      fixedWeeks
+                      defaultMonth={form.watch('date')}
+                      startMonth={new Date(2020, 0)}
+                      endMonth={new Date(2030, 11)}
+                      selected={form.watch('date')}
+                      onSelect={(d) => d && form.setValue('date', d)}
+                    />
+                  </PopoverContent>
+                </Popover>
+                {lastEnteredDate && (
                   <Button
+                    type="button"
                     variant="outline"
-                    className={cn(
-                      'w-full justify-start text-left font-normal',
-                      !form.watch('date') && 'text-muted-foreground',
-                    )}
+                    size="sm"
+                    className="shrink-0 text-xs"
+                    onClick={() => form.setValue('date', new Date(lastEnteredDate + 'T00:00:00'))}
                   >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {form.watch('date')
-                      ? format(form.watch('date'), 'dd.MM.yyyy')
-                      : 'Pick a date'}
+                    Last: {formatDate(lastEnteredDate)}
                   </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <Calendar
-                    mode="single"
-                    captionLayout="dropdown"
-                    fixedWeeks
-                    defaultMonth={form.watch('date')}
-                    startMonth={new Date(2020, 0)}
-                    endMonth={new Date(2030, 11)}
-                    selected={form.watch('date')}
-                    onSelect={(d) => d && form.setValue('date', d)}
-                  />
-                </PopoverContent>
-              </Popover>
+                )}
+              </div>
             </div>
 
             {/* Tags */}
